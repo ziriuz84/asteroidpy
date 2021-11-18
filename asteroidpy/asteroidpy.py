@@ -34,8 +34,8 @@ if __name__ == '__main__':
     main = urwid.Padding(
         menu(u'AsteroidPY versione 0.1', choices), left=2, right=2)
     top = urwid.Overlay(main, urwid.SolidFill(u'\N{MEDIUM SHADE}'),
-                        align='center', width=('relative', 60),
-                        valign='middle', height=('relative', 60),
+                        align='center', width=('relative', 80),
+                        valign='middle', height=('relative', 80),
                         min_width=20, min_height=9)
 
     loop = urwid.MainLoop(
