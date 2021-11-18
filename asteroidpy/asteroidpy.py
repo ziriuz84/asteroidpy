@@ -30,14 +30,14 @@ def item_chosen(button, choice):
     main.original_widget = urwid.Filler(urwid.Pile(
         [response, urwid.AttrMap(done, None, focus_map='reversed')]))
 
+if __name__ == '__main__':
+    main = urwid.Padding(
+        menu(u'AsteroidPY versione 0.1', choices), left=2, right=2)
+    top = urwid.Overlay(main, urwid.SolidFill(u'\N{MEDIUM SHADE}'),
+                        align='center', width=('relative', 60),
+                        valign='middle', height=('relative', 60),
+                        min_width=20, min_height=9)
 
-main = urwid.Padding(
-    menu(u'AsteroidPY versione 0.1', choices), left=2, right=2)
-top = urwid.Overlay(main, urwid.SolidFill(u'\N{MEDIUM SHADE}'),
-                    align='center', width=('relative', 60),
-                    valign='middle', height=('relative', 60),
-                    min_width=20, min_height=9)
-
-loop = urwid.MainLoop(
-    top, palette=[('reversed', 'standout', '')], unhandled_input=exit_on_q)
-loop.run()
+    loop = urwid.MainLoop(
+        top, palette=[('reversed', 'standout', '')], unhandled_input=exit_on_q)
+    loop.run()
