@@ -1,13 +1,18 @@
 import configparser
-import os
-import urwid
 
-config = configparser.ConfigParser
+config = configparser.ConfigParser()
 
 
-def configuration():
-    try:
-        config.read('config.ini')
-        config_interface()
-    except:
-        first_start()
+def save_config():
+    config.write('config.ini')
+
+
+def load_config():
+    config.read('config.ini')
+
+
+def change_obs_coords(lat, long):
+    load_config()
+    config['Observatory'] = {'latitude': lat,
+                             'longitude': long}
+    save_config()
