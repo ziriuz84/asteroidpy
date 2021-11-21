@@ -16,3 +16,9 @@ def change_obs_coords(lat, long):
     config['Observatory'] = {'latitude': lat,
                              'longitude': long}
     save_config()
+
+
+def change_obs_altitude(alt):
+    load_config()
+    config['Observatory']['altitude'] = alt
+    save_config()
