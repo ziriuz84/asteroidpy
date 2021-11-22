@@ -1,5 +1,16 @@
 from config import configuration
 
+def config_menu():
+    choice == 99
+    while (choice!=0):
+        print('Configurazione')
+        print('==============================')
+        print('\n')
+        print('Scegli un sottomenu')
+        print('1 - Osservatorio')
+        print('0 - Torna al menu principale')
+        choice = eval(input('scelta -> '))
+        print('\n\n\n\n\n')
 
 def main_menu():
     choice = 99
@@ -13,7 +24,7 @@ def main_menu():
         choice = eval(input('scelta -> '))
         print('\n\n\n\n\n')
         if choice == 1:
-            configuration()
+            config_menu()
 
 
 def interface():
