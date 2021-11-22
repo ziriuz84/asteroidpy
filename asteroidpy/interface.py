@@ -1,7 +1,7 @@
 from config import configuration
 
 def config_menu():
-    choice == 99
+    choice = 99
     while (choice!=0):
         print('Configurazione')
         print('==============================')
