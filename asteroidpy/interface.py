@@ -1,5 +1,3 @@
-from config import configuration
-
 def config_menu():
     choice = 99
     while (choice!=0):
