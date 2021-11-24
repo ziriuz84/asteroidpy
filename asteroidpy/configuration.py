@@ -38,3 +38,9 @@ def change_obs_altitude(alt):
     load_config()
     config['Observatory']['altitude'] = alt
     save_config()
+
+def print_obs_config():
+    load_config()
+    print('Latitudine: %2.7f' % config['Observatory']['latitude'])
+    print('Longitudine: %3.7f' % config['Observatory']['longitude'])
+    print('Altitudine: %2.1f' % config['Observatory']['altitude'])
