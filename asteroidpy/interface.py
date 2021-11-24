@@ -48,6 +48,8 @@ def config_menu():
         print('0 - Torna al menu principale')
         choice = eval(input('scelta -> '))
         print('\n\n\n\n\n')
+        if choice == 1:
+            observatory_config_menu()
 
 
 def main_menu():
