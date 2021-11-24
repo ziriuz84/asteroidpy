@@ -15,6 +15,7 @@
 # - Created by Sirio Negri on 11/23/2021
 # - modified by Sirio Negri on 11/23/2021
 import configparser
+from pathlib import Path
 
 config = configparser.ConfigParser()
 
@@ -22,9 +23,18 @@ config = configparser.ConfigParser()
 def save_config():
     config.write('config.ini')
 
+def initialize():
+    config['OBSERVATORY']['latitude'] = 0.0
+    config['OBSERVATORY']['longitude'] = 0.0
+    config['OBSERVATORY']['altitude'] = 0.0
+    save_config()
 
 def load_config():
-    config.read('config.ini')
+    try:
+        config.read('config.ini')
+    except:
+        Path('config.ini').touch()
+        initialize()
 
 
 def change_obs_coords(lat, long):
