@@ -14,6 +14,7 @@
 # @section author_interface Author(s)
 # - Created by Sirio Negri on 11/23/2021
 # - modified by Sirio Negri on 11/23/2021
+import os
 import configparser
 from pathlib import Path
 
@@ -21,20 +22,27 @@ config = configparser.ConfigParser()
 
 
 def save_config():
-    config.write('config.ini')
+    f = open('config.ini', 'w')
+    config.write(f)
+    f.close()
 
 def initialize():
-    config['OBSERVATORY']['latitude'] = 0.0
-    config['OBSERVATORY']['longitude'] = 0.0
-    config['OBSERVATORY']['altitude'] = 0.0
+    config['Observatory'] = {'latitude': 0.0,
+                             'longitude': 0.0,
+                             'altitude': 0.0}
     save_config()
 
 def load_config():
-    try:
-        config.read('config.ini')
-    except:
-        Path('config.ini').touch()
-        initialize()
+    dir_path = os.path.dirname(os.path.realpath(__file__))
+    for root, dirs, files in os.walk(dir_path):
+        for file in files:
+            if file.endswith('.ini'):
+                f=open(file, 'r')
+                config.read(f)
+                f.close() 
+                break
+            else:
+                initialize()
 
 
 def change_obs_coords(lat, long):
@@ -51,6 +59,6 @@ def change_obs_altitude(alt):
 
 def print_obs_config():
     load_config()
-    print('Latitudine: %2.7f' % config['Observatory']['latitude'])
-    print('Longitudine: %3.7f' % config['Observatory']['longitude'])
-    print('Altitudine: %2.1f' % config['Observatory']['altitude'])
+    print('Latitudine: %s' % config['Observatory']['latitude'])
+    print('Longitudine: %s' % config['Observatory']['longitude'])
+    print('Altitudine: %s' % config['Observatory']['altitude'])
