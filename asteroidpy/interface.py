@@ -15,13 +15,13 @@
 import configuration
 
 
-def observatory_config_menu():
+def observatory_config_menu(config):
     choice = 99
     while (choice != 0):
         print('Configurazione -> Osservatorio')
         print('==============================')
         print('\n')
-        configuration.print_obs_config()
+        configuration.print_obs_config(config)
         print('Scegli un\'opzione')
         print('1 - Cambia coordinate')
         print('2 - Cambia altitudine')
@@ -31,13 +31,13 @@ def observatory_config_menu():
         if choice == 1:
             latitude = eval(input('Latitudine -> '))
             longitude = eval(input('Longitudine -> '))
-            configuration.change_obs_coords(latitude, longitude)
+            configuration.change_obs_coords(config, latitude, longitude)
         if choice == 2:
             altitude = eval(input('Altitudine -> '))
-            configuration.change_obs_altitude(altitude)
+            configuration.change_obs_altitude(config, altitude)
 
 
-def config_menu():
+def config_menu(config):
     choice = 99
     while (choice != 0):
         print('Configurazione')
@@ -49,10 +49,10 @@ def config_menu():
         choice = eval(input('scelta -> '))
         print('\n\n\n\n\n')
         if choice == 1:
-            observatory_config_menu()
+            observatory_config_menu(config)
 
 
-def main_menu():
+def main_menu(config):
     choice = 99
     while (choice != 0):
         print('Benvenuto in AsteroidPY v. 0.1')
@@ -64,8 +64,8 @@ def main_menu():
         choice = eval(input('scelta -> '))
         print('\n\n\n\n\n')
         if choice == 1:
-            config_menu()
+            config_menu(config)
 
 
-def interface():
-    main_menu()
+def interface(config):
+    main_menu(config)

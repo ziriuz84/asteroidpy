@@ -23,7 +23,9 @@
 # - Created by Sirio Negri on 11/23/2021
 # - modified by Sirio Negri on 11/23/2021
 from interface import interface
+import configparser
 
+config = configparser.ConfigParser()
 
 if __name__ == "__main__":
-    interface()
+    interface(config)
