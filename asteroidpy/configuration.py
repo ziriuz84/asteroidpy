@@ -85,3 +85,6 @@ def print_obs_config(config):
     print('Latitudine: %s' % config['Observatory']['latitude'])
     print('Longitudine: %s' % config['Observatory']['longitude'])
     print('Altitudine: %s' % config['Observatory']['altitude'])
+    print('Osservatore: %s' % config['Observatory']['observer_name'])
+    print('Nome Osservatorio: %s' % config['Observatory']['obs_name'])
+    print('Codice MPC: %s' % config['Observatory']['mpc_code'])
