@@ -28,7 +28,10 @@ def save_config(config):
 def initialize(config):
     config['Observatory'] = {'latitude': 0.0,
                              'longitude': 0.0,
-                             'altitude': 0.0}
+                             'altitude': 0.0,
+                             'obs_name': '',
+                             'observer_name': '',
+                             'mpc_code': 'XXX'}
     print('inizializzato')
     save_config(config)
 
@@ -56,6 +59,24 @@ def change_obs_coords(config, lat, long):
 def change_obs_altitude(config, alt):
     load_config(config)
     config['Observatory']['altitude'] = str(alt)
+    save_config(config)
+
+
+def change_mpc_code(config, code):
+    load_config(config)
+    config['Observatory']['mpc_code'] = str(code)
+    save_config(config)
+
+
+def change_obs_name(config, name):
+    load_config(config)
+    config['Observatory']['obs_name'] = str(name)
+    save_config(config)
+
+
+def change_observer_name(config, name):
+    load_config(config)
+    config['Observatory']['observer_name'] = str(name)
     save_config(config)
 
 

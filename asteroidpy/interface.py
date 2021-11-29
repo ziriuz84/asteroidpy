@@ -25,6 +25,10 @@ def observatory_config_menu(config):
         print('Scegli un\'opzione')
         print('1 - Cambia coordinate')
         print('2 - Cambia altitudine')
+        print('3 - Cambia il nome dell\'osservatore')
+        print('4 - Cambia il nome dell\'osservatorio')
+        print('5 - Cambia il codice MPC')
+        print('0 - Torna la livello superiore')
         print('Torna al menu della configurazione')
         choice = eval(input('scelta -> '))
         print('\n\n\n\n\n')
@@ -35,6 +39,15 @@ def observatory_config_menu(config):
         if choice == 2:
             altitude = eval(input('Altitudine -> '))
             configuration.change_obs_altitude(config, altitude)
+        if choice == 3:
+            name = input('Nome osservatore -> ')
+            configuration.change_observer_name(config, name)
+        if choice == 4:
+            name = input('Nome osservatorio -> ')
+            configuration.change_obs_name(config, name)
+        if choice == 5:
+            code = input('Codice MPC -> ')
+            configuration.change_mpc_code(config, code)
 
 
 def config_menu(config):
