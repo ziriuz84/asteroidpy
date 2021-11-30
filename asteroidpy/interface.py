@@ -33,9 +33,10 @@ def observatory_config_menu(config):
         choice = eval(input('scelta -> '))
         print('\n\n\n\n\n')
         if choice == 1:
+            place = input('Località -> ')
             latitude = eval(input('Latitudine -> '))
             longitude = eval(input('Longitudine -> '))
-            configuration.change_obs_coords(config, latitude, longitude)
+            configuration.change_obs_coords(config, place, latitude, longitude)
         if choice == 2:
             altitude = eval(input('Altitudine -> '))
             configuration.change_obs_altitude(config, altitude)

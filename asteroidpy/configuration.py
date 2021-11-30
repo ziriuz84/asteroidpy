@@ -26,7 +26,8 @@ def save_config(config):
 
 
 def initialize(config):
-    config['Observatory'] = {'latitude': 0.0,
+    config['Observatory'] = {'place': '',
+                             'latitude': 0.0,
                              'longitude': 0.0,
                              'altitude': 0.0,
                              'obs_name': '',
@@ -39,9 +40,6 @@ def initialize(config):
 def load_config(config):
     dir_path = os.path.dirname(os.path.realpath(__file__))
     for root, dirs, files in os.walk(dir_path):
-        print(root)
-        print(dirs)
-        print(files)
         if 'config.ini' in files:
             config.read('config.ini')
             break
@@ -49,8 +47,9 @@ def load_config(config):
             initialize(config)
 
 
-def change_obs_coords(config, lat, long):
+def change_obs_coords(config, place, lat, long):
     load_config(config)
+    config['Observatory']['place'] = place
     config['Observatory']['latitude'] = str(lat)
     config['Observatory']['longitude'] = str(long)
     save_config(config)
@@ -82,6 +81,7 @@ def change_observer_name(config, name):
 
 def print_obs_config(config):
     load_config(config)
+    print('Località: %s' %config['Observatory']['place'])
     print('Latitudine: %s' % config['Observatory']['latitude'])
     print('Longitudine: %s' % config['Observatory']['longitude'])
     print('Altitudine: %s' % config['Observatory']['altitude'])
