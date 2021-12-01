@@ -14,6 +14,10 @@
 # - modified by Sirio Negri on 11/23/2021
 import configuration
 
+def WIP():
+    print('Work in Progress')
+    print('\n\n\n\n\n\n\n\n')
+
 
 def observatory_config_menu(config):
     choice = 99
