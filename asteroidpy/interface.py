@@ -69,6 +69,22 @@ def config_menu(config):
         if choice == 1:
             observatory_config_menu(config)
 
+def scheduling_menu(config):
+    choice = 99
+    while (choice != 0):
+        print('Programmazione osservazioni')
+        print('==============================')
+        print('\n')
+        print('Scegli un sottomenu')
+        print('1 - Previsioni meteo')
+        print('2 - Observing target List')
+        print('0 - Torna al menu principale')
+        choice = eval(input('scelta -> '))
+        print('\n\n\n\n\n')
+        if choice == 1:
+            WIP()
+        if choice == 2:
+            WIP()
 
 def main_menu(config):
     choice = 99
@@ -78,11 +94,14 @@ def main_menu(config):
         print('\n')
         print('Scegli un\'opzione')
         print('1 - Configurazione')
+        print('2 - Programmazione osservazioni')
         print('0 - Esci')
         choice = eval(input('scelta -> '))
         print('\n\n\n\n\n')
         if choice == 1:
             config_menu(config)
+        if choice == 2:
+            scheduling_menu(config)
 
 
 def interface(config):
