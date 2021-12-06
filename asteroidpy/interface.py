@@ -13,6 +13,7 @@
 # - Created by Sirio Negri on 11/23/2021
 # - modified by Sirio Negri on 11/23/2021
 import configuration
+import scheduling
 
 def WIP():
     print('Work in Progress')
@@ -82,7 +83,7 @@ def scheduling_menu(config):
         choice = eval(input('scelta -> '))
         print('\n\n\n\n\n')
         if choice == 1:
-            WIP()
+            scheduling.weather(config)
         if choice == 2:
             WIP()
 
