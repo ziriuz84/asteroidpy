@@ -1,6 +1,7 @@
 import requests
 import json
 import configuration
+import datetime
 
 cloudcover_dict = {'1':'0\%-6\%', '2':'6\%-19\%', '3':'19\%-31\%', '4':'31\%-44\%', '5':'44\%-56\%', '6':'56\%-69\%', '7':'69\%-81\%', '8':'81\%-94\%', '9':'94\%-100\%'}
 seeing_dict = {'1': '<0.5"', '2': '0.5"-0.75"', '3': '0.75"-1"', '4': '1"-1.25"', '5': '1.25"-1.5"', '6': '1.5"-2"', '7': '2"-2.5"', '8': '>2.5"'}
@@ -17,3 +18,5 @@ def weather(config):
     payload = {'lon': long, 'lat': lat, 'product': 'astro', 'output': 'json'}
     r = requests.get('http://www.7timer.info/bin/api.pl', params=payload)
     weather_forecast = r.json()
+    now = datetime.time()
+    print("{:<7} {:<9} {:<11} {:<9} {:<10} {:<9} {:<5} {:<7} {:<6}".format("DeltaT", "Nuvolo", "Seeing", "Trasp", "Instab", "Temp", "RH", "Vento", "Precip"))
