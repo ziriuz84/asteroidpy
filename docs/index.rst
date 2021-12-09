@@ -6,6 +6,11 @@
 Welcome to AsteroidPy's documentation!
 ======================================
 
+**AsteroidPy** is a Python program for asteroid research. It's useful to schedule, register and analyse observation of asteroids and comets.
+
+.. note::
+   This project is under active development, stay tuned for more features
+
 .. toctree::
    :maxdepth: 2
    :caption: Contents:

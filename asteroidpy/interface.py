@@ -1,17 +1,3 @@
-##
-# @file interface.py
-#
-# @brief The main interface module
-#
-# @section description_interface Description
-# Simply tha main interface file
-#
-# @section todo_interface TODO
-# - implement a more useful interface library, as Urwid
-#
-# @section author_interface Author(s)
-# - Created by Sirio Negri on 11/23/2021
-# - modified by Sirio Negri on 11/23/2021
 import configuration
 import scheduling
 
