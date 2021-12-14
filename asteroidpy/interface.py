@@ -7,6 +7,12 @@ def WIP():
 
 
 def observatory_config_menu(config):
+    """
+    Prints Observatory config menu
+
+    :param config: the Configparser object with configuration option
+    :type config: Configparser
+    """
     choice = 99
     while (choice != 0):
         print('Configurazione -> Osservatorio')
@@ -43,6 +49,12 @@ def observatory_config_menu(config):
 
 
 def config_menu(config):
+    """
+    Prints main config menu
+
+    :param config: the Configparser object with configuration option
+    :type config: Configparser
+    """
     choice = 99
     while (choice != 0):
         print('Configurazione')
@@ -57,6 +69,12 @@ def config_menu(config):
             observatory_config_menu(config)
 
 def scheduling_menu(config):
+    """
+    Prints scheduling menu
+
+    :param config: the Configparser object with configuration option
+    :type config: Configparser
+    """
     choice = 99
     while (choice != 0):
         print('Programmazione osservazioni')
@@ -74,6 +92,12 @@ def scheduling_menu(config):
             WIP()
 
 def main_menu(config):
+    """
+    Prints Main menu
+
+    :param config: the Configparser object with configuration option
+    :type config: Configparser
+    """
     choice = 99
     while (choice != 0):
         print('Benvenuto in AsteroidPY v. 0.1')
@@ -92,4 +116,10 @@ def main_menu(config):
 
 
 def interface(config):
+    """
+    Main interface function
+
+    :param config: the Configparser object with configuration option
+    :type config: Configparser
+    """
     main_menu(config)
