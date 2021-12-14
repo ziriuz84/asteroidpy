@@ -1,19 +1,3 @@
-##
-# @file configuration.py
-#
-# @brief The main configuration module
-#
-# @section description_configuration Description
-# Simply tha main configuration management module
-#
-# @section libraries_configuration Libraries/Modules
-# - ConfigParser
-#
-# @section todo_interface TODO
-#
-# @section author_interface Author(s)
-# - Created by Sirio Negri on 11/23/2021
-# - modified by Sirio Negri on 11/23/2021
 import os
 import configparser
 from pathlib import Path
