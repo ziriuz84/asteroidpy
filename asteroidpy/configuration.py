@@ -81,7 +81,7 @@ def change_observer_name(config, name):
 
 def print_obs_config(config):
     load_config(config)
-    print('Località: %s' %config['Observatory']['place'])
+    print('Località: %s' % config['Observatory']['place'])
     print('Latitudine: %s' % config['Observatory']['latitude'])
     print('Longitudine: %s' % config['Observatory']['longitude'])
     print('Altitudine: %s' % config['Observatory']['altitude'])
