@@ -19,6 +19,12 @@ wind10m_speed_dict = {1: 'Below 0.3 m/s', 2: '0.3-3.4m/s', 3: '3.4-8.0m/s', 4: '
 
 
 def weather(config):
+    """
+    Prints Weather forecast up to 72 hours
+
+    :param config: the Configparser object with configuration option
+    :type config: Configparser
+    """
     configuration.load_config(config)
     lat = config['Observatory']['latitude']
     long = config['Observatory']['longitude']
