@@ -3,6 +3,7 @@ import json
 import configuration
 import datetime
 from tabulate import tabulate
+from bs4 import BeautifoulSoup
 
 cloudcover_dict = {1: '0%-6%', 2: '6%-19%', 3: '19%-31%', 4: '31%-44%',
                    5: '44%-56%', 6: '56%-69%', 7: '69%-81%', 8: '81%-94%', 9: '94%-100%'}
@@ -31,9 +32,8 @@ def weather(config):
     payload = {'lon': long, 'lat': lat, 'product': 'astro', 'output': 'json'}
     r = requests.get('http://www.7timer.info/bin/api.pl', params=payload)
     weather_forecast = r.json()
-    now = datetime.time()
     # print('{:<7} {:<9} {:<11} {:<9} {:<10} {:<9} {:<5} {:<7} {:<6}'.format(
-        # 'DeltaT', 'Nuvolo', 'Seeing', 'Trasp', 'Instab', 'Temp', 'RH', 'Vento', 'Precip'))
+    # 'DeltaT', 'Nuvolo', 'Seeing', 'Trasp', 'Instab', 'Temp', 'RH', 'Vento', 'Precip'))
     data = []
     deltaT = []
     cloudcover = []
@@ -53,8 +53,33 @@ def weather(config):
         temperature.append(str(time['temp2m'])+' C')
         rh.append(rh2m_dict[time['rh2m']])
         wind10m.append(time['wind10m']['direction'] +
-                             ' ' + wind10m_speed_dict[time['wind10m']['speed']])
+                       ' ' + wind10m_speed_dict[time['wind10m']['speed']])
         prec_type.append(time['prec_type'])
-    data = {'DeltaT': deltaT, 'Nuvolo': cloudcover, 'Seeing': seeing, 'Trasp': transparency, 'Instab': lifted_index, 'Temp': temperature, 'RH': rh, 'Vento': wind10m, 'Precip': prec_type}
+    data = {'DeltaT': deltaT, 'Nuvolo': cloudcover, 'Seeing': seeing, 'Trasp': transparency,
+            'Instab': lifted_index, 'Temp': temperature, 'RH': rh, 'Vento': wind10m, 'Precip': prec_type}
     print(tabulate(data, headers='keys', tablefmt='fancy_grid'))
-    exit=input('Premi invio per continuare...')
+    exit = input('Premi invio per continuare...')
+
+
+def observing_target_list(config):
+    """
+    Prints Observing target list from MPC
+
+    :param config: the Configparser object with configuration option
+    :type config: Configparser
+    """
+    configuration.load_config(config)
+    lat = config['Observatory']['latitude']
+    long = config['Observatory']['longitude']
+    select_time = input('Vuoi sapere gli asteroidi visibili in questo momento? ')
+    if (select_time=='s' or select_time == 'y'):
+        time=datetime.datetime.now(timezone.utc)
+    else: 
+        print('Forniscimi i parametri temporali di inizio osservazione (UTC)')
+        day=input('Giorno -> ')
+        month = input('Mese -> ')
+        year=input('Anno -> ')
+        hour=input('Ora -> ')
+        minutes=input('Minuti -> ')
+        seconds=input('Secondi -> ')
+        time= datetime.datetime(year, month, day, hour, minutes, seconds)
