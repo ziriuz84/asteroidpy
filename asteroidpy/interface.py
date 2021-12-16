@@ -89,7 +89,7 @@ def scheduling_menu(config):
         if choice == 1:
             scheduling.weather(config)
         if choice == 2:
-            WIP()
+            scheduling.observing_target_list(config)
 
 def main_menu(config):
     """

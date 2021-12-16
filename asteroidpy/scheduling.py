@@ -3,7 +3,7 @@ import json
 import configuration
 import datetime
 from tabulate import tabulate
-from bs4 import BeautifoulSoup
+from bs4 import BeautifulSoup
 
 cloudcover_dict = {1: '0%-6%', 2: '6%-19%', 3: '19%-31%', 4: '31%-44%',
                    5: '44%-56%', 6: '56%-69%', 7: '69%-81%', 8: '81%-94%', 9: '94%-100%'}
@@ -68,18 +68,46 @@ def observing_target_list(config):
     :param config: the Configparser object with configuration option
     :type config: Configparser
     """
+    authenticity_token = "W5eBzzw9Clj4tJVzkz0z%2F2EK18jvSS%2BffHxZpAshylg%3D"
     configuration.load_config(config)
     lat = config['Observatory']['latitude']
     long = config['Observatory']['longitude']
-    select_time = input('Vuoi sapere gli asteroidi visibili in questo momento? ')
-    if (select_time=='s' or select_time == 'y'):
-        time=datetime.datetime.now(timezone.utc)
-    else: 
+    select_time = input(
+        'Vuoi sapere gli asteroidi visibili in questo momento? ')
+    if (select_time == 's' or select_time == 'y'):
+        time = datetime.datetime.utcnow()
+    else:
         print('Forniscimi i parametri temporali di inizio osservazione (UTC)')
-        day=input('Giorno -> ')
+        day = input('Giorno -> ')
         month = input('Mese -> ')
-        year=input('Anno -> ')
-        hour=input('Ora -> ')
-        minutes=input('Minuti -> ')
-        seconds=input('Secondi -> ')
-        time= datetime.datetime(year, month, day, hour, minutes, seconds)
+        year = input('Anno -> ')
+        hour = input('Ora -> ')
+        minutes = input('Minuti -> ')
+        seconds = input('Secondi -> ')
+        time = datetime.datetime(year, month, day, hour, minutes, seconds)
+    duration = input("Durata dell'osservazione -> ")
+    sun_elongation = input("Minima elongazione solare -> ")
+    moon_elongation = input("Minima elongazione lunare -> ")
+    minimal_height = input("Altezza minima -> ")
+    max_number = input("Numero massimo di oggetti -> ")
+    object_type = "mp"
+    payload = {
+        'utf8' : '%E2%9C%93',
+        'authenticity_token' : authenticity_token,
+        'latitude' : lat,
+        'longitude' : long,
+        'year' : time.year,
+        'month' : time.month,
+        'day' : time.day,
+        'hour' : time.hour,
+        'minute' : time.minute,
+        'duration' : duration,
+        'max_objects' : max_number,
+        'min_alt' : minimal_height,
+        'solar_elong' : sun_elongation,
+        'lunar_elong' : moon_elongation,
+        'object_type' : object_type,
+        'submit' : 'Submit'
+    }
+    r=requests.post('https://www.minorplanetcenter.net/whatsup/index', params=payload)
+    print(r.text)
