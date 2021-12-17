@@ -90,24 +90,32 @@ def observing_target_list(config):
     moon_elongation = input("Minima elongazione lunare -> ")
     minimal_height = input("Altezza minima -> ")
     max_number = input("Numero massimo di oggetti -> ")
-    object_type = "mp"
+    object_request = input(
+        'Seleziona il tipo di oggetto\n1 - Asteroide\n2 - NEA\n3 - Cometa\nScelta -> ')
+    if (object_request == '2'):
+        object_type = 'neo'
+    elif (object_request == '3'):
+        object_type = 'cmt'
+    else:
+        object_type = 'mp'
     payload = {
-        'utf8' : '%E2%9C%93',
-        'authenticity_token' : authenticity_token,
-        'latitude' : lat,
-        'longitude' : long,
-        'year' : time.year,
-        'month' : time.month,
-        'day' : time.day,
-        'hour' : time.hour,
-        'minute' : time.minute,
-        'duration' : duration,
-        'max_objects' : max_number,
-        'min_alt' : minimal_height,
-        'solar_elong' : sun_elongation,
-        'lunar_elong' : moon_elongation,
-        'object_type' : object_type,
-        'submit' : 'Submit'
+        'utf8': '%E2%9C%93',
+        'authenticity_token': authenticity_token,
+        'latitude': lat,
+        'longitude': long,
+        'year': time.year,
+        'month': time.month,
+        'day': time.day,
+        'hour': time.hour,
+        'minute': time.minute,
+        'duration': duration,
+        'max_objects': max_number,
+        'min_alt': minimal_height,
+        'solar_elong': sun_elongation,
+        'lunar_elong': moon_elongation,
+        'object_type': object_type,
+        'submit': 'Submit'
     }
-    r=requests.post('https://www.minorplanetcenter.net/whatsup/index', params=payload)
+    r = requests.post(
+        'https://www.minorplanetcenter.net/whatsup/index', params=payload)
     print(r.text)
