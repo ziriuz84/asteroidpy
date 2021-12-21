@@ -86,10 +86,10 @@ def observing_target_list(config):
         seconds = input('Secondi -> ')
         time = datetime.datetime(year, month, day, hour, minutes, seconds)
     duration = input("Durata dell'osservazione -> ")
-    sun_elongation = input("Minima elongazione solare -> ")
-    moon_elongation = input("Minima elongazione lunare -> ")
+    solar_elongation = input("Minima elongazione solare -> ")
+    lunar_elongation = input("Minima elongazione lunare -> ")
     minimal_height = input("Altezza minima -> ")
-    max_number = input("Numero massimo di oggetti -> ")
+    max_objects = input("Numero massimo di oggetti -> ")
     object_request = input(
         'Seleziona il tipo di oggetto\n1 - Asteroide\n2 - NEA\n3 - Cometa\nScelta -> ')
     if (object_request == '2'):
@@ -109,10 +109,10 @@ def observing_target_list(config):
         'hour': time.hour,
         'minute': time.minute,
         'duration': duration,
-        'max_objects': max_number,
+        'max_objects': max_objects,
         'min_alt': minimal_height,
-        'solar_elong': sun_elongation,
-        'lunar_elong': moon_elongation,
+        'solar_elong': solar_elongation,
+        'lunar_elong': lunar_elongation,
         'object_type': object_type,
         'submit': 'Submit'
     }
@@ -120,9 +120,19 @@ def observing_target_list(config):
         'https://www.minorplanetcenter.net/whatsup/index', params=payload)
     soup = BeautifulSoup(r.content, 'lxml')
     tables = soup.find_all('table')
-    i=0
-    for table in tables:
-        print('tabella'+str(i)+': ')
-        print(table)
-        i+=1
-
+    table = tables[3]
+    headerstag = table.find_all('th')
+    headers = []
+    for header in headerstag:
+        headers.append(header.string.strip())
+    rowstag = table.find_all('tr')
+    datatag = []
+    for row in rowstag:
+        datatag.append(row.find_all('td'))
+    data = []
+    for d in datatag:
+        temp = []
+        for i in d:
+            temp.append(i.string.strip())
+        data.append(temp)
+    print(data)
