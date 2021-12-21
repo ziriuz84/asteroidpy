@@ -118,4 +118,11 @@ def observing_target_list(config):
     }
     r = requests.post(
         'https://www.minorplanetcenter.net/whatsup/index', params=payload)
-    print(r.text)
+    soup = BeautifulSoup(r.content, 'lxml')
+    tables = soup.find_all('table')
+    i=0
+    for table in tables:
+        print('tabella'+str(i)+': ')
+        print(table)
+        i+=1
+
