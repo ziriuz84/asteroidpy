@@ -135,4 +135,7 @@ def observing_target_list(config):
         for i in d:
             temp.append(i.string.strip())
         data.append(temp)
-    print(data)
+    for d in data:
+        for i in range(len(headers)):
+            print('%s: %s ' % (headers[i], d[i]))
+        print('\n')
