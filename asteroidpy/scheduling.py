@@ -1,5 +1,4 @@
 import requests
-import json
 import configuration
 import datetime
 from tabulate import tabulate
@@ -59,6 +58,7 @@ def weather(config):
             'Instab': lifted_index, 'Temp': temperature, 'RH': rh, 'Vento': wind10m, 'Precip': prec_type}
     print(tabulate(data, headers='keys', tablefmt='fancy_grid'))
     exit = input('Premi invio per continuare...')
+    print(exit)
 
 
 def observing_target_list(config):

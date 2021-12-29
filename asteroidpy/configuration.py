@@ -1,6 +1,4 @@
 import os
-import configparser
-from pathlib import Path
 
 
 def save_config(config):
