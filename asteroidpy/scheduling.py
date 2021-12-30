@@ -1,8 +1,11 @@
 import requests
+import gettext
 import configuration
 import datetime
 from tabulate import tabulate
 from bs4 import BeautifulSoup
+
+_ = gettext.gettext
 
 cloudcover_dict = {1: '0%-6%', 2: '6%-19%', 3: '19%-31%', 4: '31%-44%',
                    5: '44%-56%', 6: '56%-69%', 7: '69%-81%', 8: '81%-94%', 9: '94%-100%'}
@@ -57,7 +60,7 @@ def weather(config):
     data = {'DeltaT': deltaT, 'Nuvolo': cloudcover, 'Seeing': seeing, 'Trasp': transparency,
             'Instab': lifted_index, 'Temp': temperature, 'RH': rh, 'Vento': wind10m, 'Precip': prec_type}
     print(tabulate(data, headers='keys', tablefmt='fancy_grid'))
-    exit = input(_('Premi invio per continuare...'))
+    exit = input(_('Press enter to continue...'))
     print(exit)
 
 
@@ -73,25 +76,25 @@ def observing_target_list(config):
     lat = config['Observatory']['latitude']
     long = config['Observatory']['longitude']
     select_time = input(_(
-        'Vuoi sapere gli asteroidi visibili in questo momento? '))
+        'Do you want to know the asteroids visible right now? '))
     if (select_time == 's' or select_time == 'y'):
         time = datetime.datetime.utcnow()
     else:
-        print('Forniscimi i parametri temporali di inizio osservazione (UTC)')
-        day = input(_('Giorno -> '))
-        month = input(_('Mese -> '))
-        year = input(_('Anno -> '))
-        hour = input(_('Ora -> '))
-        minutes = input(_('Minuti -> '))
-        seconds = input(_('Secondi -> '))
+        print('Provide me with the observation start time parameters (UTC)')
+        day = input(_('Day -> '))
+        month = input(_('Month -> '))
+        year = input(_('Year -> '))
+        hour = input(_('Hour -> '))
+        minutes = input(_('Minutes -> '))
+        seconds = input(_('Seconds -> '))
         time = datetime.datetime(year, month, day, hour, minutes, seconds)
-    duration = input(_("Durata dell'osservazione -> "))
-    solar_elongation = input(_("Minima elongazione solare -> "))
-    lunar_elongation = input(_("Minima elongazione lunare -> "))
-    minimal_height = input(_("Altezza minima -> "))
-    max_objects = input(_("Numero massimo di oggetti -> "))
+    duration = input(_("Duration of observation -> "))
+    solar_elongation = input(_("Minimal solar elongation -> "))
+    lunar_elongation = input(_("Minimal lunar elongation -> "))
+    minimal_height = input(_("Minimal altitude-> "))
+    max_objects = input(_("Maximum number of objects -> "))
     object_request = input(_(
-        'Seleziona il tipo di oggetto\n1 - Asteroide\n2 - NEA\n3 - Cometa\nScelta -> '))
+        'Select type of object\n1 - Asteroids\n2 - NEAs\n3 - Comets\nChoice -> '))
     if (object_request == '2'):
         object_type = 'neo'
     elif (object_request == '3'):

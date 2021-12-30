@@ -18,36 +18,35 @@ def observatory_config_menu(config):
     """
     choice = 99
     while (choice != 0):
-        print(_('Configurazione -> Osservatorio'))
-        print(_('=============================='))
+        print(_('Configuration -> Observatory'))
+        print('==============================')
         print('\n')
         configuration.print_obs_config(config)
-        print(_('Scegli un\'opzione'))
-        print(_('1 - Cambia coordinate'))
-        print(_('2 - Cambia altitudine'))
-        print(_('3 - Cambia il nome dell\'osservatore'))
-        print(_('4 - Cambia il nome dell\'osservatorio'))
-        print(_('5 - Cambia il codice MPC'))
-        print(_('0 - Torna la livello superiore'))
-        print(_('Torna al menu della configurazione'))
-        choice = eval(input(_('scelta -> ')))
+        print(_('Choose an option'))
+        print(_('1 - Change coordinates'))
+        print(_('2 - Change altitude'))
+        print(_('3 - Change the name of the observer'))
+        print(_('4 - Change the name of the observatory'))
+        print(_('5 - Change the MPC code'))
+        print(_('0 - Back to configuration menu'))
+        choice = eval(input(_('choice -> ')))
         print('\n\n\n\n\n')
         if choice == 1:
-            place = input(_('Località -> '))
-            latitude = eval(input(_('Latitudine -> ')))
-            longitude = eval(input(_('Longitudine -> ')))
+            place = input(_('Locality -> '))
+            latitude = eval(input(_('Latitude -> ')))
+            longitude = eval(input(_('Longitude -> ')))
             configuration.change_obs_coords(config, place, latitude, longitude)
         if choice == 2:
-            altitude = eval(input(_('Altitudine -> ')))
+            altitude = eval(input(_('Altitude -> ')))
             configuration.change_obs_altitude(config, altitude)
         if choice == 3:
-            name = input(_('Nome osservatore -> '))
+            name = input(_('Observer name -> '))
             configuration.change_observer_name(config, name)
         if choice == 4:
-            name = input(_('Nome osservatorio -> '))
+            name = input(_('Observatory name -> '))
             configuration.change_obs_name(config, name)
         if choice == 5:
-            code = input(_('Codice MPC -> '))
+            code = input(_('MPC Code -> '))
             configuration.change_mpc_code(config, code)
 
 
@@ -60,13 +59,13 @@ def config_menu(config):
     """
     choice = 99
     while (choice != 0):
-        print(_('Configurazione'))
+        print(_('Configuration'))
         print('==============================')
         print('\n')
-        print(_('Scegli un sottomenu'))
-        print(_('1 - Osservatorio'))
-        print(_('0 - Torna al menu principale'))
-        choice = eval(input(_('scelta -> ')))
+        print(_('Choose a submenu'))
+        print(_('1 - Observatory'))
+        print(_('0 - Back to main menu'))
+        choice = eval(input(_('choice -> ')))
         print('\n\n\n\n\n')
         if choice == 1:
             observatory_config_menu(config)
@@ -80,14 +79,14 @@ def scheduling_menu(config):
     """
     choice = 99
     while (choice != 0):
-        print(_('Programmazione osservazioni'))
+        print(_('Observation scheduling'))
         print('==============================')
         print('\n')
-        print(_('Scegli un sottomenu'))
-        print(_('1 - Previsioni meteo'))
+        print(_('Choose a submenu'))
+        print(_('1 - Weather forecast'))
         print(_('2 - Observing target List'))
-        print(_('0 - Torna al menu principale'))
-        choice = eval(input(_('scelta -> ')))
+        print(_('0 - Back to main menu'))
+        choice = eval(input(_('choice -> ')))
         print('\n\n\n\n\n')
         if choice == 1:
             scheduling.weather(config)
@@ -103,14 +102,14 @@ def main_menu(config):
     """
     choice = 99
     while (choice != 0):
-        print(_('Benvenuto in AsteroidPY v. 0.1'))
+        print(_('Welcome to AsteroidPY v. 0.1'))
         print('==============================')
         print('\n')
-        print(_('Scegli un\'opzione'))
-        print(_('1 - Configurazione'))
-        print(_('2 - Programmazione osservazioni'))
-        print(_('0 - Esci'))
-        choice = eval(input(_('scelta -> ')))
+        print(_('Choose a submenu'))
+        print(_('1 - Configuration'))
+        print(_('2 - Observation scheduling'))
+        print(_('0 - Exit'))
+        choice = eval(input(_('choice -> ')))
         print('\n\n\n\n\n')
         if choice == 1:
             config_menu(config)
