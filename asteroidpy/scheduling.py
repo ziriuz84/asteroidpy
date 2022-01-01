@@ -138,7 +138,15 @@ def observing_target_list(config):
         for i in d:
             temp.append(i.string.strip())
         data.append(temp)
+    result = []
     for d in data:
+        temp = {}
         for i in range(len(headers)):
+            if 'Time' in headers[i]:
+                temp[headers[i]] = datetime.datetime.fromisoformat(d[i].replace('Z', ''))
+            else:
+                temp[headers[i]] = d[i]
             print('%s: %s ' % (headers[i], d[i]))
         print('\n')
+        result.append(temp)
+    print(result)
