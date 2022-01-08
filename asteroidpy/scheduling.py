@@ -61,7 +61,7 @@ def weather(config):
         wind10m.append(time['wind10m']['direction'] +
                        ' ' + wind10m_speed_dict[time['wind10m']['speed']])
         prec_type.append(time['prec_type'])
-    data = {'DeltaT': deltaT, 'Nuvolo': cloudcover, 'Seeing': seeing, 'Trasp': transparency,
+    data = {'Time': deltaT, 'Nuvolo': cloudcover, 'Seeing': seeing, 'Trasp': transparency,
             'Instab': lifted_index, 'Temp': temperature, 'RH': rh, 'Vento': wind10m, 'Precip': prec_type}
     print(tabulate(data, headers='keys', tablefmt='fancy_grid'))
     exit = input(_('Press enter to continue...'))
