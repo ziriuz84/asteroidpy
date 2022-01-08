@@ -1,5 +1,4 @@
-
-# AsteroidPY
+# AsteroidPy
 
 A simple tool to manage Asteroid observations and misurements
 
