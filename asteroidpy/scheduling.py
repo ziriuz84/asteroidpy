@@ -37,6 +37,9 @@ def weather(config):
     # print('{:<7} {:<9} {:<11} {:<9} {:<10} {:<9} {:<5} {:<7} {:<6}'.format(
     # 'DeltaT', 'Nuvolo', 'Seeing', 'Trasp', 'Instab', 'Temp', 'RH', 'Vento', 'Precip'))
     data = []
+    time_init = weather_forecast['init']
+    time_start = datetime.datetime(int(time_init[0:4]),  int(
+        time_init[4:6]), int(time_init[6:8]), int(time_init[8:10]))
     deltaT = []
     cloudcover = []
     seeing = []
@@ -47,7 +50,8 @@ def weather(config):
     wind10m = []
     prec_type = []
     for time in weather_forecast['dataseries']:
-        deltaT.append(time['timepoint'])
+        temp=time_start+datetime.timedelta(hours=time['timepoint'])
+        deltaT.append(temp.strftime("%d/%m %H:%M"))
         cloudcover.append(cloudcover_dict[time['cloudcover']])
         seeing.append(seeing_dict[time['seeing']])
         transparency.append(transparency_dict[time['transparency']])
@@ -138,7 +142,16 @@ def observing_target_list(config):
         for i in d:
             temp.append(i.string.strip())
         data.append(temp)
+    result = []
     for d in data:
+        temp = {}
         for i in range(len(headers)):
+            if 'Time' in headers[i]:
+                temp[headers[i]] = datetime.datetime.fromisoformat(
+                    d[i].replace('Z', ''))
+            else:
+                temp[headers[i]] = d[i]
             print('%s: %s ' % (headers[i], d[i]))
         print('\n')
+        result.append(temp)
+    print(result)
