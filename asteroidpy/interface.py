@@ -4,6 +4,7 @@ import scheduling
 
 _ = gettext.gettext
 
+
 def WIP():
     print(_('Work in Progress'))
     print('\n\n\n\n\n\n\n\n')
@@ -50,6 +51,33 @@ def observatory_config_menu(config):
             configuration.change_mpc_code(config, code)
 
 
+def general_config_menu(config):
+    """
+    Prints menu for general configuration options
+
+    :param config: the Configparser object with configuration option
+    :type config: Configparser
+    """
+    choice = 99
+    while (choice != 0):
+        print(_('Configuration -> General'))
+        print('==============================')
+        print('\n')
+        print(_('Choose a submenu'))
+        print(_('1 - Language'))
+        print(_('0 - Back to configuration menu'))
+        choice = eval(input(_('choice -> ')))
+        print('\n\n\n\n\n')
+        if choice == 1:
+            lang = ''
+            print(_('Select a language'))
+            print('1 - English')
+            lang_chosen = input(_('Language -> '))
+            if lang_chosen == 1:
+                lang = 'en'
+            configuration.change_language(config, lang)
+
+
 def config_menu(config):
     """
     Prints main config menu
@@ -63,12 +91,16 @@ def config_menu(config):
         print('==============================')
         print('\n')
         print(_('Choose a submenu'))
-        print(_('1 - Observatory'))
+        print(_('1 - General'))
+        print(_('2 - Observatory'))
         print(_('0 - Back to main menu'))
         choice = eval(input(_('choice -> ')))
         print('\n\n\n\n\n')
         if choice == 1:
+            general_config_menu(config)
+        if choice == 2:
             observatory_config_menu(config)
+
 
 def scheduling_menu(config):
     """
@@ -92,6 +124,7 @@ def scheduling_menu(config):
             scheduling.weather(config)
         if choice == 2:
             scheduling.observing_target_list(config)
+
 
 def main_menu(config):
     """
