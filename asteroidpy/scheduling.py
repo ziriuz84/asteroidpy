@@ -68,61 +68,15 @@ def weather(config):
     print(exit)
 
 
-def observing_target_list(config):
+def observing_target_list(config, payload):
     """
     Prints Observing target list from MPC
 
     :param config: the Configparser object with configuration option
     :type config: Configparser
+    :param payload: the payload of parameters
+    :type payload: dictionary of strings
     """
-    authenticity_token = "W5eBzzw9Clj4tJVzkz0z%2F2EK18jvSS%2BffHxZpAshylg%3D"
-    configuration.load_config(config)
-    lat = config['Observatory']['latitude']
-    long = config['Observatory']['longitude']
-    select_time = input(_(
-        'Do you want to know the asteroids visible right now? '))
-    if (select_time == 's' or select_time == 'y'):
-        time = datetime.datetime.utcnow()
-    else:
-        print('Provide me with the observation start time parameters (UTC)')
-        day = input(_('Day -> '))
-        month = input(_('Month -> '))
-        year = input(_('Year -> '))
-        hour = input(_('Hour -> '))
-        minutes = input(_('Minutes -> '))
-        seconds = input(_('Seconds -> '))
-        time = datetime.datetime(year, month, day, hour, minutes, seconds)
-    duration = input(_("Duration of observation -> "))
-    solar_elongation = input(_("Minimal solar elongation -> "))
-    lunar_elongation = input(_("Minimal lunar elongation -> "))
-    minimal_height = input(_("Minimal altitude-> "))
-    max_objects = input(_("Maximum number of objects -> "))
-    object_request = input(_(
-        'Select type of object\n1 - Asteroids\n2 - NEAs\n3 - Comets\nChoice -> '))
-    if (object_request == '2'):
-        object_type = 'neo'
-    elif (object_request == '3'):
-        object_type = 'cmt'
-    else:
-        object_type = 'mp'
-    payload = {
-        'utf8': '%E2%9C%93',
-        'authenticity_token': authenticity_token,
-        'latitude': lat,
-        'longitude': long,
-        'year': time.year,
-        'month': time.month,
-        'day': time.day,
-        'hour': time.hour,
-        'minute': time.minute,
-        'duration': duration,
-        'max_objects': max_objects,
-        'min_alt': minimal_height,
-        'solar_elong': solar_elongation,
-        'lunar_elong': lunar_elongation,
-        'object_type': object_type,
-        'submit': 'Submit'
-    }
     r = requests.post(
         'https://www.minorplanetcenter.net/whatsup/index', params=payload)
     soup = BeautifulSoup(r.content, 'lxml')
