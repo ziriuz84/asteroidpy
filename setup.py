@@ -1,0 +1,20 @@
+from setuptools import setup, find_packages
+
+setup(
+    name='AsteroidPy',
+    version='0.1',
+    description='A tool for asteroid observation scheduling and analysis',
+    url='https://github.com/ziriuz84/asteroidpy',
+    author='Sirio Negri',
+    author_email='ziriuz84@gmail.com',
+    license='GPL v3',
+    packages=find_packages('.'),
+    install_requires=['tabulate', 'requests', 'bs4', 'configparser', 'astropy'],
+    classifiers=[
+        'Development Status :: 1 - Planning',
+        'Intended Audience :: Science/Research',
+        'License :: OSI Approved :: GPL v3',
+        'Operating System :: POSIX :: Linux',
+        'Programming Language :: Python :: 3',
+    ],
+)
