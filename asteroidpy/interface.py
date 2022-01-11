@@ -1,8 +1,10 @@
 import configuration
+import datetime
 import gettext
 import scheduling
 
 _ = gettext.gettext
+
 
 def WIP():
     print(_('Work in Progress'))
@@ -50,6 +52,33 @@ def observatory_config_menu(config):
             configuration.change_mpc_code(config, code)
 
 
+def general_config_menu(config):
+    """
+    Prints menu for general configuration options
+
+    :param config: the Configparser object with configuration option
+    :type config: Configparser
+    """
+    choice = 99
+    while (choice != 0):
+        print(_('Configuration -> General'))
+        print('==============================')
+        print('\n')
+        print(_('Choose a submenu'))
+        print(_('1 - Language'))
+        print(_('0 - Back to configuration menu'))
+        choice = eval(input(_('choice -> ')))
+        print('\n\n\n\n\n')
+        if choice == 1:
+            lang = ''
+            print(_('Select a language'))
+            print('1 - English')
+            lang_chosen = input(_('Language -> '))
+            if lang_chosen == 1:
+                lang = 'en'
+            configuration.change_language(config, lang)
+
+
 def config_menu(config):
     """
     Prints main config menu
@@ -63,12 +92,16 @@ def config_menu(config):
         print('==============================')
         print('\n')
         print(_('Choose a submenu'))
-        print(_('1 - Observatory'))
+        print(_('1 - General'))
+        print(_('2 - Observatory'))
         print(_('0 - Back to main menu'))
         choice = eval(input(_('choice -> ')))
         print('\n\n\n\n\n')
         if choice == 1:
+            general_config_menu(config)
+        if choice == 2:
             observatory_config_menu(config)
+
 
 def scheduling_menu(config):
     """
@@ -91,7 +124,56 @@ def scheduling_menu(config):
         if choice == 1:
             scheduling.weather(config)
         if choice == 2:
-            scheduling.observing_target_list(config)
+            authenticity_token = "W5eBzzw9Clj4tJVzkz0z%2F2EK18jvSS%2BffHxZpAshylg%3D"
+            configuration.load_config(config)
+            lat = config['Observatory']['latitude']
+            long = config['Observatory']['longitude']
+            select_time = input(_(
+                'Do you want to know the asteroids visible right now? '))
+            if (select_time == 's' or select_time == 'y'):
+                time = datetime.datetime.utcnow()
+            else:
+                print('Provide me with the observation start time parameters (UTC)')
+                day = input(_('Day -> '))
+                month = input(_('Month -> '))
+                year = input(_('Year -> '))
+                hour = input(_('Hour -> '))
+                minutes = input(_('Minutes -> '))
+                seconds = input(_('Seconds -> '))
+                time = datetime.datetime(year, month, day, hour, minutes, seconds)
+            duration = input(_("Duration of observation -> "))
+            solar_elongation = input(_("Minimal solar elongation -> "))
+            lunar_elongation = input(_("Minimal lunar elongation -> "))
+            minimal_height = input(_("Minimal altitude-> "))
+            max_objects = input(_("Maximum number of objects -> "))
+            object_request = input(_(
+                'Select type of object\n1 - Asteroids\n2 - NEAs\n3 - Comets\nChoice -> '))
+            if (object_request == '2'):
+                object_type = 'neo'
+            elif (object_request == '3'):
+                object_type = 'cmt'
+            else:
+                object_type = 'mp'
+            payload = {
+                'utf8': '%E2%9C%93',
+                'authenticity_token': authenticity_token,
+                'latitude': lat,
+                'longitude': long,
+                'year': time.year,
+                'month': time.month,
+                'day': time.day,
+                'hour': time.hour,
+                'minute': time.minute,
+                'duration': duration,
+                'max_objects': max_objects,
+                'min_alt': minimal_height,
+                'solar_elong': solar_elongation,
+                'lunar_elong': lunar_elongation,
+                'object_type': object_type,
+                'submit': 'Submit'
+            }
+            scheduling.observing_target_list(config, payload)
+
 
 def main_menu(config):
     """

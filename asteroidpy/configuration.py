@@ -20,6 +20,7 @@ def initialize(config):
     :param config: the Configparser object with configuration option
     :type config: Configparser
     """
+    config['General'] = {'lang': 'en'}
     config['Observatory'] = {'place': '',
                              'latitude': 0.0,
                              'longitude': 0.0,
@@ -45,6 +46,20 @@ def load_config(config):
             break
         else:
             initialize(config)
+
+def change_language(config, lang):
+    """
+    Changes language for interface
+
+    :param config: the configparser object with configuration options
+    :type config: configparser
+    :param lang: the language chosen
+    :type lang: string
+    """
+    load_config(config)
+    config['General']['lang'] = lang
+    save_config(config)
+
 
 
 def change_obs_coords(config, place, lat, long):
