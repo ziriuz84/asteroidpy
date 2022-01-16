@@ -6,6 +6,24 @@ import scheduling
 _ = gettext.gettext
 
 
+def local_coords(config):
+    configuration.load_config(config)
+    lat = config['Observatory']['latitude']
+    long = config['Observatory']['longitude']
+    return [lat, long]
+
+def select_specific_time():
+    print('Provide me with the observation start time parameters (UTC)')
+    day = eval(input(_('Day -> ')))
+    month = eval(input(_('Month -> ')))
+    year = eval(input(_('Year -> ')))
+    hour = eval(input(_('Hour -> ')))
+    minutes = eval(input(_('Minutes -> ')))
+    seconds = eval(input(_('Seconds -> ')))
+    time = datetime.datetime(
+        year, month, day, hour, minutes, seconds)
+    return time
+
 def WIP():
     print(_('Work in Progress'))
     print('\n\n\n\n\n\n\n\n')
@@ -107,17 +125,6 @@ def config_menu(config):
             observatory_config_menu(config)
 
 
-def select_specific_time():
-    print('Provide me with the observation start time parameters (UTC)')
-    day = eval(input(_('Day -> ')))
-    month = eval(input(_('Month -> ')))
-    year = eval(input(_('Year -> ')))
-    hour = eval(input(_('Hour -> ')))
-    minutes = eval(input(_('Minutes -> ')))
-    seconds = eval(input(_('Seconds -> ')))
-    time = datetime.datetime(
-        year, month, day, hour, minutes, seconds)
-    return time
 
 
 def scheduling_menu(config):
@@ -142,9 +149,7 @@ def scheduling_menu(config):
             scheduling.weather(config)
         if choice == 2:
             authenticity_token = "W5eBzzw9Clj4tJVzkz0z%2F2EK18jvSS%2BffHxZpAshylg%3D"
-            configuration.load_config(config)
-            lat = config['Observatory']['latitude']
-            long = config['Observatory']['longitude']
+            coordinates=local_coords(config)
             select_time = input(_(
                 'Do you want to know the asteroids visible right now? '))
             if (select_time == 's' or select_time == 'y'):
@@ -167,8 +172,8 @@ def scheduling_menu(config):
             payload = {
                 'utf8': '%E2%9C%93',
                 'authenticity_token': authenticity_token,
-                'latitude': lat,
-                'longitude': long,
+                'latitude': coordinates[0],
+                'longitude': coordinates[1],
                 'year': time.year,
                 'month': time.month,
                 'day': time.day,
