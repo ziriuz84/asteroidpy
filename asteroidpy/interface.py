@@ -52,6 +52,16 @@ def observatory_config_menu(config):
             configuration.change_mpc_code(config, code)
 
 
+def change_language(config):
+    lang = ''
+    print(_('Select a language'))
+    print('1 - English')
+    lang_chosen = input(_('Language -> '))
+    if lang_chosen == 1:
+        lang = 'en'
+    configuration.change_language(config, lang)
+
+
 def general_config_menu(config):
     """
     Prints menu for general configuration options
@@ -70,13 +80,7 @@ def general_config_menu(config):
         choice = eval(input(_('choice -> ')))
         print('\n\n\n\n\n')
         if choice == 1:
-            lang = ''
-            print(_('Select a language'))
-            print('1 - English')
-            lang_chosen = input(_('Language -> '))
-            if lang_chosen == 1:
-                lang = 'en'
-            configuration.change_language(config, lang)
+            change_language(config)
 
 
 def config_menu(config):
@@ -101,6 +105,19 @@ def config_menu(config):
             general_config_menu(config)
         if choice == 2:
             observatory_config_menu(config)
+
+
+def select_specific_time():
+    print('Provide me with the observation start time parameters (UTC)')
+    day = eval(input(_('Day -> ')))
+    month = eval(input(_('Month -> ')))
+    year = eval(input(_('Year -> ')))
+    hour = eval(input(_('Hour -> ')))
+    minutes = eval(input(_('Minutes -> ')))
+    seconds = eval(input(_('Seconds -> ')))
+    time = datetime.datetime(
+        year, month, day, hour, minutes, seconds)
+    return time
 
 
 def scheduling_menu(config):
@@ -133,14 +150,7 @@ def scheduling_menu(config):
             if (select_time == 's' or select_time == 'y'):
                 time = datetime.datetime.utcnow()
             else:
-                print('Provide me with the observation start time parameters (UTC)')
-                day = input(_('Day -> '))
-                month = input(_('Month -> '))
-                year = input(_('Year -> '))
-                hour = input(_('Hour -> '))
-                minutes = input(_('Minutes -> '))
-                seconds = input(_('Seconds -> '))
-                time = datetime.datetime(year, month, day, hour, minutes, seconds)
+                time = select_specific_time()
             duration = input(_("Duration of observation -> "))
             solar_elongation = input(_("Minimal solar elongation -> "))
             lunar_elongation = input(_("Minimal lunar elongation -> "))
