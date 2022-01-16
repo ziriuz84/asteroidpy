@@ -105,7 +105,8 @@ def observing_target_list(config, payload):
                     d[i].replace('Z', ''))
             else:
                 temp[headers[i]] = d[i]
-            print('%s: %s ' % (headers[i], d[i]))
+            if (i in [0, 1, 5, 6, 7]):
+                print('%s: %s ' % (headers[i], d[i]))
         print('\n')
         result.append(temp)
-    print(result)
+    # print(result)
