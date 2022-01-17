@@ -67,6 +67,13 @@ def weather(config):
     exit = input(_('Press enter to continue...'))
     print(exit)
 
+def skycoord_format(coord, coordid):
+    temp = coord.split()
+    if (coordid == 'ra'):
+        return temp[0]+'h'+temp[1]+'m'+temp[2]+'s'
+    elif (coordid == 'dec'):
+        return temp[0]+'d'+temp[1]+'m'+temp[2]+'s'
+
 
 def observing_target_list(config, payload):
     """
@@ -105,6 +112,10 @@ def observing_target_list(config, payload):
                     d[i].replace('Z', ''))
             else:
                 temp[headers[i]] = d[i]
+            if (i == 5):
+                d[i]=skycoord_format(d[i], 'ra')
+            if (i == 6):
+                d[i]=skycoord_format(d[i], 'dec')
             if (i in [0, 1, 5, 6, 7]):
                 print('%s: %s ' % (headers[i], d[i]))
         print('\n')
