@@ -68,6 +68,14 @@ def weather(config):
     print(exit)
 
 def skycoord_format(coord, coordid):
+    """
+    Formats coordinates as described in coordid
+
+    :param coord: the coordinates to be formatted
+    :type coord: string
+    :param coordid: the format
+    :type coordid: string
+    """
     temp = coord.split()
     if (coordid == 'ra'):
         return temp[0]+'h'+temp[1]+'m'+temp[2]+'s'

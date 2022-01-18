@@ -7,12 +7,22 @@ _ = gettext.gettext
 
 
 def local_coords(config):
+    """
+    Returns local geographical coordinates
+
+    :return coord: array
+    """
     configuration.load_config(config)
     lat = config['Observatory']['latitude']
     long = config['Observatory']['longitude']
     return [lat, long]
 
 def select_specific_time():
+    """
+    Returns specific time
+
+    :type time: datetime
+    """
     print('Provide me with the observation start time parameters (UTC)')
     day = eval(input(_('Day -> ')))
     month = eval(input(_('Month -> ')))
@@ -71,6 +81,12 @@ def observatory_config_menu(config):
 
 
 def change_language(config):
+    """
+    Prints language configuration menu
+
+    :param config: the Configparser object with configuration option
+    :type config: Configparser
+    """
     lang = ''
     print(_('Select a language'))
     print('1 - English')
