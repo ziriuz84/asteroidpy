@@ -203,7 +203,8 @@ def scheduling_menu(config):
                 'object_type': object_type,
                 'submit': 'Submit'
             }
-            scheduling.observing_target_list(config, payload)
+            result=scheduling.observing_target_list(config, payload)
+            print result
 
 
 def main_menu(config):
