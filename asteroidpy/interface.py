@@ -2,6 +2,7 @@ import configuration
 import datetime
 import gettext
 import scheduling
+import tabulate
 
 _ = gettext.gettext
 
@@ -204,7 +205,12 @@ def scheduling_menu(config):
                 'submit': 'Submit'
             }
             result=scheduling.observing_target_list(config, payload)
-            print result
+            asteroids=[]
+            for i in range(len(result[1])):
+                asteroids.append(result[1][i])
+            print('\n')
+            print(tabulate.tabulate(asteroids, headers=result[0], tablefmt='fancy_grid'))
+            print('\n\n\n\n')
 
 
 def main_menu(config):

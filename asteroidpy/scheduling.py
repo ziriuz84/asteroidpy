@@ -4,6 +4,9 @@ import configuration
 import datetime
 from tabulate import tabulate
 from bs4 import BeautifulSoup
+from astropy import units as u
+from astropy.coordinates import SkyCoord
+from astropy.table import QTable
 
 _ = gettext.gettext
 
@@ -113,17 +116,20 @@ def observing_target_list(config, payload):
         data.append(temp)
     result = []
     for d in data:
-        temp = {}
+        temp = []
         for i in range(len(headers)):
-            if 'Time' in headers[i]:
-                temp[headers[i]] = datetime.datetime.fromisoformat(
-                    d[i].replace('Z', ''))
-            else:
-                temp[headers[i]] = d[i]
-            if (i == 5):
-                d[i]=skycoord_format(d[i], 'ra')
-            if (i == 6):
-                d[i]=skycoord_format(d[i], 'dec')
-            if (i in [0, 1, 5, 6, 7]):
+            if 'Begin Time' in headers[i]:
+                temp.append(d[i].replace('Z', ''))
+            if ('Beg RA'in headers[i]):
+                temp.append(skycoord_format(d[i], 'ra'))
+            if ('Beg Dec'in headers[i]):
+                temp.append(skycoord_format(d[i], 'dec'))
+            if ('Designation'in headers[i]):
+                temp.append(d[i])
+            if ('Mag'in headers[i]):
+                temp.append(d[i])
+            if ('Beg Alt'in headers[i]):
+                temp.append(d[i])
         result.append(temp)
-    return result
+    headers=['Designation', 'Mag', 'Time', 'RA', 'Dec', 'Alt']
+    return [headers, result]
