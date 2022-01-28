@@ -1,3 +1,9 @@
-from asteroidpy import asteroidpy
+#!/usr/bin/env python3
+# -*- coding: utf-8 -*-
+import asteroidpy.interface
+import configparser
 
-asteroidpy.main()
+config = configparser.ConfigParser()
+
+def main():
+    interface.interface(config)

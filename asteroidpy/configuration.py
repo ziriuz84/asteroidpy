@@ -8,7 +8,7 @@ def save_config(config):
     :param config: the Configparser object with configuration option
     :type config: Configparser
     """
-    f = open('config.ini', 'w')
+    f = open(os.path.expanduser('~')+'/'+'.asteroidpy', 'w')
     config.write(f)
     f.close()
 
@@ -39,10 +39,10 @@ def load_config(config):
     :param config: the Configparser object with configuration option
     :type config: Configparser
     """
-    dir_path = os.path.dirname(os.path.realpath(__file__))
+    dir_path = os.path.dirname(os.path.expanduser('~'))
     for root, dirs, files in os.walk(dir_path):
-        if 'config.ini' in files:
-            config.read('config.ini')
+        if '.asteroidpy' in files:
+            config.read(os.path.expanduser('~')+'/'+'.asteroidpy')
             break
         else:
             initialize(config)

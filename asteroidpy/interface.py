@@ -1,8 +1,8 @@
-from asteroidpy import configuration
 import datetime
 import gettext
-from asteroidpy import scheduling
 import tabulate
+import asteroidpy.configuration as configuration
+import asteroidpy.scheduling as scheduling
 
 _ = gettext.gettext
 

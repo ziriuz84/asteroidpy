@@ -18,7 +18,7 @@ setup(
         'Operating System :: POSIX :: Linux',
         'Programming Language :: Python :: 3',
     ],
-    py_modules=['asteroidpy.asteroidpy', 'asteroidpy.configuration', 'asteroidpy.scheduling', 'asteroidpy.interface'],
+    py_modules=['configuration', 'scheduling', 'interface'],
     entry_points={
         'console_scripts': [
             'asteroidpy=asteroidpy:main'
