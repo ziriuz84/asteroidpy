@@ -1,9 +1,12 @@
 import requests
 import gettext
-import configuration
+from asteroidpy import configuration
 import datetime
 from tabulate import tabulate
 from bs4 import BeautifulSoup
+from astropy import units as u
+from astropy.coordinates import SkyCoord
+from astropy.table import QTable
 
 _ = gettext.gettext
 
@@ -67,6 +70,21 @@ def weather(config):
     exit = input(_('Press enter to continue...'))
     print(exit)
 
+def skycoord_format(coord, coordid):
+    """
+    Formats coordinates as described in coordid
+
+    :param coord: the coordinates to be formatted
+    :type coord: string
+    :param coordid: the format
+    :type coordid: string
+    """
+    temp = coord.split()
+    if (coordid == 'ra'):
+        return temp[0]+'h'+temp[1]+'m'+temp[2]+'s'
+    elif (coordid == 'dec'):
+        return temp[0]+'d'+temp[1]+'m'+temp[2]+'s'
+
 
 def observing_target_list(config, payload):
     """
@@ -98,14 +116,20 @@ def observing_target_list(config, payload):
         data.append(temp)
     result = []
     for d in data:
-        temp = {}
+        temp = []
         for i in range(len(headers)):
-            if 'Time' in headers[i]:
-                temp[headers[i]] = datetime.datetime.fromisoformat(
-                    d[i].replace('Z', ''))
-            else:
-                temp[headers[i]] = d[i]
-            print('%s: %s ' % (headers[i], d[i]))
-        print('\n')
+            if 'Begin Time' in headers[i]:
+                temp.append(d[i].replace('Z', ''))
+            if ('Beg RA'in headers[i]):
+                temp.append(skycoord_format(d[i], 'ra'))
+            if ('Beg Dec'in headers[i]):
+                temp.append(skycoord_format(d[i], 'dec'))
+            if ('Designation'in headers[i]):
+                temp.append(d[i])
+            if ('Mag'in headers[i]):
+                temp.append(d[i])
+            if ('Beg Alt'in headers[i]):
+                temp.append(d[i])
         result.append(temp)
-    print(result)
+    headers=['Designation', 'Mag', 'Time', 'RA', 'Dec', 'Alt']
+    return [headers, result]

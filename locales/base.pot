@@ -5,7 +5,7 @@
 msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
-"POT-Creation-Date: 2021-12-30 09:19+0100\n"
+"POT-Creation-Date: 2022-01-11 06:41+0100\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -15,178 +15,199 @@ msgstr ""
 "Generated-By: pygettext.py 1.5\n"
 
 
-#: asteroidpy/interface.py:8
+#: asteroidpy/interface.py:10
 msgid "Work in Progress"
 msgstr ""
 
-#: asteroidpy/interface.py:21
+#: asteroidpy/interface.py:23
 msgid "Configuration -> Observatory"
 msgstr ""
 
-#: asteroidpy/interface.py:25
+#: asteroidpy/interface.py:27
 msgid "Choose an option"
 msgstr ""
 
-#: asteroidpy/interface.py:26
+#: asteroidpy/interface.py:28
 msgid "1 - Change coordinates"
 msgstr ""
 
-#: asteroidpy/interface.py:27
+#: asteroidpy/interface.py:29
 msgid "2 - Change altitude"
 msgstr ""
 
-#: asteroidpy/interface.py:28
+#: asteroidpy/interface.py:30
 msgid "3 - Change the name of the observer"
 msgstr ""
 
-#: asteroidpy/interface.py:29
+#: asteroidpy/interface.py:31
 msgid "4 - Change the name of the observatory"
 msgstr ""
 
-#: asteroidpy/interface.py:30
+#: asteroidpy/interface.py:32
 msgid "5 - Change the MPC code"
 msgstr ""
 
-#: asteroidpy/interface.py:31
+#: asteroidpy/interface.py:33 asteroidpy/interface.py:69
 msgid "0 - Back to configuration menu"
 msgstr ""
 
-#: asteroidpy/interface.py:32 asteroidpy/interface.py:68
-#: asteroidpy/interface.py:89 asteroidpy/interface.py:112
+#: asteroidpy/interface.py:34 asteroidpy/interface.py:70
+#: asteroidpy/interface.py:98 asteroidpy/interface.py:122
+#: asteroidpy/interface.py:194
 msgid "choice -> "
 msgstr ""
 
-#: asteroidpy/interface.py:35
+#: asteroidpy/interface.py:37
 msgid "Locality -> "
 msgstr ""
 
-#: asteroidpy/interface.py:36
+#: asteroidpy/interface.py:38
 msgid "Latitude -> "
 msgstr ""
 
-#: asteroidpy/interface.py:37
+#: asteroidpy/interface.py:39
 msgid "Longitude -> "
 msgstr ""
 
-#: asteroidpy/interface.py:40
+#: asteroidpy/interface.py:42
 msgid "Altitude -> "
 msgstr ""
 
-#: asteroidpy/interface.py:43
+#: asteroidpy/interface.py:45
 msgid "Observer name -> "
 msgstr ""
 
-#: asteroidpy/interface.py:46
+#: asteroidpy/interface.py:48
 msgid "Observatory name -> "
 msgstr ""
 
-#: asteroidpy/interface.py:49
+#: asteroidpy/interface.py:51
 msgid "MPC Code -> "
 msgstr ""
 
-#: asteroidpy/interface.py:62
-msgid "Configuration"
+#: asteroidpy/interface.py:64
+msgid "Configuration -> General"
 msgstr ""
 
-#: asteroidpy/interface.py:65 asteroidpy/interface.py:85
-#: asteroidpy/interface.py:108
+#: asteroidpy/interface.py:67 asteroidpy/interface.py:94
+#: asteroidpy/interface.py:118 asteroidpy/interface.py:190
 msgid "Choose a submenu"
 msgstr ""
 
-#: asteroidpy/interface.py:66
-msgid "1 - Observatory"
+#: asteroidpy/interface.py:68
+msgid "1 - Language"
 msgstr ""
 
-#: asteroidpy/interface.py:67 asteroidpy/interface.py:88
+#: asteroidpy/interface.py:74
+msgid "Select a language"
+msgstr ""
+
+#: asteroidpy/interface.py:76
+msgid "Language -> "
+msgstr ""
+
+#: asteroidpy/interface.py:91
+msgid "Configuration"
+msgstr ""
+
+#: asteroidpy/interface.py:95
+msgid "1 - General"
+msgstr ""
+
+#: asteroidpy/interface.py:96
+msgid "2 - Observatory"
+msgstr ""
+
+#: asteroidpy/interface.py:97 asteroidpy/interface.py:121
 msgid "0 - Back to main menu"
 msgstr ""
 
-#: asteroidpy/interface.py:82
+#: asteroidpy/interface.py:115
 msgid "Observation scheduling"
 msgstr ""
 
-#: asteroidpy/interface.py:86
+#: asteroidpy/interface.py:119
 msgid "1 - Weather forecast"
 msgstr ""
 
-#: asteroidpy/interface.py:87
+#: asteroidpy/interface.py:120
 msgid "2 - Observing target List"
 msgstr ""
 
-#: asteroidpy/interface.py:105
-msgid "Welcome to AsteroidPY v. 0.1"
-msgstr ""
-
-#: asteroidpy/interface.py:109
-msgid "1 - Configuration"
-msgstr ""
-
-#: asteroidpy/interface.py:110
-msgid "2 - Observation scheduling"
-msgstr ""
-
-#: asteroidpy/interface.py:111
-msgid "0 - Exit"
-msgstr ""
-
-#: asteroidpy/scheduling.py:63
-msgid "Press enter to continue..."
-msgstr ""
-
-#: asteroidpy/scheduling.py:78
+#: asteroidpy/interface.py:131
 msgid "Do you want to know the asteroids visible right now? "
 msgstr ""
 
-#: asteroidpy/scheduling.py:84
+#: asteroidpy/interface.py:137
 msgid "Day -> "
 msgstr ""
 
-#: asteroidpy/scheduling.py:85
+#: asteroidpy/interface.py:138
 msgid "Month -> "
 msgstr ""
 
-#: asteroidpy/scheduling.py:86
+#: asteroidpy/interface.py:139
 msgid "Year -> "
 msgstr ""
 
-#: asteroidpy/scheduling.py:87
+#: asteroidpy/interface.py:140
 msgid "Hour -> "
 msgstr ""
 
-#: asteroidpy/scheduling.py:88
+#: asteroidpy/interface.py:141
 msgid "Minutes -> "
 msgstr ""
 
-#: asteroidpy/scheduling.py:89
+#: asteroidpy/interface.py:142
 msgid "Seconds -> "
 msgstr ""
 
-#: asteroidpy/scheduling.py:91
+#: asteroidpy/interface.py:144
 msgid "Duration of observation -> "
 msgstr ""
 
-#: asteroidpy/scheduling.py:92
+#: asteroidpy/interface.py:145
 msgid "Minimal solar elongation -> "
 msgstr ""
 
-#: asteroidpy/scheduling.py:93
+#: asteroidpy/interface.py:146
 msgid "Minimal lunar elongation -> "
 msgstr ""
 
-#: asteroidpy/scheduling.py:94
+#: asteroidpy/interface.py:147
 msgid "Minimal altitude-> "
 msgstr ""
 
-#: asteroidpy/scheduling.py:95
+#: asteroidpy/interface.py:148
 msgid "Maximum number of objects -> "
 msgstr ""
 
-#: asteroidpy/scheduling.py:96
+#: asteroidpy/interface.py:149
 msgid ""
 "Select type of object\n"
 "1 - Asteroids\n"
 "2 - NEAs\n"
 "3 - Comets\n"
 "Choice -> "
+msgstr ""
+
+#: asteroidpy/interface.py:187
+msgid "Welcome to AsteroidPY v. 0.1"
+msgstr ""
+
+#: asteroidpy/interface.py:191
+msgid "1 - Configuration"
+msgstr ""
+
+#: asteroidpy/interface.py:192
+msgid "2 - Observation scheduling"
+msgstr ""
+
+#: asteroidpy/interface.py:193
+msgid "0 - Exit"
+msgstr ""
+
+#: asteroidpy/scheduling.py:67
+msgid "Press enter to continue..."
 msgstr ""
 
