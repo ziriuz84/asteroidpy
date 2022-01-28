@@ -1,6 +1,6 @@
 import requests
 import gettext
-import configuration
+from asteroidpy import configuration
 import datetime
 from tabulate import tabulate
 from bs4 import BeautifulSoup

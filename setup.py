@@ -9,7 +9,8 @@ setup(
     author_email='ziriuz84@gmail.com',
     license='GPL v3',
     packages=find_packages('.'),
-    install_requires=['tabulate', 'requests', 'bs4', 'configparser', 'astropy'],
+    install_requires=['tabulate', 'requests',
+                      'bs4', 'configparser', 'astropy'],
     classifiers=[
         'Development Status :: 1 - Planning',
         'Intended Audience :: Science/Research',
@@ -17,4 +18,10 @@ setup(
         'Operating System :: POSIX :: Linux',
         'Programming Language :: Python :: 3',
     ],
+    py_modules=['asteroidpy.asteroidpy', 'asteroidpy.configuration', 'asteroidpy.scheduling', 'asteroidpy.interface'],
+    entry_points={
+        'console_scripts': [
+            'asteroidpy=asteroidpy:main'
+        ],
+    },
 )
