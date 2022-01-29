@@ -34,18 +34,20 @@ def initialize(config):
 
 def load_config(config):
     """
-    Searchs for config.ini. If it's in the folder then it loads all parameter, else it initialize it
+    Searchs for .asteroidpy. If it's in the folder then it loads all parameter, else it initialize it
 
     :param config: the Configparser object with configuration option
     :type config: Configparser
     """
     dir_path = os.path.dirname(os.path.expanduser('~'))
+    i=0
     for root, dirs, files in os.walk(dir_path):
         if '.asteroidpy' in files:
             config.read(os.path.expanduser('~')+'/'+'.asteroidpy')
             break
-        else:
+        elif (i!=0 and i!=1):
             initialize(config)
+        i +=1 
 
 def change_language(config, lang):
     """
