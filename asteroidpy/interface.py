@@ -59,7 +59,6 @@ def WIP():
     print(_('Work in Progress'))
     print('\n\n\n\n\n\n\n\n')
 
-
 def observatory_config_menu(config):
     """
     Prints Observatory config menu
@@ -177,6 +176,7 @@ def scheduling_menu(config):
         print(_('Choose a submenu'))
         print(_('1 - Weather forecast'))
         print(_('2 - Observing target List'))
+        print(_('3 - NEOcp list'))
         print(_('0 - Back to main menu'))
         choice = get_integer(_('choice -> '))
         print('\n\n\n\n\n')
@@ -198,9 +198,9 @@ def scheduling_menu(config):
             max_objects = get_integer(_("Maximum number of objects -> "))
             object_request = get_integer(_(
                 'Select type of object\n1 - Asteroids\n2 - NEAs\n3 - Comets\nChoice -> '))
-            if (object_request == '2'):
+            if (object_request == 2):
                 object_type = 'neo'
-            elif (object_request == '3'):
+            elif (object_request == 3):
                 object_type = 'cmt'
             else:
                 object_type = 'mp'
@@ -230,6 +230,13 @@ def scheduling_menu(config):
             print(tabulate.tabulate(asteroids,
                   headers=result[0], tablefmt='fancy_grid'))
             print('\n\n\n\n')
+        if choice == 3:
+            min_score=get_integer(_('Minimum score -> '))
+            max_magnitude=get_float(_('Maximum magnitude -> '))
+            neocp=scheduling.neocp_search(config, min_score, max_magnitude)
+            titles=['Designation', 'Score', 'R.A.', 'Dec.', 'Alt.', 'V', 'NObs', 'Arc', 'Not Seen Days']
+            print(tabulate.tabulate(neocp, headers=titles, tablefmt='fancy_grid'))
+            # print(neocp)
 
 
 def main_menu(config):
