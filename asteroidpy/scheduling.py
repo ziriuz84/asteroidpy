@@ -5,8 +5,9 @@ import datetime
 from tabulate import tabulate
 from bs4 import BeautifulSoup
 from astropy import units as u
-from astropy.coordinates import SkyCoord
+from astropy.coordinates import (SkyCoord, EarthLocation, AltAz)
 from astropy.table import QTable
+from astropy.time import Time
 
 _ = gettext.gettext
 
@@ -133,3 +134,43 @@ def observing_target_list(config, payload):
         result.append(temp)
     headers=['Designation', 'Mag', 'Time', 'RA', 'Dec', 'Alt']
     return [headers, result]
+
+def neocp_search(config, min_score, max_magnitude):
+    """
+    Prints NEOcp visible at the moment
+
+    :param config: the Configparser object with configuration option
+    :type config: Configparser
+    """
+    configuration.load_config(config)
+    r=requests.get('https://www.minorplanetcenter.net/Extended_Files/neocp.json')
+    data=r.json()
+    result=[]
+    lat = config['Observatory']['latitude']
+    long = config['Observatory']['longitude']
+    location= EarthLocation.from_geodetic(lon=float(long), lat=float(lat))
+    observing_date = Time(datetime.datetime.utcnow())
+    altaz= AltAz(location=location, obstime=observing_date)
+    for item in data:
+        temp = []
+        temp.append(item['Temp_Desig'])
+        if (int(item['Score']>min_score)):
+            temp.append(item['Score'])
+        else:
+            continue
+        coord=SkyCoord(float(item['R.A.'])*u.deg, float(item['Decl.'])*u.deg)
+        coord_altaz=coord.transform_to(altaz)
+        if coord_altaz.alt < 0:
+            continue
+        temp.append(coord.ra)
+        temp.append(coord.dec)
+        temp.append(coord_altaz.alt)
+        if (float(item['V']) > max_magnitude):
+            continue
+        else:
+            temp.append(item['V'])
+        temp.append(item['NObs'])
+        temp.append(item['Arc'])
+        temp.append(item['Not_Seen_dys'])
+        result.append(temp)
+    return result
