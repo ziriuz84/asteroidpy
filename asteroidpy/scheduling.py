@@ -135,7 +135,7 @@ def observing_target_list(config, payload):
     headers=['Designation', 'Mag', 'Time', 'RA', 'Dec', 'Alt']
     return [headers, result]
 
-def neocp_search(config, min_score, max_magnitude):
+def neocp_search(config, min_score, max_magnitude, min_altitude):
     """
     Prints NEOcp visible at the moment
 
@@ -160,7 +160,7 @@ def neocp_search(config, min_score, max_magnitude):
             continue
         coord=SkyCoord(float(item['R.A.'])*u.deg, float(item['Decl.'])*u.deg)
         coord_altaz=coord.transform_to(altaz)
-        if coord_altaz.alt < 0:
+        if coord_altaz.alt < min_altitude*u.deg:
             continue
         temp.append(coord.ra)
         temp.append(coord.dec)
