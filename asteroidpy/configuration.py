@@ -8,9 +8,8 @@ def save_config(config):
     :param config: the Configparser object with configuration option
     :type config: Configparser
     """
-    f = open(os.path.expanduser('~')+'/'+'.asteroidpy', 'w')
-    config.write(f)
-    f.close()
+    with open(os.path.expanduser('~')+'/'+'.asteroidpy', 'w') as f:
+        config.write(f)
 
 
 def initialize(config):
