@@ -4,7 +4,7 @@ import asteroidpy.interface
 import configparser
 import cProfile, pstats
 
-PROFILE = False
+PROFILE = True
 
 config = configparser.ConfigParser()
 
@@ -15,7 +15,7 @@ def main():
         interface.interface(config)
         profiler.disable()
         stats= pstats.Stats(profiler).sort_stats('ncalls')
-        stats.print_stats()
+        stats.dump_stats('asteroidpy.prof')
     else:
         interface.interface(config)
 
