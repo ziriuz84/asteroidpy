@@ -1,4 +1,5 @@
 import requests
+import httpx
 import gettext
 from asteroidpy import configuration
 import datetime
@@ -23,6 +24,22 @@ rh2m_dict = {-4: '0%-5%', -3: '5%-10%', -2: '10%-15%', -1: '15%-20%', 0: '20%-25
              6: '50%-55%', 7: '55%-60%', 8: '60%-65%', 9: '65%-70%', 10: '70%-75%', 11: '75%-80%', 12: '80%-85%', 13: '85%-90%', 14: '90%-95%', 15: '95%-99%', 16: '100%'}
 wind10m_speed_dict = {1: 'Below 0.3 m/s', 2: '0.3-3.4m/s', 3: '3.4-8.0m/s', 4: '8.0-10.8m/s',
                       5: '10.8-17.2m/s', 6: '17.2-24.5m/s', 7: '24.5-32.6m/s', 8: 'Over 32.6m/s'}
+
+async def httpx_get(url, payload=None, return_type):
+    async with httpx.AsyncClient as client:
+        r= await client.get(url, params=payload)
+    if (return_type == 'json'):
+        return [r.json, r.response]
+    else:
+        return [r.text, r.response]
+
+async def httpx_post(url, payload=None, return_type):
+    async with httpx.AsyncClient as client:
+        r= await client.post(url, data=payload)
+    if (return_type == 'json'):
+        return [r.json, r.response]
+    else:
+        return [r.text, r.response]
 
 
 def weather(config):
