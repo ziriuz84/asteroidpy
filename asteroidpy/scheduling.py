@@ -1,4 +1,5 @@
 import requests
+import asyncio
 import httpx
 import gettext
 from asteroidpy import configuration
@@ -25,21 +26,21 @@ rh2m_dict = {-4: '0%-5%', -3: '5%-10%', -2: '10%-15%', -1: '15%-20%', 0: '20%-25
 wind10m_speed_dict = {1: 'Below 0.3 m/s', 2: '0.3-3.4m/s', 3: '3.4-8.0m/s', 4: '8.0-10.8m/s',
                       5: '10.8-17.2m/s', 6: '17.2-24.5m/s', 7: '24.5-32.6m/s', 8: 'Over 32.6m/s'}
 
-async def httpx_get(url, payload=None, return_type):
-    async with httpx.AsyncClient as client:
+async def httpx_get(url, payload, return_type):
+    async with httpx.AsyncClient() as client:
         r= await client.get(url, params=payload)
     if (return_type == 'json'):
-        return [r.json, r.response]
+        return [r.json(), r.status_code]
     else:
-        return [r.text, r.response]
+        return [r.text, r.status_code]
 
-async def httpx_post(url, payload=None, return_type):
-    async with httpx.AsyncClient as client:
+async def httpx_post(url, payload, return_type):
+    async with httpx.AsyncClient() as client:
         r= await client.post(url, data=payload)
     if (return_type == 'json'):
-        return [r.json, r.response]
+        return [r.json(), r.status_code]
     else:
-        return [r.text, r.response]
+        return [r.text, r.status_code]
 
 
 def weather(config):
@@ -160,8 +161,10 @@ def neocp_search(config, min_score, max_magnitude, min_altitude):
     :type config: Configparser
     """
     configuration.load_config(config)
-    r=requests.get('https://www.minorplanetcenter.net/Extended_Files/neocp.json')
-    data=r.json()
+    # r=requests.get('https://www.minorplanetcenter.net/Extended_Files/neocp.json')
+    # data=r.json()
+    response=asyncio.run(httpx_get('https://www.minorplanetcenter.net/Extended_Files/neocp.json', {}, 'json'))
+    data=response[0]
     result=[]
     lat = config['Observatory']['latitude']
     long = config['Observatory']['longitude']
