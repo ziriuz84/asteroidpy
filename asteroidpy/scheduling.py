@@ -1,12 +1,15 @@
 import requests
+import asyncio
+import httpx
 import gettext
 from asteroidpy import configuration
 import datetime
 from tabulate import tabulate
 from bs4 import BeautifulSoup
 from astropy import units as u
-from astropy.coordinates import SkyCoord
+from astropy.coordinates import (SkyCoord, EarthLocation, AltAz)
 from astropy.table import QTable
+from astropy.time import Time
 
 _ = gettext.gettext
 
@@ -22,6 +25,22 @@ rh2m_dict = {-4: '0%-5%', -3: '5%-10%', -2: '10%-15%', -1: '15%-20%', 0: '20%-25
              6: '50%-55%', 7: '55%-60%', 8: '60%-65%', 9: '65%-70%', 10: '70%-75%', 11: '75%-80%', 12: '80%-85%', 13: '85%-90%', 14: '90%-95%', 15: '95%-99%', 16: '100%'}
 wind10m_speed_dict = {1: 'Below 0.3 m/s', 2: '0.3-3.4m/s', 3: '3.4-8.0m/s', 4: '8.0-10.8m/s',
                       5: '10.8-17.2m/s', 6: '17.2-24.5m/s', 7: '24.5-32.6m/s', 8: 'Over 32.6m/s'}
+
+async def httpx_get(url, payload, return_type):
+    async with httpx.AsyncClient() as client:
+        r= await client.get(url, params=payload)
+    if (return_type == 'json'):
+        return [r.json(), r.status_code]
+    else:
+        return [r.text, r.status_code]
+
+async def httpx_post(url, payload, return_type):
+    async with httpx.AsyncClient() as client:
+        r= await client.post(url, data=payload)
+    if (return_type == 'json'):
+        return [r.json(), r.status_code]
+    else:
+        return [r.text, r.status_code]
 
 
 def weather(config):
@@ -133,3 +152,45 @@ def observing_target_list(config, payload):
         result.append(temp)
     headers=['Designation', 'Mag', 'Time', 'RA', 'Dec', 'Alt']
     return [headers, result]
+
+def neocp_search(config, min_score, max_magnitude, min_altitude):
+    """
+    Prints NEOcp visible at the moment
+
+    :param config: the Configparser object with configuration option
+    :type config: Configparser
+    """
+    configuration.load_config(config)
+    # r=requests.get('https://www.minorplanetcenter.net/Extended_Files/neocp.json')
+    # data=r.json()
+    response=asyncio.run(httpx_get('https://www.minorplanetcenter.net/Extended_Files/neocp.json', {}, 'json'))
+    data=response[0]
+    result=[]
+    lat = config['Observatory']['latitude']
+    long = config['Observatory']['longitude']
+    location= EarthLocation.from_geodetic(lon=float(long), lat=float(lat))
+    observing_date = Time(datetime.datetime.utcnow())
+    altaz= AltAz(location=location, obstime=observing_date)
+    for item in data:
+        temp = []
+        temp.append(item['Temp_Desig'])
+        if (int(item['Score']>min_score)):
+            temp.append(item['Score'])
+        else:
+            continue
+        coord=SkyCoord(float(item['R.A.'])*u.deg, float(item['Decl.'])*u.deg)
+        coord_altaz=coord.transform_to(altaz)
+        if coord_altaz.alt < min_altitude*u.deg:
+            continue
+        temp.append(coord.ra)
+        temp.append(coord.dec)
+        temp.append(coord_altaz.alt)
+        if (float(item['V']) > max_magnitude):
+            continue
+        else:
+            temp.append(item['V'])
+        temp.append(item['NObs'])
+        temp.append(item['Arc'])
+        temp.append(item['Not_Seen_dys'])
+        result.append(temp)
+    return result

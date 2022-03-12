@@ -8,9 +8,8 @@ def save_config(config):
     :param config: the Configparser object with configuration option
     :type config: Configparser
     """
-    f = open(os.path.expanduser('~')+'/'+'.asteroidpy', 'w')
-    config.write(f)
-    f.close()
+    with open(os.path.expanduser('~')+'/'+'.asteroidpy', 'w') as f:
+        config.write(f)
 
 
 def initialize(config):
@@ -40,14 +39,15 @@ def load_config(config):
     :type config: Configparser
     """
     dir_path = os.path.dirname(os.path.expanduser('~'))
-    i=0
+    i = 0
     for root, dirs, files in os.walk(dir_path):
         if '.asteroidpy' in files:
             config.read(os.path.expanduser('~')+'/'+'.asteroidpy')
             break
-        elif (i!=0 and i!=1):
+        elif (i != 0 and i != 1):
             initialize(config)
-        i +=1 
+        i += 1
+
 
 def change_language(config, lang):
     """
@@ -61,7 +61,6 @@ def change_language(config, lang):
     load_config(config)
     config['General']['lang'] = lang
     save_config(config)
-
 
 
 def change_obs_coords(config, place, lat, long):
