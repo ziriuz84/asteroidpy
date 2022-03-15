@@ -177,6 +177,7 @@ def scheduling_menu(config):
         print(_('1 - Weather forecast'))
         print(_('2 - Observing target List'))
         print(_('3 - NEOcp list'))
+        print(_('4 - Twilight Times'))
         print(_('0 - Back to main menu'))
         choice = get_integer(_('choice -> '))
         print('\n\n\n\n\n')
@@ -237,7 +238,14 @@ def scheduling_menu(config):
             neocp=scheduling.neocp_search(config, min_score, max_magnitude, min_altitude)
             titles=['Designation', 'Score', 'R.A.', 'Dec.', 'Alt.', 'V', 'NObs', 'Arc', 'Not Seen Days']
             print(tabulate.tabulate(neocp, headers=titles, tablefmt='fancy_grid'))
+            print('\n\n\n\n')
             # print(neocp)
+        if choice == 4:
+            result_times = scheduling.twilight_times(config)
+            print(_(f"Civil Twilight: {result_times['CivilM'].strftime('%H:%M:%S')} - {result_times['CivilE'].strftime('%H:%M:%S')}"))
+            print(_(f"Nautical Twilight: {result_times['NautiM'].strftime('%H:%M:%S')} - {result_times['NautiE'].strftime('%H:%M:%S')}"))
+            print(_(f"Astronomical Twilight: {result_times['AstroM'].strftime('%H:%M:%S')} - {result_times['AstroE'].strftime('%H:%M:%S')}"))
+            print('\n\n\n\n')
 
 
 def main_menu(config):
