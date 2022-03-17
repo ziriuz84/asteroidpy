@@ -10,7 +10,7 @@ setup(
     license='GPL v3',
     packages=find_packages('.'),
     install_requires=['tabulate', 'requests',
-                      'bs4', 'configparser', 'astropy', 'httpx'],
+                      'bs4', 'configparser', 'astropy', 'httpx', 'astroplan'],
     classifiers=[
         'Development Status :: 1 - Planning',
         'Intended Audience :: Science/Research',
