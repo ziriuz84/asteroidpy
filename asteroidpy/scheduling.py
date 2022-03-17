@@ -216,3 +216,20 @@ def twilight_times(config):
               'NautiM': observer.twilight_morning_nautical(observing_date, which='next'),
               'NautiE': observer.twilight_evening_nautical(observing_date, which='next')}
     return result
+
+def sun_moon_ephemeris(config):
+    configuration.load_config(config)
+    location = EarthLocation.from_geodetic(float(config['Observatory']['longitude'])*u.deg, float(
+        config['Observatory']['latitude'])*u.deg, float(config['Observatory']['altitude'])*u.m)
+    observer = Observer(name=config['Observatory']
+                        ['obs_name'], location=location)
+    observing_date = Time(datetime.datetime.utcnow())
+    result = {'Sunrise': observer.sun_rise_time(observing_date, which='next'),
+              'Sunset': observer.sun_set_time(observing_date, which='next'),
+              'Moonrise': observer.moon_rise_time(observing_date, which='next'),
+              'Moonset': observer.moon_set_time(observing_date, which='next'),
+              'MoonIll': observer.moon_illumination(observing_date)
+              }
+    return result
+
+
