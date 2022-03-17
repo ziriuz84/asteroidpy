@@ -245,6 +245,13 @@ def scheduling_menu(config):
             print(_(f"Civil Twilight: {result_times['CivilM'].strftime('%H:%M:%S')} - {result_times['CivilE'].strftime('%H:%M:%S')}"))
             print(_(f"Nautical Twilight: {result_times['NautiM'].strftime('%H:%M:%S')} - {result_times['NautiE'].strftime('%H:%M:%S')}"))
             print(_(f"Astronomical Twilight: {result_times['AstroM'].strftime('%H:%M:%S')} - {result_times['AstroE'].strftime('%H:%M:%S')}"))
+            print('\n')
+            ephemeris=scheduling.sun_moon_ephemeris(config)
+            print(_(f"Sunrise: {ephemeris['Sunrise'].strftime('%H:%M:%S')}"))
+            print(_(f"Sunset: {ephemeris['Sunset'].strftime('%H:%M:%S')}"))
+            print(_(f"Moonrise: {ephemeris['Moonrise'].strftime('%H:%M:%S')}"))
+            print(_(f"Moonset: {ephemeris['Sunrise'].strftime('%H:%M:%S')}"))
+            print(_(f"Moon Illumination: {ephemeris['MoonIll']}"))
             print('\n\n\n\n')
 
 
