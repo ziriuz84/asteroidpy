@@ -203,29 +203,6 @@ def neocp_search(config, min_score, max_magnitude, min_altitude):
                           int(item['NObs']),
                           float(item['Arc']),
                           float(item['Not_Seen_dys'])])
-        temp = []
-        temp.append(item['Temp_Desig'])
-        if (int(item['Score'] > min_score)):
-            temp.append(item['Score'])
-        else:
-            continue
-        coord_eq = coord.to_string('hmsdms')
-        if coord_altaz.alt < min_altitude*u.deg:
-            continue
-        temp.append(coord.ra)
-        temp.append(coord.dec)
-        print(coord)
-        print(coord.ra)
-        print(coord.dec)
-        temp.append(coord_altaz.alt)
-        if (float(item['V']) > max_magnitude):
-            continue
-        else:
-            temp.append(item['V'])
-        temp.append(item['NObs'])
-        temp.append(item['Arc'])
-        temp.append(item['Not_Seen_dys'])
-        result.append(temp)
     table.remove_row(0)
     return table
 
