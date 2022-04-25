@@ -187,7 +187,7 @@ def neocp_search(config, min_score, max_magnitude, min_altitude):
     location = EarthLocation.from_geodetic(lon=float(long), lat=float(lat))
     observing_date = Time(datetime.datetime.utcnow())
     altaz = AltAz(location=location, obstime=observing_date)
-    table = QTable([[""],[0],[0.0],[0.0],[0.0],[0.0],[0],[0.0],[0.0]],
+    table = QTable([[""],[0],[""],[""],[0.0],[0.0],[0],[0.0],[0.0]],
                    names=('Temp_Desig', 'Score', 'R.A.', 'Decl', 'Alt', 'V', 'NObs', 'Arc', 'Not_seen'),
                    meta={'name': 'NEOcp confirmation'})
     for item in data:
@@ -196,8 +196,8 @@ def neocp_search(config, min_score, max_magnitude, min_altitude):
         if (int(item['Score'] > min_score and coord_altaz.alt > min_altitude * u.deg and float(item['V'] < max_magnitude))):
             table.add_row([item['Temp_Desig'],
                           int(item['Score']),
-                          coord.ra,
-                          coord.dec,
+                          coord.ra.to_string(u.hour),
+                          coord.dec.to_string(u.degree, alwayssign=True),
                           coord_altaz.alt,
                           float(item['V']),
                           int(item['NObs']),
