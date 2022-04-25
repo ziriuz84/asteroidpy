@@ -10,6 +10,7 @@ from astropy import units as u
 from astropy.coordinates import (SkyCoord, EarthLocation, AltAz)
 from astropy.table import QTable
 from astropy.time import Time
+from astroplan import Observer
 
 _ = gettext.gettext
 
@@ -26,21 +27,33 @@ rh2m_dict = {-4: '0%-5%', -3: '5%-10%', -2: '10%-15%', -1: '15%-20%', 0: '20%-25
 wind10m_speed_dict = {1: 'Below 0.3 m/s', 2: '0.3-3.4m/s', 3: '3.4-8.0m/s', 4: '8.0-10.8m/s',
                       5: '10.8-17.2m/s', 6: '17.2-24.5m/s', 7: '24.5-32.6m/s', 8: 'Over 32.6m/s'}
 
+
 async def httpx_get(url, payload, return_type):
     async with httpx.AsyncClient() as client:
-        r= await client.get(url, params=payload)
+        r = await client.get(url, params=payload)
     if (return_type == 'json'):
         return [r.json(), r.status_code]
     else:
         return [r.text, r.status_code]
 
+
 async def httpx_post(url, payload, return_type):
     async with httpx.AsyncClient() as client:
-        r= await client.post(url, data=payload)
+        r = await client.post(url, data=payload)
     if (return_type == 'json'):
         return [r.json(), r.status_code]
     else:
         return [r.text, r.status_code]
+
+
+def decimal_part(number):
+    return number-round(number)
+
+
+def deg_to_hms_coordinates(coordinates):
+    coordinates_m = decimal_part(coordinates) * 60
+    coordinates_s = decimal_part(coordinates_m) * 60
+    return str(round(coordinates))+unity+" " + str(round(coordinates_m))+"m "+str(coordinates_s)+"s"
 
 
 def weather(config):
@@ -72,7 +85,7 @@ def weather(config):
     wind10m = []
     prec_type = []
     for time in weather_forecast['dataseries']:
-        temp=time_start+datetime.timedelta(hours=time['timepoint'])
+        temp = time_start+datetime.timedelta(hours=time['timepoint'])
         deltaT.append(temp.strftime("%d/%m %H:%M"))
         cloudcover.append(cloudcover_dict[time['cloudcover']])
         seeing.append(seeing_dict[time['seeing']])
@@ -88,6 +101,7 @@ def weather(config):
     print(tabulate(data, headers='keys', tablefmt='fancy_grid'))
     exit = input(_('Press enter to continue...'))
     print(exit)
+
 
 def skycoord_format(coord, coordid):
     """
@@ -139,19 +153,20 @@ def observing_target_list(config, payload):
         for i in range(len(headers)):
             if 'Begin Time' in headers[i]:
                 temp.append(d[i].replace('Z', ''))
-            if ('Beg RA'in headers[i]):
+            if ('Beg RA' in headers[i]):
                 temp.append(skycoord_format(d[i], 'ra'))
-            if ('Beg Dec'in headers[i]):
+            if ('Beg Dec' in headers[i]):
                 temp.append(skycoord_format(d[i], 'dec'))
-            if ('Designation'in headers[i]):
+            if ('Designation' in headers[i]):
                 temp.append(d[i])
-            if ('Mag'in headers[i]):
+            if ('Mag' in headers[i]):
                 temp.append(d[i])
-            if ('Beg Alt'in headers[i]):
+            if ('Beg Alt' in headers[i]):
                 temp.append(d[i])
         result.append(temp)
-    headers=['Designation', 'Mag', 'Time', 'RA', 'Dec', 'Alt']
+    headers = ['Designation', 'Mag', 'Time', 'RA', 'Dec', 'Alt']
     return [headers, result]
+
 
 def neocp_search(config, min_score, max_magnitude, min_altitude):
     """
@@ -163,34 +178,62 @@ def neocp_search(config, min_score, max_magnitude, min_altitude):
     configuration.load_config(config)
     # r=requests.get('https://www.minorplanetcenter.net/Extended_Files/neocp.json')
     # data=r.json()
-    response=asyncio.run(httpx_get('https://www.minorplanetcenter.net/Extended_Files/neocp.json', {}, 'json'))
-    data=response[0]
-    result=[]
+    response = asyncio.run(httpx_get(
+        'https://www.minorplanetcenter.net/Extended_Files/neocp.json', {}, 'json'))
+    data = response[0]
+    result = []
     lat = config['Observatory']['latitude']
     long = config['Observatory']['longitude']
-    location= EarthLocation.from_geodetic(lon=float(long), lat=float(lat))
+    location = EarthLocation.from_geodetic(lon=float(long), lat=float(lat))
     observing_date = Time(datetime.datetime.utcnow())
-    altaz= AltAz(location=location, obstime=observing_date)
+    altaz = AltAz(location=location, obstime=observing_date)
+    table = QTable([[""],[0],[""],[""],[0.0],[0.0],[0],[0.0],[0.0]],
+                   names=('Temp_Desig', 'Score', 'R.A.', 'Decl', 'Alt', 'V', 'NObs', 'Arc', 'Not_seen'),
+                   meta={'name': 'NEOcp confirmation'})
     for item in data:
-        temp = []
-        temp.append(item['Temp_Desig'])
-        if (int(item['Score']>min_score)):
-            temp.append(item['Score'])
-        else:
-            continue
-        coord=SkyCoord(float(item['R.A.'])*u.deg, float(item['Decl.'])*u.deg)
-        coord_altaz=coord.transform_to(altaz)
-        if coord_altaz.alt < min_altitude*u.deg:
-            continue
-        temp.append(coord.ra)
-        temp.append(coord.dec)
-        temp.append(coord_altaz.alt)
-        if (float(item['V']) > max_magnitude):
-            continue
-        else:
-            temp.append(item['V'])
-        temp.append(item['NObs'])
-        temp.append(item['Arc'])
-        temp.append(item['Not_Seen_dys'])
-        result.append(temp)
+        coord = SkyCoord(float(item['R.A.'])*u.deg, float(item['Decl.'])*u.deg)
+        coord_altaz = coord.transform_to(altaz)
+        if (int(item['Score'] > min_score and coord_altaz.alt > min_altitude * u.deg and float(item['V'] < max_magnitude))):
+            table.add_row([item['Temp_Desig'],
+                          int(item['Score']),
+                          coord.ra.to_string(u.hour),
+                          coord.dec.to_string(u.degree, alwayssign=True),
+                          coord_altaz.alt,
+                          float(item['V']),
+                          int(item['NObs']),
+                          float(item['Arc']),
+                          float(item['Not_Seen_dys'])])
+    table.remove_row(0)
+    return table
+
+
+def twilight_times(config):
+    configuration.load_config(config)
+    location = EarthLocation.from_geodetic(float(config['Observatory']['longitude'])*u.deg, float(
+        config['Observatory']['latitude'])*u.deg, float(config['Observatory']['altitude'])*u.m)
+    observer = Observer(name=config['Observatory']
+                        ['obs_name'], location=location)
+    observing_date = Time(datetime.datetime.utcnow())
+    result = {'AstroM': observer.twilight_morning_astronomical(observing_date, which='next'),
+              'AstroE': observer.twilight_evening_astronomical(observing_date, which='next'),
+              'CivilM': observer.twilight_morning_civil(observing_date, which='next'),
+              'CivilE': observer.twilight_evening_civil(observing_date, which='next'),
+              'NautiM': observer.twilight_morning_nautical(observing_date, which='next'),
+              'NautiE': observer.twilight_evening_nautical(observing_date, which='next')}
+    return result
+
+
+def sun_moon_ephemeris(config):
+    configuration.load_config(config)
+    location = EarthLocation.from_geodetic(float(config['Observatory']['longitude'])*u.deg, float(
+        config['Observatory']['latitude'])*u.deg, float(config['Observatory']['altitude'])*u.m)
+    observer = Observer(name=config['Observatory']
+                        ['obs_name'], location=location)
+    observing_date = Time(datetime.datetime.utcnow())
+    result = {'Sunrise': observer.sun_rise_time(observing_date, which='next'),
+              'Sunset': observer.sun_set_time(observing_date, which='next'),
+              'Moonrise': observer.moon_rise_time(observing_date, which='next'),
+              'Moonset': observer.moon_set_time(observing_date, which='next'),
+              'MoonIll': observer.moon_illumination(observing_date)
+              }
     return result
