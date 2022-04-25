@@ -235,9 +235,13 @@ def scheduling_menu(config):
             min_score=get_integer(_('Minimum score -> '))
             max_magnitude=get_float(_('Maximum magnitude -> '))
             min_altitude=get_integer(_('Minimum altitude -> '))
+            browser_view = input(_("Do you want to view in Browser? (y/N) -> "))
             neocp=scheduling.neocp_search(config, min_score, max_magnitude, min_altitude)
             # titles=['Designation', 'Score', 'R.A.', 'Dec.', 'Alt.', 'V', 'NObs', 'Arc', 'Not Seen Days']
-            print(neocp)
+            if (browser_view in ["y", "Y"]):
+                neocp.show_in_browser(jsviewer=True)
+            else:
+                print(neocp)
             print('\n\n\n\n')
             # print(neocp)
         if choice == 4:
