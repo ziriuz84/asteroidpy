@@ -46,6 +46,16 @@ async def httpx_post(url, payload, return_type):
         return [r.text, r.status_code]
 
 
+def decimal_part(number):
+    return number-round(number)
+
+
+def deg_to_hms_coordinates(coordinates):
+    coordinates_m = decimal_part(coordinates) * 60
+    coordinates_s = decimal_part(coordinates_m) * 60
+    return str(round(coordinates))+unity+" " + str(round(coordinates_m))+"m "+str(coordinates_s)+"s"
+
+
 def weather(config):
     """
     Prints Weather forecast up to 72 hours
@@ -177,19 +187,36 @@ def neocp_search(config, min_score, max_magnitude, min_altitude):
     location = EarthLocation.from_geodetic(lon=float(long), lat=float(lat))
     observing_date = Time(datetime.datetime.utcnow())
     altaz = AltAz(location=location, obstime=observing_date)
+    table = QTable([[""],[0],[0.0],[0.0],[0.0],[0.0],[0],[0.0],[0.0]],
+                   names=('Temp_Desig', 'Score', 'R.A.', 'Decl', 'Alt', 'V', 'NObs', 'Arc', 'Not_seen'),
+                   meta={'name': 'NEOcp confirmation'})
     for item in data:
+        coord = SkyCoord(float(item['R.A.'])*u.deg, float(item['Decl.'])*u.deg)
+        coord_altaz = coord.transform_to(altaz)
+        if (int(item['Score'] > min_score and coord_altaz.alt > min_altitude * u.deg and float(item['V'] < max_magnitude))):
+            table.add_row([item['Temp_Desig'],
+                          int(item['Score']),
+                          coord.ra,
+                          coord.dec,
+                          coord_altaz.alt,
+                          float(item['V']),
+                          int(item['NObs']),
+                          float(item['Arc']),
+                          float(item['Not_Seen_dys'])])
         temp = []
         temp.append(item['Temp_Desig'])
         if (int(item['Score'] > min_score)):
             temp.append(item['Score'])
         else:
             continue
-        coord = SkyCoord(float(item['R.A.'])*u.deg, float(item['Decl.'])*u.deg)
-        coord_altaz = coord.transform_to(altaz)
+        coord_eq = coord.to_string('hmsdms')
         if coord_altaz.alt < min_altitude*u.deg:
             continue
         temp.append(coord.ra)
         temp.append(coord.dec)
+        print(coord)
+        print(coord.ra)
+        print(coord.dec)
         temp.append(coord_altaz.alt)
         if (float(item['V']) > max_magnitude):
             continue
@@ -199,7 +226,8 @@ def neocp_search(config, min_score, max_magnitude, min_altitude):
         temp.append(item['Arc'])
         temp.append(item['Not_Seen_dys'])
         result.append(temp)
-    return result
+    table.remove_row(0)
+    return table
 
 
 def twilight_times(config):
@@ -217,6 +245,7 @@ def twilight_times(config):
               'NautiE': observer.twilight_evening_nautical(observing_date, which='next')}
     return result
 
+
 def sun_moon_ephemeris(config):
     configuration.load_config(config)
     location = EarthLocation.from_geodetic(float(config['Observatory']['longitude'])*u.deg, float(
@@ -231,5 +260,3 @@ def sun_moon_ephemeris(config):
               'MoonIll': observer.moon_illumination(observing_date)
               }
     return result
-
-
