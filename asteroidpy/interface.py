@@ -116,6 +116,14 @@ def change_mpc_code_menu(config):
     code = input(_('MPC Code -> '))
     configuration.change_mpc_code(config, code)
 
+def print_observatory_config_menu():
+    print(_('''Choose an option
+    1 - Change coordinates
+    2 - Change altitude
+    3 - Change the name of the observer
+    4 - Change the name of the observatory
+    5 - Change the MPC code
+    0 - Back to configuration menu'''))
 
 def observatory_config_menu(config):
     """
@@ -129,13 +137,7 @@ def observatory_config_menu(config):
         print(_('Configuration -> Observatory'))
         print('==============================\n')
         configuration.print_obs_config(config)
-        print(_('''Choose an option
-        1 - Change coordinates
-        2 - Change altitude
-        3 - Change the name of the observer
-        4 - Change the name of the observatory
-        5 - Change the MPC code
-        0 - Back to configuration menu'''))
+        print_observatory_config_menu()
         choice = get_integer(_('choice -> '))
         print('\n\n\n\n\n')
         if choice == 1:
