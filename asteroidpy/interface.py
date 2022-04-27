@@ -59,6 +59,64 @@ def WIP():
     print(_('Work in Progress'))
     print('\n\n\n\n\n\n\n\n')
 
+
+def change_obs_coords_menu(config):
+    """
+    Prints Observatory coordinates config menu
+
+    :param config: the Configparser object with configuration option
+    :type config: Configparser
+    """
+    place = input(_('Locality -> '))
+    latitude = get_float(_('Latitude -> '))
+    longitude = get_float(_('Longitude -> '))
+    configuration.change_obs_coords(config, place, latitude, longitude)
+
+
+def change_obs_altitude_menu(config):
+    """
+    Prints Observatory altitude config menu
+
+    :param config: the Configparser object with configuration option
+    :type config: Configparser
+    """
+    altitude = get_integer(_('Altitude -> '))
+    configuration.change_obs_altitude(config, altitude)
+
+
+def change_observer_name_menu(config):
+    """
+    Prints Observatory name config menu
+
+    :param config: the Configparser object with configuration option
+    :type config: Configparser
+    """
+    name = input(_('Observer name -> '))
+    configuration.change_observer_name(config, name)
+
+
+def change_obs_name_menu(config):
+    """
+    Prints Observer name config menu
+
+    :param config: the Configparser object with configuration option
+    :type config: Configparser
+    """
+    name = input(_('Observatory name -> '))
+    configuration.change_obs_name(config, name)
+
+
+def change_mpc_code_menu(config):
+    """
+    Prints MPC Code config menu
+
+    :param config: the Configparser object with configuration option
+    :type config: Configparser
+    """
+    code = input(_('MPC Code -> '))
+    configuration.change_mpc_code(config, code)
+
+
 def observatory_config_menu(config):
     """
     Prints Observatory config menu
@@ -69,35 +127,27 @@ def observatory_config_menu(config):
     choice = 99
     while (choice != 0):
         print(_('Configuration -> Observatory'))
-        print('==============================')
-        print('\n')
+        print('==============================\n')
         configuration.print_obs_config(config)
-        print(_('Choose an option'))
-        print(_('1 - Change coordinates'))
-        print(_('2 - Change altitude'))
-        print(_('3 - Change the name of the observer'))
-        print(_('4 - Change the name of the observatory'))
-        print(_('5 - Change the MPC code'))
-        print(_('0 - Back to configuration menu'))
+        print(_('''Choose an option
+        1 - Change coordinates
+        2 - Change altitude
+        3 - Change the name of the observer
+        4 - Change the name of the observatory
+        5 - Change the MPC code
+        0 - Back to configuration menu'''))
         choice = get_integer(_('choice -> '))
         print('\n\n\n\n\n')
         if choice == 1:
-            place = input(_('Locality -> '))
-            latitude = get_float(_('Latitude -> '))
-            longitude = get_float(_('Longitude -> '))
-            configuration.change_obs_coords(config, place, latitude, longitude)
+            change_obs_coords_menu(config)
         if choice == 2:
-            altitude = get_integer(_('Altitude -> '))
-            configuration.change_obs_altitude(config, altitude)
+            change_obs_altitude_menu(config)
         if choice == 3:
-            name = input(_('Observer name -> '))
-            configuration.change_observer_name(config, name)
+            change_observer_name_menu(config)
         if choice == 4:
-            name = input(_('Observatory name -> '))
-            configuration.change_obs_name(config, name)
+            change_obs_name_menu(config)
         if choice == 5:
-            code = input(_('MPC Code -> '))
-            configuration.change_mpc_code(config, code)
+            change_mpc_code_menu(config)
 
 
 def change_language(config):
@@ -229,14 +279,16 @@ def scheduling_menu(config):
                 asteroids.append(result[1][i])
             print('\n')
             print(tabulate.tabulate(asteroids,
-                  headers=result[0], tablefmt='fancy_grid'))
+                                    headers=result[0], tablefmt='fancy_grid'))
             print('\n\n\n\n')
         if choice == 3:
-            min_score=get_integer(_('Minimum score -> '))
-            max_magnitude=get_float(_('Maximum magnitude -> '))
-            min_altitude=get_integer(_('Minimum altitude -> '))
-            browser_view = input(_("Do you want to view in Browser? (y/N) -> "))
-            neocp=scheduling.neocp_search(config, min_score, max_magnitude, min_altitude)
+            min_score = get_integer(_('Minimum score -> '))
+            max_magnitude = get_float(_('Maximum magnitude -> '))
+            min_altitude = get_integer(_('Minimum altitude -> '))
+            browser_view = input(
+                _("Do you want to view in Browser? (y/N) -> "))
+            neocp = scheduling.neocp_search(
+                config, min_score, max_magnitude, min_altitude)
             # titles=['Designation', 'Score', 'R.A.', 'Dec.', 'Alt.', 'V', 'NObs', 'Arc', 'Not Seen Days']
             if (browser_view in ["y", "Y"]):
                 neocp.show_in_browser(jsviewer=True)
@@ -246,11 +298,14 @@ def scheduling_menu(config):
             # print(neocp)
         if choice == 4:
             result_times = scheduling.twilight_times(config)
-            print(_(f"Civil Twilight: {result_times['CivilM'].strftime('%H:%M:%S')} - {result_times['CivilE'].strftime('%H:%M:%S')}"))
-            print(_(f"Nautical Twilight: {result_times['NautiM'].strftime('%H:%M:%S')} - {result_times['NautiE'].strftime('%H:%M:%S')}"))
-            print(_(f"Astronomical Twilight: {result_times['AstroM'].strftime('%H:%M:%S')} - {result_times['AstroE'].strftime('%H:%M:%S')}"))
+            print(
+                _(f"Civil Twilight: {result_times['CivilM'].strftime('%H:%M:%S')} - {result_times['CivilE'].strftime('%H:%M:%S')}"))
+            print(
+                _(f"Nautical Twilight: {result_times['NautiM'].strftime('%H:%M:%S')} - {result_times['NautiE'].strftime('%H:%M:%S')}"))
+            print(
+                _(f"Astronomical Twilight: {result_times['AstroM'].strftime('%H:%M:%S')} - {result_times['AstroE'].strftime('%H:%M:%S')}"))
             print('\n')
-            ephemeris=scheduling.sun_moon_ephemeris(config)
+            ephemeris = scheduling.sun_moon_ephemeris(config)
             print(_(f"Sunrise: {ephemeris['Sunrise'].strftime('%H:%M:%S')}"))
             print(_(f"Sunset: {ephemeris['Sunset'].strftime('%H:%M:%S')}"))
             print(_(f"Moonrise: {ephemeris['Moonrise'].strftime('%H:%M:%S')}"))
