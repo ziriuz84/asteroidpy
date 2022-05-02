@@ -209,7 +209,7 @@ def observing_target_list_menu(config):
           headers=result[0], tablefmt='fancy_grid'))
     print('\n\n\n\n')
 
-def neocp_search_menu(config):
+def neocp_confirmation_menu(config):
     """
     Prints NEOcp confirmation menu
 
@@ -220,7 +220,7 @@ def neocp_search_menu(config):
     max_magnitude=get_float(_('Maximum magnitude -> '))
     min_altitude=get_integer(_('Minimum altitude -> '))
     browser_view = input(_("Do you want to view in Browser? (y/N) -> "))
-    neocp=scheduling.neocp_search(config, min_score, max_magnitude, min_altitude)
+    neocp=scheduling.neocp_confirmation(config, min_score, max_magnitude, min_altitude)
     # titles=['Designation', 'Score', 'R.A.', 'Dec.', 'Alt.', 'V', 'NObs', 'Arc', 'Not Seen Days']
     if (browser_view in ["y", "Y"]):
         neocp.show_in_browser(jsviewer=True)
@@ -283,7 +283,7 @@ def scheduling_menu(config):
         if choice == 2:
             observing_target_list_menu(config)
         if choice == 3:
-            neocp_search_menu(config)
+            neocp_confirmation_menu(config)
         if choice == 4:
             twilight_sun_moon_menu(config)
 

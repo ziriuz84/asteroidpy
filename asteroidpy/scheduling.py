@@ -168,7 +168,7 @@ def observing_target_list(config, payload):
     return [headers, result]
 
 
-def neocp_search(config, min_score, max_magnitude, min_altitude):
+def neocp_confirmation(config, min_score, max_magnitude, min_altitude):
     """
     Prints NEOcp visible at the moment
 
