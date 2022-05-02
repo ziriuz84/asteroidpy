@@ -212,6 +212,111 @@ def config_menu(config):
         if choice == 2:
             observatory_config_menu(config)
 
+def observing_target_list_menu(config):
+    authenticity_token = "W5eBzzw9Clj4tJVzkz0z%2F2EK18jvSS%2BffHxZpAshylg%3D"
+    coordinates = local_coords(config)
+    select_time = input(_(
+        'Do you want to know the asteroids visible right now? [y/N]'))
+    if (select_time == 's' or select_time == 'y'):
+        time = datetime.datetime.utcnow()
+    else:
+        time = select_specific_time()
+    duration = get_integer(_("Duration of observation -> "))
+    solar_elongation = get_integer(_("Minimal solar elongation -> "))
+    lunar_elongation = get_integer(_("Minimal lunar elongation -> "))
+    minimal_height = get_integer(_("Minimal altitude-> "))
+    max_objects = get_integer(_("Maximum number of objects -> "))
+    object_request = get_integer(_(
+        'Select type of object\n1 - Asteroids\n2 - NEAs\n3 - Comets\nChoice -> '))
+    if (object_request == 2):
+        object_type = 'neo'
+    elif (object_request == 3):
+        object_type = 'cmt'
+    else:
+        object_type = 'mp'
+    payload = {
+        'utf8': '%E2%9C%93',
+        'authenticity_token': authenticity_token,
+        'latitude': coordinates[0],
+        'longitude': coordinates[1],
+        'year': time.year,
+        'month': time.month,
+        'day': time.day,
+        'hour': time.hour,
+        'minute': time.minute,
+        'duration': duration,
+        'max_objects': max_objects,
+        'min_alt': minimal_height,
+        'solar_elong': solar_elongation,
+        'lunar_elong': lunar_elongation,
+        'object_type': object_type,
+        'submit': 'Submit'
+    }
+    result = scheduling.observing_target_list(config, payload)
+    asteroids = []
+    for i in range(len(result[1])):
+        asteroids.append(result[1][i])
+    print('\n')
+    print(tabulate.tabulate(asteroids,
+          headers=result[0], tablefmt='fancy_grid'))
+    print('\n\n\n\n')
+
+def neocp_confirmation_menu(config):
+    """
+    Prints NEOcp confirmation menu
+
+    :param config: the Configparser object with configuration option
+    :type config: Configparser
+    """
+    min_score=get_integer(_('Minimum score -> '))
+    max_magnitude=get_float(_('Maximum magnitude -> '))
+    min_altitude=get_integer(_('Minimum altitude -> '))
+    browser_view = input(_("Do you want to view in Browser? (y/N) -> "))
+    neocp=scheduling.neocp_confirmation(config, min_score, max_magnitude, min_altitude)
+    # titles=['Designation', 'Score', 'R.A.', 'Dec.', 'Alt.', 'V', 'NObs', 'Arc', 'Not Seen Days']
+    if (browser_view in ["y", "Y"]):
+        neocp.show_in_browser(jsviewer=True)
+    else:
+        print(neocp)
+    print('\n\n\n\n')
+    # print(neocp)
+
+def twilight_sun_moon_menu(config):
+    """
+    Prints Twilight, sun and moon menu
+
+    :param config: the Configparser object with configuration option
+    :type config: Configparser
+    """
+    result_times = scheduling.twilight_times(config)
+    print(_(f"Civil Twilight: {result_times['CivilM'].strftime('%H:%M:%S')} - {result_times['CivilE'].strftime('%H:%M:%S')}"))
+    print(_(f"Nautical Twilight: {result_times['NautiM'].strftime('%H:%M:%S')} - {result_times['NautiE'].strftime('%H:%M:%S')}"))
+    print(_(f"Astronomical Twilight: {result_times['AstroM'].strftime('%H:%M:%S')} - {result_times['AstroE'].strftime('%H:%M:%S')}"))
+    print('\n')
+    ephemeris=scheduling.sun_moon_ephemeris(config)
+    print(_(f"Sunrise: {ephemeris['Sunrise'].strftime('%H:%M:%S')}"))
+    print(_(f"Sunset: {ephemeris['Sunset'].strftime('%H:%M:%S')}"))
+    print(_(f"Moonrise: {ephemeris['Moonrise'].strftime('%H:%M:%S')}"))
+    print(_(f"Moonset: {ephemeris['Sunrise'].strftime('%H:%M:%S')}"))
+    print(_(f"Moon Illumination: {ephemeris['MoonIll']}"))
+    print('\n\n\n\n')
+
+def print_scheduling_menu():
+    """
+    Prints scheduling menu
+
+    :param config: the Configparser object with configuration option
+    :type config: Configparser
+    """
+    print(_('Observation scheduling'))
+    print('==============================\n')
+    print(_('''Choose a submenu
+    1 - Weather forecast
+    2 - Observing target List
+    3 - NEOcp list
+    4 - Twilight Times
+    0 - Back to main menu\n'''))
+
 
 def scheduling_menu(config):
     """
@@ -222,20 +327,13 @@ def scheduling_menu(config):
     """
     choice = 99
     while (choice != 0):
-        print(_('Observation scheduling'))
-        print('==============================')
-        print('\n')
-        print(_('Choose a submenu'))
-        print(_('1 - Weather forecast'))
-        print(_('2 - Observing target List'))
-        print(_('3 - NEOcp list'))
-        print(_('4 - Twilight Times'))
-        print(_('0 - Back to main menu'))
+        print_scheduling_menu()
         choice = get_integer(_('choice -> '))
         print('\n\n\n\n\n')
         if choice == 1:
             scheduling.weather(config)
         if choice == 2:
+<<<<<<< HEAD
             authenticity_token = "W5eBzzw9Clj4tJVzkz0z%2F2EK18jvSS%2BffHxZpAshylg%3D"
             coordinates = local_coords(config)
             select_time = input(_(
@@ -314,6 +412,13 @@ def scheduling_menu(config):
             print(_(f"Moonset: {ephemeris['Sunrise'].strftime('%H:%M:%S')}"))
             print(_(f"Moon Illumination: {ephemeris['MoonIll']}"))
             print('\n\n\n\n')
+=======
+            observing_target_list_menu(config)
+        if choice == 3:
+            neocp_confirmation_menu(config)
+        if choice == 4:
+            twilight_sun_moon_menu(config)
+>>>>>>> 33-refactor-interfacepyscheduling_menuconfig
 
 
 def main_menu(config):
