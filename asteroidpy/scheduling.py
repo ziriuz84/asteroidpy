@@ -55,6 +55,11 @@ def deg_to_hms_coordinates(coordinates):
     coordinates_s = decimal_part(coordinates_m) * 60
     return str(round(coordinates))+unity+" " + str(round(coordinates_m))+"m "+str(coordinates_s)+"s"
 
+def weather_time(time_init, deltaT):
+    time_start = datetime.datetime(int(time_init[0:4]),  int(
+        time_init[4:6]), int(time_init[6:8]), int(time_init[8:10]))
+    time = time_start + datetime.timedelta(hours=deltaT)
+    return time.strftime('%d/%m %H:%M')
 
 def weather(config):
     """
@@ -64,29 +69,19 @@ def weather(config):
     :type config: Configparser
     """
     configuration.load_config(config)
-    lat = config['Observatory']['latitude']
-    long = config['Observatory']['longitude']
+    lat, long= config['Observatory']['latitude'], config['Observatory']['longitude']
     payload = {'lon': long, 'lat': lat, 'product': 'astro', 'output': 'json'}
     r = requests.get('http://www.7timer.info/bin/api.pl', params=payload)
     weather_forecast = r.json()
     # print('{:<7} {:<9} {:<11} {:<9} {:<10} {:<9} {:<5} {:<7} {:<6}'.format(
     # 'DeltaT', 'Nuvolo', 'Seeing', 'Trasp', 'Instab', 'Temp', 'RH', 'Vento', 'Precip'))
-    data = []
+    data, deltaT, cloudcover, seeing, transparency, lifted_index, temperature, rh, wind10m, prec_type = [], [],[],[],[],[],[],[],[],[]
     time_init = weather_forecast['init']
     time_start = datetime.datetime(int(time_init[0:4]),  int(
         time_init[4:6]), int(time_init[6:8]), int(time_init[8:10]))
-    deltaT = []
-    cloudcover = []
-    seeing = []
-    transparency = []
-    lifted_index = []
-    temperature = []
-    rh = []
-    wind10m = []
-    prec_type = []
     for time in weather_forecast['dataseries']:
         temp = time_start+datetime.timedelta(hours=time['timepoint'])
-        deltaT.append(temp.strftime("%d/%m %H:%M"))
+        deltaT.append(weather_time(weather_forecast['init'], time['timepoint']))
         cloudcover.append(cloudcover_dict[time['cloudcover']])
         seeing.append(seeing_dict[time['seeing']])
         transparency.append(transparency_dict[time['transparency']])
@@ -187,22 +182,23 @@ def neocp_confirmation(config, min_score, max_magnitude, min_altitude):
     location = EarthLocation.from_geodetic(lon=float(long), lat=float(lat))
     observing_date = Time(datetime.datetime.utcnow())
     altaz = AltAz(location=location, obstime=observing_date)
-    table = QTable([[""],[0],[""],[""],[0.0],[0.0],[0],[0.0],[0.0]],
-                   names=('Temp_Desig', 'Score', 'R.A.', 'Decl', 'Alt', 'V', 'NObs', 'Arc', 'Not_seen'),
+    table = QTable([[""], [0], [""], [""], [0.0], [0.0], [0], [0.0], [0.0]],
+                   names=('Temp_Desig', 'Score', 'R.A.', 'Decl',
+                          'Alt', 'V', 'NObs', 'Arc', 'Not_seen'),
                    meta={'name': 'NEOcp confirmation'})
     for item in data:
         coord = SkyCoord(float(item['R.A.'])*u.deg, float(item['Decl.'])*u.deg)
         coord_altaz = coord.transform_to(altaz)
         if (int(item['Score'] > min_score and coord_altaz.alt > min_altitude * u.deg and float(item['V'] < max_magnitude))):
             table.add_row([item['Temp_Desig'],
-                          int(item['Score']),
-                          coord.ra.to_string(u.hour),
-                          coord.dec.to_string(u.degree, alwayssign=True),
-                          coord_altaz.alt,
-                          float(item['V']),
-                          int(item['NObs']),
-                          float(item['Arc']),
-                          float(item['Not_Seen_dys'])])
+                           int(item['Score']),
+                           coord.ra.to_string(u.hour),
+                           coord.dec.to_string(u.degree, alwayssign=True),
+                           coord_altaz.alt,
+                           float(item['V']),
+                           int(item['NObs']),
+                           float(item['Arc']),
+                           float(item['Not_Seen_dys'])])
     table.remove_row(0)
     return table
 
