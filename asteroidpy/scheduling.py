@@ -4,7 +4,6 @@ import httpx
 import gettext
 from asteroidpy import configuration
 import datetime
-from tabulate import tabulate
 from bs4 import BeautifulSoup
 from astropy import units as u
 from astropy.coordinates import (SkyCoord, EarthLocation, AltAz)
