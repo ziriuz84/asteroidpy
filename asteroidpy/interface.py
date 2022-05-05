@@ -252,8 +252,12 @@ def observing_target_list_menu(config):
         'object_type': object_type,
         'submit': 'Submit'
     }
-    result = scheduling.observing_target_list(config, payload)
-    print(result)
+    target_list = scheduling.observing_target_list(config, payload)
+    browser_view = input(_("Do you want to view in Browser? (y/N) -> "))
+    if (browser_view in ["y", "Y"]):
+        target_list.show_in_browser(jsviewer=True)
+    else:
+        print(target_list)
     print('\n\n\n\n')
 
 def neocp_confirmation_menu(config):
