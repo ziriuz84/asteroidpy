@@ -253,12 +253,7 @@ def observing_target_list_menu(config):
         'submit': 'Submit'
     }
     result = scheduling.observing_target_list(config, payload)
-    asteroids = []
-    for i in range(len(result[1])):
-        asteroids.append(result[1][i])
-    print('\n')
-    print(tabulate.tabulate(asteroids,
-          headers=result[0], tablefmt='fancy_grid'))
+    print(result)
     print('\n\n\n\n')
 
 def neocp_confirmation_menu(config):

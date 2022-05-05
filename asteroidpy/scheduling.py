@@ -80,15 +80,15 @@ def weather(config):
                    meta={'name': 'Weather forecast'})
     for time in weather_forecast['dataseries']:
         table.add_row([weather_time(weather_forecast['init'], time['timepoint']),
-                      cloudcover_dict[time['cloudcover']],
-                      seeing_dict[time['seeing']],
-                      transparency_dict[time['transparency']],
-                      liftedIndex_dict[time['lifted_index']],
-                      str(time['temp2m'])+' C',
-                      rh2m_dict[time['rh2m']],
-                      time['wind10m']['direction'] +
-                      ' ' + wind10m_speed_dict[time['wind10m']['speed']],
-                      time['prec_type']])
+                       cloudcover_dict[time['cloudcover']],
+                       seeing_dict[time['seeing']],
+                       transparency_dict[time['transparency']],
+                       liftedIndex_dict[time['lifted_index']],
+                       str(time['temp2m'])+' C',
+                       rh2m_dict[time['rh2m']],
+                       time['wind10m']['direction'] +
+                       ' ' + wind10m_speed_dict[time['wind10m']['speed']],
+                       time['prec_type']])
     table.remove_row(0)
     print(table)
     print('\n\n\n\n')
@@ -139,24 +139,14 @@ def observing_target_list(config, payload):
             temp.append(i.string.strip())
         data.append(temp)
     result = []
+    print(headers)
+    results = QTable([[""], [""], [""], [""], [""], [""]],
+             names=('Designation', 'Mag', 'Time', 'RA', 'Dec', 'Alt'),
+             meta={'name': 'Observing Target List'})
     for d in data:
-        temp = []
-        for i in range(len(headers)):
-            if 'Begin Time' in headers[i]:
-                temp.append(d[i].replace('Z', ''))
-            if ('Beg RA' in headers[i]):
-                temp.append(skycoord_format(d[i], 'ra'))
-            if ('Beg Dec' in headers[i]):
-                temp.append(skycoord_format(d[i], 'dec'))
-            if ('Designation' in headers[i]):
-                temp.append(d[i])
-            if ('Mag' in headers[i]):
-                temp.append(d[i])
-            if ('Beg Alt' in headers[i]):
-                temp.append(d[i])
-        result.append(temp)
-    headers = ['Designation', 'Mag', 'Time', 'RA', 'Dec', 'Alt']
-    return [headers, result]
+        results.add_row([d[0],d[1],d[4].replace('z',''),skycoord_format(d[5],'ra'),skycoord_format(d[6], 'dec'), d[7]])
+    results.remove_row(0)
+    return results
 
 
 def neocp_confirmation(config, min_score, max_magnitude, min_altitude):
