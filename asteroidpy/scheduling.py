@@ -138,7 +138,6 @@ def observing_target_list(config, payload):
         for i in d:
             temp.append(i.string.strip())
         data.append(temp)
-    result = []
     print(headers)
     results = QTable([[""], [""], [""], [""], [""], [""]],
              names=('Designation', 'Mag', 'Time', 'RA', 'Dec', 'Alt'),
@@ -162,7 +161,6 @@ def neocp_confirmation(config, min_score, max_magnitude, min_altitude):
     response = asyncio.run(httpx_get(
         'https://www.minorplanetcenter.net/Extended_Files/neocp.json', {}, 'json'))
     data = response[0]
-    result = []
     lat = config['Observatory']['latitude']
     long = config['Observatory']['longitude']
     location = EarthLocation.from_geodetic(lon=float(long), lat=float(lat))

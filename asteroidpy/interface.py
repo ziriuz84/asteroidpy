@@ -1,6 +1,5 @@
 import datetime
 import gettext
-import tabulate
 import asteroidpy.configuration as configuration
 import asteroidpy.scheduling as scheduling
 
