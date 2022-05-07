@@ -2,22 +2,26 @@ import os
 
 
 def save_config(config):
-    """
-    Save configurations in config.ini file
+    """Save configurations in config.ini file
 
-    :param config: the Configparser object with configuration option
-    :type config: Configparser
+    Args:
+      config(Configparser): the Configparser object with configuration option
+
+    Returns:
+
     """
     with open(os.path.expanduser('~')+'/'+'.asteroidpy', 'w') as f:
         config.write(f)
 
 
 def initialize(config):
-    """
-    Initialize Configuration parameters
+    """Initialize Configuration parameters
 
-    :param config: the Configparser object with configuration option
-    :type config: Configparser
+    Args:
+      config(Configparser): the Configparser object with configuration option
+
+    Returns:
+
     """
     config['General'] = {'lang': 'en'}
     config['Observatory'] = {'place': '',
@@ -32,11 +36,13 @@ def initialize(config):
 
 
 def load_config(config):
-    """
-    Searchs for .asteroidpy. If it's in the folder then it loads all parameter, else it initialize it
+    """Searchs for .asteroidpy. If it's in the folder then it loads all parameter, else it initialize it
 
-    :param config: the Configparser object with configuration option
-    :type config: Configparser
+    Args:
+      config(Configparser): the Configparser object with configuration option
+
+    Returns:
+
     """
     dir_path = os.path.dirname(os.path.expanduser('~'))
     i = 0
@@ -50,13 +56,14 @@ def load_config(config):
 
 
 def change_language(config, lang):
-    """
-    Changes language for interface
+    """Changes language for interface
 
-    :param config: the configparser object with configuration options
-    :type config: configparser
-    :param lang: the language chosen
-    :type lang: string
+    Args:
+      config(configparser): the configparser object with configuration options
+      lang(string): the language chosen
+
+    Returns:
+
     """
     load_config(config)
     config['General']['lang'] = lang
@@ -64,11 +71,16 @@ def change_language(config, lang):
 
 
 def change_obs_coords(config, place, lat, long):
-    """
-    Changes Observatory coordinates
+    """Changes Observatory coordinates
 
-    :param config: the Configparser object with configuration option
-    :type config: Configparser
+    Args:
+      config(Configparser): the Configparser object with configuration option
+      place: 
+      lat: 
+      long: 
+
+    Returns:
+
     """
     load_config(config)
     config['Observatory']['place'] = place
@@ -78,11 +90,14 @@ def change_obs_coords(config, place, lat, long):
 
 
 def change_obs_altitude(config, alt):
-    """
-    Changes Observatory altitude
+    """Changes Observatory altitude
 
-    :param config: the Configparser object with configuration option
-    :type config: Configparser
+    Args:
+      config(Configparser): the Configparser object with configuration option
+      alt: 
+
+    Returns:
+
     """
     load_config(config)
     config['Observatory']['altitude'] = str(alt)
@@ -90,11 +105,14 @@ def change_obs_altitude(config, alt):
 
 
 def change_mpc_code(config, code):
-    """
-    Changes MPC code
+    """Changes MPC code
 
-    :param config: the Configparser object with configuration option
-    :type config: Configparser
+    Args:
+      config(Configparser): the Configparser object with configuration option
+      code: 
+
+    Returns:
+
     """
     load_config(config)
     config['Observatory']['mpc_code'] = str(code)
@@ -102,11 +120,14 @@ def change_mpc_code(config, code):
 
 
 def change_obs_name(config, name):
-    """
-    Changes Observatory name
+    """Changes Observatory name
 
-    :param config: the Configparser object with configuration option
-    :type config: Configparser
+    Args:
+      config(Configparser): the Configparser object with configuration option
+      name: 
+
+    Returns:
+
     """
     load_config(config)
     config['Observatory']['obs_name'] = str(name)
@@ -114,11 +135,14 @@ def change_obs_name(config, name):
 
 
 def change_observer_name(config, name):
-    """
-    Changes observer name
+    """Changes observer name
 
-    :param config: the Configparser object with configuration option
-    :type config: Configparser
+    Args:
+      config(Configparser): the Configparser object with configuration option
+      name: 
+
+    Returns:
+
     """
     load_config(config)
     config['Observatory']['observer_name'] = str(name)
@@ -126,11 +150,13 @@ def change_observer_name(config, name):
 
 
 def print_obs_config(config):
-    """
-    Prints Observatory configuration parameters
+    """Prints Observatory configuration parameters
 
-    :param config: the Configparser object with configuration option
-    :type config: Configparser
+    Args:
+      config(Configparser): the Configparser object with configuration option
+
+    Returns:
+
     """
     load_config(config)
     print('Località: %s' % config['Observatory']['place'])

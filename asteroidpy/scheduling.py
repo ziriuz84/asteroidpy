@@ -46,16 +46,41 @@ async def httpx_post(url, payload, return_type):
 
 
 def decimal_part(number):
+    """
+
+    Args:
+      number: 
+
+    Returns:
+
+    """
     return number-round(number)
 
 
 def deg_to_hms_coordinates(coordinates):
+    """
+
+    Args:
+      coordinates: 
+
+    Returns:
+
+    """
     coordinates_m = decimal_part(coordinates) * 60
     coordinates_s = decimal_part(coordinates_m) * 60
     return str(round(coordinates))+unity+" " + str(round(coordinates_m))+"m "+str(coordinates_s)+"s"
 
 
 def weather_time(time_init, deltaT):
+    """
+
+    Args:
+      time_init: 
+      deltaT: 
+
+    Returns:
+
+    """
     time_start = datetime.datetime(int(time_init[0:4]),  int(
         time_init[4:6]), int(time_init[6:8]), int(time_init[8:10]))
     time = time_start + datetime.timedelta(hours=deltaT)
@@ -63,11 +88,13 @@ def weather_time(time_init, deltaT):
 
 
 def weather(config):
-    """
-    Prints Weather forecast up to 72 hours
+    """Prints Weather forecast up to 72 hours
 
-    :param config: the Configparser object with configuration option
-    :type config: Configparser
+    Args:
+      config(Configparser): the Configparser object with configuration option
+
+    Returns:
+
     """
     configuration.load_config(config)
     lat, long = config['Observatory']['latitude'], config['Observatory']['longitude']
@@ -95,13 +122,14 @@ def weather(config):
 
 
 def skycoord_format(coord, coordid):
-    """
-    Formats coordinates as described in coordid
+    """Formats coordinates as described in coordid
 
-    :param coord: the coordinates to be formatted
-    :type coord: string
-    :param coordid: the format
-    :type coordid: string
+    Args:
+      coord(string): the coordinates to be formatted
+      coordid(string): the format
+
+    Returns:
+
     """
     temp = coord.split()
     if (coordid == 'ra'):
@@ -110,6 +138,15 @@ def skycoord_format(coord, coordid):
         return temp[0]+'d'+temp[1]+'m'+temp[2]+'s'
 
 def observing_target_list_scraper(url, payload):
+    """
+
+    Args:
+      url: 
+      payload: 
+
+    Returns:
+
+    """
     r = requests.post(
         url, params=payload)
     soup = BeautifulSoup(r.content, 'lxml')
@@ -133,13 +170,14 @@ def observing_target_list_scraper(url, payload):
 
 
 def observing_target_list(config, payload):
-    """
-    Prints Observing target list from MPC
+    """Prints Observing target list from MPC
 
-    :param config: the Configparser object with configuration option
-    :type config: Configparser
-    :param payload: the payload of parameters
-    :type payload: dictionary of strings
+    Args:
+      config(Configparser): the Configparser object with configuration option
+      payload(dictionary of strings): the payload of parameters
+
+    Returns:
+
     """
     results = QTable([[""], [""], [""], [""], [""], [""]],
              names=('Designation', 'Mag', 'Time', 'RA', 'Dec', 'Alt'),
@@ -152,11 +190,16 @@ def observing_target_list(config, payload):
 
 
 def neocp_confirmation(config, min_score, max_magnitude, min_altitude):
-    """
-    Prints NEOcp visible at the moment
+    """Prints NEOcp visible at the moment
 
-    :param config: the Configparser object with configuration option
-    :type config: Configparser
+    Args:
+      config(Configparser): the Configparser object with configuration option
+      min_score: 
+      max_magnitude: 
+      min_altitude: 
+
+    Returns:
+
     """
     configuration.load_config(config)
     # r=requests.get('https://www.minorplanetcenter.net/Extended_Files/neocp.json')
@@ -191,6 +234,14 @@ def neocp_confirmation(config, min_score, max_magnitude, min_altitude):
 
 
 def twilight_times(config):
+    """
+
+    Args:
+      config: 
+
+    Returns:
+
+    """
     configuration.load_config(config)
     location = EarthLocation.from_geodetic(float(config['Observatory']['longitude'])*u.deg, float(
         config['Observatory']['latitude'])*u.deg, float(config['Observatory']['altitude'])*u.m)
@@ -207,6 +258,14 @@ def twilight_times(config):
 
 
 def sun_moon_ephemeris(config):
+    """
+
+    Args:
+      config: 
+
+    Returns:
+
+    """
     configuration.load_config(config)
     location = EarthLocation.from_geodetic(float(config['Observatory']['longitude'])*u.deg, float(
         config['Observatory']['latitude'])*u.deg, float(config['Observatory']['altitude'])*u.m)

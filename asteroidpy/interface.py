@@ -7,6 +7,14 @@ _ = gettext.gettext
 
 
 def get_integer(message):
+    """
+
+    Args:
+      message: 
+
+    Returns:
+
+    """
     while True:
         try:
             userInt = int(input(message))
@@ -16,6 +24,14 @@ def get_integer(message):
 
 
 def get_float(message):
+    """
+
+    Args:
+      message: 
+
+    Returns:
+
+    """
     while True:
         try:
             userFloat = float(input(message))
@@ -25,10 +41,15 @@ def get_float(message):
 
 
 def local_coords(config):
-    """
-    Returns local geographical coordinates
-
+    """Returns local geographical coordinates
+    
     :return coord: array
+
+    Args:
+      config: 
+
+    Returns:
+
     """
     configuration.load_config(config)
     lat = config['Observatory']['latitude']
@@ -37,10 +58,14 @@ def local_coords(config):
 
 
 def select_specific_time():
-    """
-    Returns specific time
+    """Returns specific time
+    
+    :return time
 
-    :type time: datetime
+    Args:
+
+    Returns:
+
     """
     print('Provide me with the observation start time parameters (UTC)')
     day = get_integer(_('Day -> '))
@@ -55,16 +80,19 @@ def select_specific_time():
 
 
 def WIP():
+    """Prints a simply Work in Progress"""
     print(_('Work in Progress'))
     print('\n\n\n\n\n\n\n\n')
 
 
 def change_obs_coords_menu(config):
-    """
-    Prints Observatory coordinates config menu
+    """Changes Observatory coordinates in Configuration file
 
-    :param config: the Configparser object with configuration option
-    :type config: Configparser
+    Args:
+      config(Configparser): the Configparser object with configuration option
+
+    Returns:
+
     """
     place = input(_('Locality -> '))
     latitude = get_float(_('Latitude -> '))
@@ -73,49 +101,65 @@ def change_obs_coords_menu(config):
 
 
 def change_obs_altitude_menu(config):
-    """
-    Prints Observatory altitude config menu
+    """Changes Observatory altitude in Configuration file
 
-    :param config: the Configparser object with configuration option
-    :type config: Configparser
+    Args:
+      config(Configparser): the Configparser object with configuration option
+
+    Returns:
+
     """
     altitude = get_integer(_('Altitude -> '))
     configuration.change_obs_altitude(config, altitude)
 
 
 def change_observer_name_menu(config):
-    """
-    Prints Observatory name config menu
+    """Changes Observer name in Configuration file
 
-    :param config: the Configparser object with configuration option
-    :type config: Configparser
+    Args:
+      config(Configparser): the Configparser object with configuration option
+
+    Returns:
+
     """
     name = input(_('Observer name -> '))
     configuration.change_observer_name(config, name)
 
 
 def change_obs_name_menu(config):
-    """
-    Prints Observer name config menu
+    """Changes Observatory name in Configuration file
 
-    :param config: the Configparser object with configuration option
-    :type config: Configparser
+    Args:
+      config(Configparser): the Configparser object with configuration option
+
+    Returns:
+
     """
     name = input(_('Observatory name -> '))
     configuration.change_obs_name(config, name)
 
 
 def change_mpc_code_menu(config):
-    """
-    Prints MPC Code config menu
+    """Changes MPC code in Configuration file
 
-    :param config: the Configparser object with configuration option
-    :type config: Configparser
+    Args:
+      config(Configparser): the Configparser object with configuration option
+
+    Returns:
+
     """
     code = input(_('MPC Code -> '))
     configuration.change_mpc_code(config, code)
 
 def print_observatory_config_menu():
+    """Prints Observatory config text menu
+
+    Args:
+      config(Configparser): the Configparser object with configuration option
+
+    Returns:
+
+    """
     print(_('''Choose an option
     1 - Change coordinates
     2 - Change altitude
@@ -125,11 +169,13 @@ def print_observatory_config_menu():
     0 - Back to configuration menu'''))
 
 def observatory_config_menu(config):
-    """
-    Prints Observatory config menu
+    """Prints Observatory config menu and it launches correct interface
 
-    :param config: the Configparser object with configuration option
-    :type config: Configparser
+    Args:
+      config(Configparser): the Configparser object with configuration option
+
+    Returns:
+
     """
     choice = 99
     while (choice != 0):
@@ -152,11 +198,13 @@ def observatory_config_menu(config):
 
 
 def change_language(config):
-    """
-    Prints language configuration menu
+    """Prints language configuration menu
 
-    :param config: the Configparser object with configuration option
-    :type config: Configparser
+    Args:
+      config(Configparser): the Configparser object with configuration option
+
+    Returns:
+
     """
     lang = ''
     print(_('Select a language'))
@@ -168,11 +216,13 @@ def change_language(config):
 
 
 def general_config_menu(config):
-    """
-    Prints menu for general configuration options
+    """Prints menu for general configuration options and it launches correct interface
 
-    :param config: the Configparser object with configuration option
-    :type config: Configparser
+    Args:
+      config(Configparser): the Configparser object with configuration option
+
+    Returns:
+
     """
     choice = 99
     while (choice != 0):
@@ -189,11 +239,13 @@ def general_config_menu(config):
 
 
 def config_menu(config):
-    """
-    Prints main config menu
+    """Prints main config menu and it launches correct interface
 
-    :param config: the Configparser object with configuration option
-    :type config: Configparser
+    Args:
+      config(Configparser): the Configparser object with configuration option
+
+    Returns:
+
     """
     choice = 99
     while (choice != 0):
@@ -212,6 +264,14 @@ def config_menu(config):
             observatory_config_menu(config)
 
 def observing_target_list_menu(config):
+    """Prints observing target list
+
+    Args:
+      config(Configparser): the Configparser object with configuration option
+
+    Returns:
+
+    """
     authenticity_token = "W5eBzzw9Clj4tJVzkz0z%2F2EK18jvSS%2BffHxZpAshylg%3D"
     coordinates = local_coords(config)
     select_time = input(_(
@@ -260,11 +320,13 @@ def observing_target_list_menu(config):
     print('\n\n\n\n')
 
 def neocp_confirmation_menu(config):
-    """
-    Prints NEOcp confirmation menu
+    """Prints NEOcp confirmation list
 
-    :param config: the Configparser object with configuration option
-    :type config: Configparser
+    Args:
+      config(Configparser): the Configparser object with configuration option
+
+    Returns:
+
     """
     min_score=get_integer(_('Minimum score -> '))
     max_magnitude=get_float(_('Maximum magnitude -> '))
@@ -280,11 +342,13 @@ def neocp_confirmation_menu(config):
     # print(neocp)
 
 def twilight_sun_moon_menu(config):
-    """
-    Prints Twilight, sun and moon menu
+    """Prints Twilight, sun and moon times
 
-    :param config: the Configparser object with configuration option
-    :type config: Configparser
+    Args:
+      config(Configparser): the Configparser object with configuration option
+
+    Returns:
+
     """
     result_times = scheduling.twilight_times(config)
     print(_(f"Civil Twilight: {result_times['CivilM'].strftime('%H:%M:%S')} - {result_times['CivilE'].strftime('%H:%M:%S')}"))
@@ -300,11 +364,13 @@ def twilight_sun_moon_menu(config):
     print('\n\n\n\n')
 
 def print_scheduling_menu():
-    """
-    Prints scheduling menu
+    """Prints scheduling menu
 
-    :param config: the Configparser object with configuration option
-    :type config: Configparser
+    Args:
+      config(Configparser): the Configparser object with configuration option
+
+    Returns:
+
     """
     print(_('Observation scheduling'))
     print('==============================\n')
@@ -317,11 +383,13 @@ def print_scheduling_menu():
 
 
 def scheduling_menu(config):
-    """
-    Prints scheduling menu
+    """Prints scheduling menu and it launches correct interface
 
-    :param config: the Configparser object with configuration option
-    :type config: Configparser
+    Args:
+      config(Configparser): the Configparser object with configuration option
+
+    Returns:
+
     """
     choice = 99
     while (choice != 0):
@@ -339,11 +407,13 @@ def scheduling_menu(config):
 
 
 def main_menu(config):
-    """
-    Prints Main menu
+    """Prints Main menu
 
-    :param config: the Configparser object with configuration option
-    :type config: Configparser
+    Args:
+      config(Configparser): the Configparser object with configuration option
+
+    Returns:
+
     """
     choice = 99
     while (choice != 0):
@@ -363,10 +433,12 @@ def main_menu(config):
 
 
 def interface(config):
-    """
-    Main interface function
+    """Main interface function
 
-    :param config: the Configparser object with configuration option
-    :type config: Configparser
+    Args:
+      config(Configparser): the Configparser object with configuration option
+
+    Returns:
+
     """
     main_menu(config)
