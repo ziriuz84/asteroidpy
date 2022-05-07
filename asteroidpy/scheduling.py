@@ -45,32 +45,6 @@ async def httpx_post(url, payload, return_type):
         return [r.text, r.status_code]
 
 
-def decimal_part(number):
-    """
-
-    Args:
-      number: 
-
-    Returns:
-
-    """
-    return number-round(number)
-
-
-def deg_to_hms_coordinates(coordinates):
-    """
-
-    Args:
-      coordinates: 
-
-    Returns:
-
-    """
-    coordinates_m = decimal_part(coordinates) * 60
-    coordinates_s = decimal_part(coordinates_m) * 60
-    return str(round(coordinates))+unity+" " + str(round(coordinates_m))+"m "+str(coordinates_s)+"s"
-
-
 def weather_time(time_init, deltaT):
     """
 
@@ -137,6 +111,7 @@ def skycoord_format(coord, coordid):
     elif (coordid == 'dec'):
         return temp[0]+'d'+temp[1]+'m'+temp[2]+'s'
 
+
 def observing_target_list_scraper(url, payload):
     """
 
@@ -180,11 +155,13 @@ def observing_target_list(config, payload):
 
     """
     results = QTable([[""], [""], [""], [""], [""], [""]],
-             names=('Designation', 'Mag', 'Time', 'RA', 'Dec', 'Alt'),
-             meta={'name': 'Observing Target List'})
-    data=observing_target_list_scraper('https://www.minorplanetcenter.net/whatsup/index', payload)
+                     names=('Designation', 'Mag', 'Time', 'RA', 'Dec', 'Alt'),
+                     meta={'name': 'Observing Target List'})
+    data = observing_target_list_scraper(
+        'https://www.minorplanetcenter.net/whatsup/index', payload)
     for d in data:
-        results.add_row([d[0],d[1],d[4].replace('z',''),skycoord_format(d[5],'ra'),skycoord_format(d[6], 'dec'), d[7]])
+        results.add_row([d[0], d[1], d[4].replace('z', ''), skycoord_format(
+            d[5], 'ra'), skycoord_format(d[6], 'dec'), d[7]])
     results.remove_row(0)
     return results
 
