@@ -4,10 +4,13 @@ import os
 def save_config(config):
     """Save configurations in config.ini file
 
-    Args:
-      config(Configparser): the Configparser object with configuration option
+    Parameters
+    ----------
+    config : Configparser
+        the Configparser object with configuration option
 
-    Returns:
+    Returns
+    -------
 
     """
     with open(os.path.expanduser('~')+'/'+'.asteroidpy', 'w') as f:
@@ -17,10 +20,13 @@ def save_config(config):
 def initialize(config):
     """Initialize Configuration parameters
 
-    Args:
-      config(Configparser): the Configparser object with configuration option
+    Parameters
+    ----------
+    config : Configparser
+        the Configparser object with configuration option
 
-    Returns:
+    Returns
+    -------
 
     """
     config['General'] = {'lang': 'en'}
@@ -38,10 +44,13 @@ def initialize(config):
 def load_config(config):
     """Searchs for .asteroidpy. If it's in the folder then it loads all parameter, else it initialize it
 
-    Args:
-      config(Configparser): the Configparser object with configuration option
+    Parameters
+    ----------
+    config : Configparser
+        the Configparser object with configuration option
 
-    Returns:
+    Returns
+    -------
 
     """
     dir_path = os.path.dirname(os.path.expanduser('~'))
@@ -58,11 +67,15 @@ def load_config(config):
 def change_language(config, lang):
     """Changes language for interface
 
-    Args:
-      config(configparser): the configparser object with configuration options
-      lang(string): the language chosen
+    Parameters
+    ----------
+    config : configparser
+        the configparser object with configuration options
+    lang : string
+        the language chosen
 
-    Returns:
+    Returns
+    -------
 
     """
     load_config(config)
@@ -73,13 +86,19 @@ def change_language(config, lang):
 def change_obs_coords(config, place, lat, long):
     """Changes Observatory coordinates
 
-    Args:
-      config(Configparser): the Configparser object with configuration option
-      place: 
-      lat: 
-      long: 
+    Parameters
+    ----------
+    config : Configparser
+        the Configparser object with configuration option
+    place :
+        
+    lat :
+        
+    long :
+        
 
-    Returns:
+    Returns
+    -------
 
     """
     load_config(config)
@@ -92,11 +111,15 @@ def change_obs_coords(config, place, lat, long):
 def change_obs_altitude(config, alt):
     """Changes Observatory altitude
 
-    Args:
-      config(Configparser): the Configparser object with configuration option
-      alt: 
+    Parameters
+    ----------
+    config : Configparser
+        the Configparser object with configuration option
+    alt :
+        
 
-    Returns:
+    Returns
+    -------
 
     """
     load_config(config)
@@ -107,11 +130,15 @@ def change_obs_altitude(config, alt):
 def change_mpc_code(config, code):
     """Changes MPC code
 
-    Args:
-      config(Configparser): the Configparser object with configuration option
-      code: 
+    Parameters
+    ----------
+    config : Configparser
+        the Configparser object with configuration option
+    code :
+        
 
-    Returns:
+    Returns
+    -------
 
     """
     load_config(config)
@@ -122,11 +149,15 @@ def change_mpc_code(config, code):
 def change_obs_name(config, name):
     """Changes Observatory name
 
-    Args:
-      config(Configparser): the Configparser object with configuration option
-      name: 
+    Parameters
+    ----------
+    config : Configparser
+        the Configparser object with configuration option
+    name :
+        
 
-    Returns:
+    Returns
+    -------
 
     """
     load_config(config)
@@ -137,11 +168,15 @@ def change_obs_name(config, name):
 def change_observer_name(config, name):
     """Changes observer name
 
-    Args:
-      config(Configparser): the Configparser object with configuration option
-      name: 
+    Parameters
+    ----------
+    config : Configparser
+        the Configparser object with configuration option
+    name :
+        
 
-    Returns:
+    Returns
+    -------
 
     """
     load_config(config)
@@ -152,10 +187,13 @@ def change_observer_name(config, name):
 def print_obs_config(config):
     """Prints Observatory configuration parameters
 
-    Args:
-      config(Configparser): the Configparser object with configuration option
+    Parameters
+    ----------
+    config : Configparser
+        the Configparser object with configuration option
 
-    Returns:
+    Returns
+    -------
 
     """
     load_config(config)

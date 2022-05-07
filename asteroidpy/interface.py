@@ -9,10 +9,13 @@ _ = gettext.gettext
 def get_integer(message):
     """
 
-    Args:
-      message: 
+    Parameters
+    ----------
+    message :
+        
 
-    Returns:
+    Returns
+    -------
 
     """
     while True:
@@ -26,10 +29,13 @@ def get_integer(message):
 def get_float(message):
     """
 
-    Args:
-      message: 
+    Parameters
+    ----------
+    message :
+        
 
-    Returns:
+    Returns
+    -------
 
     """
     while True:
@@ -45,10 +51,13 @@ def local_coords(config):
     
     :return coord: array
 
-    Args:
-      config: 
+    Parameters
+    ----------
+    config :
+        
 
-    Returns:
+    Returns
+    -------
 
     """
     configuration.load_config(config)
@@ -62,9 +71,11 @@ def select_specific_time():
     
     :return time
 
-    Args:
+    Parameters
+    ----------
 
-    Returns:
+    Returns
+    -------
 
     """
     print('Provide me with the observation start time parameters (UTC)')
@@ -88,10 +99,13 @@ def WIP():
 def change_obs_coords_menu(config):
     """Changes Observatory coordinates in Configuration file
 
-    Args:
-      config(Configparser): the Configparser object with configuration option
+    Parameters
+    ----------
+    config : Configparser
+        the Configparser object with configuration option
 
-    Returns:
+    Returns
+    -------
 
     """
     place = input(_('Locality -> '))
@@ -103,10 +117,13 @@ def change_obs_coords_menu(config):
 def change_obs_altitude_menu(config):
     """Changes Observatory altitude in Configuration file
 
-    Args:
-      config(Configparser): the Configparser object with configuration option
+    Parameters
+    ----------
+    config : Configparser
+        the Configparser object with configuration option
 
-    Returns:
+    Returns
+    -------
 
     """
     altitude = get_integer(_('Altitude -> '))
@@ -116,10 +133,13 @@ def change_obs_altitude_menu(config):
 def change_observer_name_menu(config):
     """Changes Observer name in Configuration file
 
-    Args:
-      config(Configparser): the Configparser object with configuration option
+    Parameters
+    ----------
+    config : Configparser
+        the Configparser object with configuration option
 
-    Returns:
+    Returns
+    -------
 
     """
     name = input(_('Observer name -> '))
@@ -129,10 +149,13 @@ def change_observer_name_menu(config):
 def change_obs_name_menu(config):
     """Changes Observatory name in Configuration file
 
-    Args:
-      config(Configparser): the Configparser object with configuration option
+    Parameters
+    ----------
+    config : Configparser
+        the Configparser object with configuration option
 
-    Returns:
+    Returns
+    -------
 
     """
     name = input(_('Observatory name -> '))
@@ -142,10 +165,13 @@ def change_obs_name_menu(config):
 def change_mpc_code_menu(config):
     """Changes MPC code in Configuration file
 
-    Args:
-      config(Configparser): the Configparser object with configuration option
+    Parameters
+    ----------
+    config : Configparser
+        the Configparser object with configuration option
 
-    Returns:
+    Returns
+    -------
 
     """
     code = input(_('MPC Code -> '))
@@ -154,10 +180,13 @@ def change_mpc_code_menu(config):
 def print_observatory_config_menu():
     """Prints Observatory config text menu
 
-    Args:
-      config(Configparser): the Configparser object with configuration option
+    Parameters
+    ----------
+    config : Configparser
+        the Configparser object with configuration option
 
-    Returns:
+    Returns
+    -------
 
     """
     print(_('''Choose an option
@@ -171,10 +200,13 @@ def print_observatory_config_menu():
 def observatory_config_menu(config):
     """Prints Observatory config menu and it launches correct interface
 
-    Args:
-      config(Configparser): the Configparser object with configuration option
+    Parameters
+    ----------
+    config : Configparser
+        the Configparser object with configuration option
 
-    Returns:
+    Returns
+    -------
 
     """
     choice = 99
@@ -200,10 +232,13 @@ def observatory_config_menu(config):
 def change_language(config):
     """Prints language configuration menu
 
-    Args:
-      config(Configparser): the Configparser object with configuration option
+    Parameters
+    ----------
+    config : Configparser
+        the Configparser object with configuration option
 
-    Returns:
+    Returns
+    -------
 
     """
     lang = ''
@@ -218,10 +253,13 @@ def change_language(config):
 def general_config_menu(config):
     """Prints menu for general configuration options and it launches correct interface
 
-    Args:
-      config(Configparser): the Configparser object with configuration option
+    Parameters
+    ----------
+    config : Configparser
+        the Configparser object with configuration option
 
-    Returns:
+    Returns
+    -------
 
     """
     choice = 99
@@ -241,10 +279,13 @@ def general_config_menu(config):
 def config_menu(config):
     """Prints main config menu and it launches correct interface
 
-    Args:
-      config(Configparser): the Configparser object with configuration option
+    Parameters
+    ----------
+    config : Configparser
+        the Configparser object with configuration option
 
-    Returns:
+    Returns
+    -------
 
     """
     choice = 99
@@ -266,10 +307,13 @@ def config_menu(config):
 def observing_target_list_menu(config):
     """Prints observing target list
 
-    Args:
-      config(Configparser): the Configparser object with configuration option
+    Parameters
+    ----------
+    config : Configparser
+        the Configparser object with configuration option
 
-    Returns:
+    Returns
+    -------
 
     """
     authenticity_token = "W5eBzzw9Clj4tJVzkz0z%2F2EK18jvSS%2BffHxZpAshylg%3D"
@@ -322,10 +366,13 @@ def observing_target_list_menu(config):
 def neocp_confirmation_menu(config):
     """Prints NEOcp confirmation list
 
-    Args:
-      config(Configparser): the Configparser object with configuration option
+    Parameters
+    ----------
+    config : Configparser
+        the Configparser object with configuration option
 
-    Returns:
+    Returns
+    -------
 
     """
     min_score=get_integer(_('Minimum score -> '))
@@ -344,10 +391,13 @@ def neocp_confirmation_menu(config):
 def twilight_sun_moon_menu(config):
     """Prints Twilight, sun and moon times
 
-    Args:
-      config(Configparser): the Configparser object with configuration option
+    Parameters
+    ----------
+    config : Configparser
+        the Configparser object with configuration option
 
-    Returns:
+    Returns
+    -------
 
     """
     result_times = scheduling.twilight_times(config)
@@ -366,10 +416,13 @@ def twilight_sun_moon_menu(config):
 def print_scheduling_menu():
     """Prints scheduling menu
 
-    Args:
-      config(Configparser): the Configparser object with configuration option
+    Parameters
+    ----------
+    config : Configparser
+        the Configparser object with configuration option
 
-    Returns:
+    Returns
+    -------
 
     """
     print(_('Observation scheduling'))
@@ -385,10 +438,13 @@ def print_scheduling_menu():
 def scheduling_menu(config):
     """Prints scheduling menu and it launches correct interface
 
-    Args:
-      config(Configparser): the Configparser object with configuration option
+    Parameters
+    ----------
+    config : Configparser
+        the Configparser object with configuration option
 
-    Returns:
+    Returns
+    -------
 
     """
     choice = 99
@@ -409,10 +465,13 @@ def scheduling_menu(config):
 def main_menu(config):
     """Prints Main menu
 
-    Args:
-      config(Configparser): the Configparser object with configuration option
+    Parameters
+    ----------
+    config : Configparser
+        the Configparser object with configuration option
 
-    Returns:
+    Returns
+    -------
 
     """
     choice = 99
@@ -435,10 +494,13 @@ def main_menu(config):
 def interface(config):
     """Main interface function
 
-    Args:
-      config(Configparser): the Configparser object with configuration option
+    Parameters
+    ----------
+    config : Configparser
+        the Configparser object with configuration option
 
-    Returns:
+    Returns
+    -------
 
     """
     main_menu(config)

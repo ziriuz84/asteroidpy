@@ -49,6 +49,18 @@ async def httpx_get(url, payload, return_type):
 
 
 async def httpx_post(url, payload, return_type):
+    """
+    Returns result from post query
+
+    Args:
+      url(string): the url to be queried
+      payload(dictionary of strings): the payload of the query
+      return_type(string): the type of formatted return
+
+    Returns:
+      array: The result of query and status code of the response
+
+    """
     async with httpx.AsyncClient() as client:
         r = await client.post(url, data=payload)
     if (return_type == 'json'):
@@ -60,12 +72,17 @@ async def httpx_post(url, payload, return_type):
 def weather_time(time_init, deltaT):
     """
 
-    Args:
-      time_init(string): The start time of weather forecast
-      deltaT(int): The time from start time
+    Parameters
+    ----------
+    time_init : string
+        The start time of weather forecast
+    deltaT : int
+        The time from start time
 
-    Returns:
-      string: The formatted time
+    Returns
+    -------
+    string
+        The formatted time
 
     """
     time_start = datetime.datetime(int(time_init[0:4]),  int(
@@ -77,10 +94,13 @@ def weather_time(time_init, deltaT):
 def weather(config):
     """Prints Weather forecast up to 72 hours
 
-    Args:
-      config(Configparser): the Configparser object with configuration option
+    Parameters
+    ----------
+    config : Configparser
+        the Configparser object with configuration option
 
-    Returns:
+    Returns
+    -------
 
     """
     configuration.load_config(config)
@@ -111,12 +131,17 @@ def weather(config):
 def skycoord_format(coord, coordid):
     """Formats coordinates as described in coordid
 
-    Args:
-      coord(string): the coordinates to be formatted
-      coordid(string): the format
+    Parameters
+    ----------
+    coord : string
+        the coordinates to be formatted
+    coordid : string
+        the format
 
-    Returns:
-      string: the formatted coordinates
+    Returns
+    -------
+    string
+        the formatted coordinates
 
     """
     temp = coord.split()
@@ -129,12 +154,17 @@ def skycoord_format(coord, coordid):
 def observing_target_list_scraper(url, payload):
     """
 
-    Args:
-      url(string): the url to scrape
-      payload(dictionary of strings): the payload of the request
+    Parameters
+    ----------
+    url : string
+        the url to scrape
+    payload : dictionary of strings
+        the payload of the request
 
-    Returns:
-      array: data form the web page
+    Returns
+    -------
+    array
+        data form the web page
 
     """
     r = requests.post(
@@ -162,12 +192,17 @@ def observing_target_list_scraper(url, payload):
 def observing_target_list(config, payload):
     """Prints Observing target list from MPC
 
-    Args:
-      config(Configparser): the Configparser object with configuration option
-      payload(dictionary of strings): the payload of parameters
+    Parameters
+    ----------
+    config : Configparser
+        the Configparser object with configuration option
+    payload : dictionary of strings
+        the payload of parameters
 
-    Returns:
-      QTable: results of the scrape
+    Returns
+    -------
+    QTable
+        results of the scrape
 
     """
     results = QTable([[""], [""], [""], [""], [""], [""]],
@@ -185,14 +220,21 @@ def observing_target_list(config, payload):
 def neocp_confirmation(config, min_score, max_magnitude, min_altitude):
     """Prints NEOcp visible at the moment
 
-    Args:
-      config(Configparser): the Configparser object with configuration option
-      min_score(int): The minimum score to query
-      max_magnitude(int): The maximum magnitude to query
-      min_altitude(int): The minimum altitude of the object
+    Parameters
+    ----------
+    config : Configparser
+        the Configparser object with configuration option
+    min_score : int
+        The minimum score to query
+    max_magnitude : int
+        The maximum magnitude to query
+    min_altitude : int
+        The minimum altitude of the object
 
-    Returns:
-      QTable: table of neocp found
+    Returns
+    -------
+    QTable
+        table of neocp found
 
     """
     configuration.load_config(config)
@@ -228,14 +270,17 @@ def neocp_confirmation(config, min_score, max_magnitude, min_altitude):
 
 
 def twilight_times(config):
-    """
-    Returns twilight times for a given location
+    """Returns twilight times for a given location
 
-    Args:
-      config(Configparser): the Configparser object with configuration option
+    Parameters
+    ----------
+    config : Configparser
+        the Configparser object with configuration option
 
-    Returns:
-      dictionary of strings: The twilight times
+    Returns
+    -------
+    dictionary of strings
+        The twilight times
 
     """
     configuration.load_config(config)
@@ -254,14 +299,17 @@ def twilight_times(config):
 
 
 def sun_moon_ephemeris(config):
-    """
-    Returns the Sun and Moon ephemeris
+    """Returns the Sun and Moon ephemeris
 
-    Args:
-      config(Configparser): the Configparser object with configuration option
+    Parameters
+    ----------
+    config : Configparser
+        the Configparser object with configuration option
 
-    Returns:
-      dictionary of strings: The sun and moon ephemeris
+    Returns
+    -------
+    dictionary of strings
+        The sun and moon ephemeris
 
     """
     configuration.load_config(config)
