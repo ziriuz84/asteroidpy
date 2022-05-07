@@ -12,10 +12,12 @@ def get_integer(message):
     Parameters
     ----------
     message :
-        
+        the input given
 
     Returns
     -------
+    int
+        the number only if it's int
 
     """
     while True:
@@ -32,10 +34,12 @@ def get_float(message):
     Parameters
     ----------
     message :
-        
+        the input given
 
     Returns
     -------
+    float
+        the number only if it's float
 
     """
     while True:
@@ -49,8 +53,6 @@ def get_float(message):
 def local_coords(config):
     """Returns local geographical coordinates
     
-    :return coord: array
-
     Parameters
     ----------
     config :
@@ -58,6 +60,8 @@ def local_coords(config):
 
     Returns
     -------
+    array
+        coordinates of the obseratory
 
     """
     configuration.load_config(config)
@@ -69,16 +73,16 @@ def local_coords(config):
 def select_specific_time():
     """Returns specific time
     
-    :return time
-
     Parameters
     ----------
 
     Returns
     -------
+    datetime
+        The time requested
 
     """
-    print('Provide me with the observation start time parameters (UTC)')
+    print(_('Provide me with the observation start time parameters (UTC)'))
     day = get_integer(_('Day -> '))
     month = get_integer(_('Month -> '))
     year = get_integer(_('Year -> '))
@@ -182,8 +186,6 @@ def print_observatory_config_menu():
 
     Parameters
     ----------
-    config : Configparser
-        the Configparser object with configuration option
 
     Returns
     -------
@@ -418,8 +420,6 @@ def print_scheduling_menu():
 
     Parameters
     ----------
-    config : Configparser
-        the Configparser object with configuration option
 
     Returns
     -------
