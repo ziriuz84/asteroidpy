@@ -90,12 +90,12 @@ def change_obs_coords(config, place, lat, long):
     ----------
     config : Configparser
         the Configparser object with configuration option
-    place :
-        
-    lat :
-        
-    long :
-        
+    place : string
+        Name of Locality
+    lat : float
+        latitude
+    long : float
+        longitude
 
     Returns
     -------
@@ -115,8 +115,8 @@ def change_obs_altitude(config, alt):
     ----------
     config : Configparser
         the Configparser object with configuration option
-    alt :
-        
+    alt : int
+        altitude
 
     Returns
     -------
@@ -134,8 +134,8 @@ def change_mpc_code(config, code):
     ----------
     config : Configparser
         the Configparser object with configuration option
-    code :
-        
+    code : string
+        MPC Code
 
     Returns
     -------
@@ -153,8 +153,8 @@ def change_obs_name(config, name):
     ----------
     config : Configparser
         the Configparser object with configuration option
-    name :
-        
+    name : string
+        Name of obseratory
 
     Returns
     -------
@@ -172,8 +172,8 @@ def change_observer_name(config, name):
     ----------
     config : Configparser
         the Configparser object with configuration option
-    name :
-        
+    name : string
+        Name of observer
 
     Returns
     -------
