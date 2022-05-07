@@ -28,6 +28,18 @@ wind10m_speed_dict = {1: 'Below 0.3 m/s', 2: '0.3-3.4m/s', 3: '3.4-8.0m/s', 4: '
 
 
 async def httpx_get(url, payload, return_type):
+    """
+    Returns result from get query
+
+    Args:
+      url(string): the url to be queried
+      payload(dictionary of strings): the payload of the query
+      return_type(string): the type of formatted return
+
+    Returns:
+      array: The result of query and status code of the response
+
+    """
     async with httpx.AsyncClient() as client:
         r = await client.get(url, params=payload)
     if (return_type == 'json'):
@@ -49,10 +61,11 @@ def weather_time(time_init, deltaT):
     """
 
     Args:
-      time_init: 
-      deltaT: 
+      time_init(string): The start time of weather forecast
+      deltaT(int): The time from start time
 
     Returns:
+      string: The formatted time
 
     """
     time_start = datetime.datetime(int(time_init[0:4]),  int(
@@ -103,6 +116,7 @@ def skycoord_format(coord, coordid):
       coordid(string): the format
 
     Returns:
+      string: the formatted coordinates
 
     """
     temp = coord.split()
@@ -116,10 +130,11 @@ def observing_target_list_scraper(url, payload):
     """
 
     Args:
-      url: 
-      payload: 
+      url(string): the url to scrape
+      payload(dictionary of strings): the payload of the request
 
     Returns:
+      array: data form the web page
 
     """
     r = requests.post(
@@ -152,6 +167,7 @@ def observing_target_list(config, payload):
       payload(dictionary of strings): the payload of parameters
 
     Returns:
+      QTable: results of the scrape
 
     """
     results = QTable([[""], [""], [""], [""], [""], [""]],
@@ -171,11 +187,12 @@ def neocp_confirmation(config, min_score, max_magnitude, min_altitude):
 
     Args:
       config(Configparser): the Configparser object with configuration option
-      min_score: 
-      max_magnitude: 
-      min_altitude: 
+      min_score(int): The minimum score to query
+      max_magnitude(int): The maximum magnitude to query
+      min_altitude(int): The minimum altitude of the object
 
     Returns:
+      QTable: table of neocp found
 
     """
     configuration.load_config(config)
@@ -212,11 +229,13 @@ def neocp_confirmation(config, min_score, max_magnitude, min_altitude):
 
 def twilight_times(config):
     """
+    Returns twilight times for a given location
 
     Args:
-      config: 
+      config(Configparser): the Configparser object with configuration option
 
     Returns:
+      dictionary of strings: The twilight times
 
     """
     configuration.load_config(config)
@@ -236,11 +255,13 @@ def twilight_times(config):
 
 def sun_moon_ephemeris(config):
     """
+    Returns the Sun and Moon ephemeris
 
     Args:
-      config: 
+      config(Configparser): the Configparser object with configuration option
 
     Returns:
+      dictionary of strings: The sun and moon ephemeris
 
     """
     configuration.load_config(config)
