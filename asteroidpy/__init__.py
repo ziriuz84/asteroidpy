@@ -9,7 +9,7 @@ PROFILE = True
 config = configparser.ConfigParser()
 
 def main():
-    """ """
+    """Main function """
     if (PROFILE):
         profiler = cProfile.Profile()
         profiler.enable()
