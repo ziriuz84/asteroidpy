@@ -12,6 +12,7 @@ def save_config(config):
     Returns
     -------
 
+    
     """
     with open(os.path.expanduser('~')+'/'+'.asteroidpy', 'w') as f:
         config.write(f)
@@ -28,6 +29,7 @@ def initialize(config):
     Returns
     -------
 
+    
     """
     config['General'] = {'lang': 'en'}
     config['Observatory'] = {'place': '',
@@ -52,6 +54,7 @@ def load_config(config):
     Returns
     -------
 
+    
     """
     dir_path = os.path.dirname(os.path.expanduser('~'))
     i = 0
@@ -77,6 +80,7 @@ def change_language(config, lang):
     Returns
     -------
 
+    
     """
     load_config(config)
     config['General']['lang'] = lang
@@ -100,6 +104,7 @@ def change_obs_coords(config, place, lat, long):
     Returns
     -------
 
+    
     """
     load_config(config)
     config['Observatory']['place'] = place
@@ -121,6 +126,7 @@ def change_obs_altitude(config, alt):
     Returns
     -------
 
+    
     """
     load_config(config)
     config['Observatory']['altitude'] = str(alt)
@@ -140,6 +146,7 @@ def change_mpc_code(config, code):
     Returns
     -------
 
+    
     """
     load_config(config)
     config['Observatory']['mpc_code'] = str(code)
@@ -159,6 +166,7 @@ def change_obs_name(config, name):
     Returns
     -------
 
+    
     """
     load_config(config)
     config['Observatory']['obs_name'] = str(name)
@@ -178,6 +186,7 @@ def change_observer_name(config, name):
     Returns
     -------
 
+    
     """
     load_config(config)
     config['Observatory']['observer_name'] = str(name)
@@ -195,6 +204,7 @@ def print_obs_config(config):
     Returns
     -------
 
+    
     """
     load_config(config)
     print('Località: %s' % config['Observatory']['place'])
@@ -204,3 +214,26 @@ def print_obs_config(config):
     print('Osservatore: %s' % config['Observatory']['observer_name'])
     print('Nome Osservatorio: %s' % config['Observatory']['obs_name'])
     print('Codice MPC: %s' % config['Observatory']['mpc_code'])
+
+
+def virtual_horizon_configuration(config, horizon):
+    """
+
+    Parameters
+    ----------
+    config : Configparser
+        the Configparser object with configuration options
+    horizon : dictionary of string
+        The horizon defined by altitude on directions
+
+    Returns
+    -------
+
+    
+    """
+    load_config(config)
+    config['Observatory']['nord_altitude'] = horizon['nord']
+    config['Observatory']['south_altitude'] = horizon['south']
+    config['Observatory']['east_altitude'] = horizon['east']
+    config['Observatory']['west_altitude'] = horizon['west']
+    save_config(config)

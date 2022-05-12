@@ -16,9 +16,8 @@ def get_integer(message):
 
     Returns
     -------
-    int
-        the number only if it's int
 
+    
     """
     while True:
         try:
@@ -38,9 +37,8 @@ def get_float(message):
 
     Returns
     -------
-    float
-        the number only if it's float
 
+    
     """
     while True:
         try:
@@ -52,7 +50,7 @@ def get_float(message):
 
 def local_coords(config):
     """Returns local geographical coordinates
-    
+
     Parameters
     ----------
     config :
@@ -60,9 +58,8 @@ def local_coords(config):
 
     Returns
     -------
-    array
-        coordinates of the obseratory
 
+    
     """
     configuration.load_config(config)
     lat = config['Observatory']['latitude']
@@ -71,17 +68,7 @@ def local_coords(config):
 
 
 def select_specific_time():
-    """Returns specific time
-    
-    Parameters
-    ----------
-
-    Returns
-    -------
-    datetime
-        The time requested
-
-    """
+    """Returns specific time"""
     print(_('Provide me with the observation start time parameters (UTC)'))
     day = get_integer(_('Day -> '))
     month = get_integer(_('Month -> '))
@@ -111,6 +98,7 @@ def change_obs_coords_menu(config):
     Returns
     -------
 
+    
     """
     place = input(_('Locality -> '))
     latitude = get_float(_('Latitude -> '))
@@ -129,6 +117,7 @@ def change_obs_altitude_menu(config):
     Returns
     -------
 
+    
     """
     altitude = get_integer(_('Altitude -> '))
     configuration.change_obs_altitude(config, altitude)
@@ -145,6 +134,7 @@ def change_observer_name_menu(config):
     Returns
     -------
 
+    
     """
     name = input(_('Observer name -> '))
     configuration.change_observer_name(config, name)
@@ -161,6 +151,7 @@ def change_obs_name_menu(config):
     Returns
     -------
 
+    
     """
     name = input(_('Observatory name -> '))
     configuration.change_obs_name(config, name)
@@ -177,20 +168,13 @@ def change_mpc_code_menu(config):
     Returns
     -------
 
+    
     """
     code = input(_('MPC Code -> '))
     configuration.change_mpc_code(config, code)
 
 def print_observatory_config_menu():
-    """Prints Observatory config text menu
-
-    Parameters
-    ----------
-
-    Returns
-    -------
-
-    """
+    """Prints Observatory config text menu"""
     print(_('''Choose an option
     1 - Change coordinates
     2 - Change altitude
@@ -210,6 +194,7 @@ def observatory_config_menu(config):
     Returns
     -------
 
+    
     """
     choice = 99
     while (choice != 0):
@@ -242,6 +227,7 @@ def change_language(config):
     Returns
     -------
 
+    
     """
     lang = ''
     print(_('Select a language'))
@@ -263,6 +249,7 @@ def general_config_menu(config):
     Returns
     -------
 
+    
     """
     choice = 99
     while (choice != 0):
@@ -289,6 +276,7 @@ def config_menu(config):
     Returns
     -------
 
+    
     """
     choice = 99
     while (choice != 0):
@@ -317,6 +305,7 @@ def observing_target_list_menu(config):
     Returns
     -------
 
+    
     """
     authenticity_token = "W5eBzzw9Clj4tJVzkz0z%2F2EK18jvSS%2BffHxZpAshylg%3D"
     coordinates = local_coords(config)
@@ -376,6 +365,7 @@ def neocp_confirmation_menu(config):
     Returns
     -------
 
+    
     """
     min_score=get_integer(_('Minimum score -> '))
     max_magnitude=get_float(_('Maximum magnitude -> '))
@@ -401,6 +391,7 @@ def twilight_sun_moon_menu(config):
     Returns
     -------
 
+    
     """
     result_times = scheduling.twilight_times(config)
     print(_(f"Civil Twilight: {result_times['CivilM'].strftime('%H:%M:%S')} - {result_times['CivilE'].strftime('%H:%M:%S')}"))
@@ -416,15 +407,7 @@ def twilight_sun_moon_menu(config):
     print('\n\n\n\n')
 
 def print_scheduling_menu():
-    """Prints scheduling menu
-
-    Parameters
-    ----------
-
-    Returns
-    -------
-
-    """
+    """Prints scheduling menu"""
     print(_('Observation scheduling'))
     print('==============================\n')
     print(_('''Choose a submenu
@@ -446,6 +429,7 @@ def scheduling_menu(config):
     Returns
     -------
 
+    
     """
     choice = 99
     while (choice != 0):
@@ -473,6 +457,7 @@ def main_menu(config):
     Returns
     -------
 
+    
     """
     choice = 99
     while (choice != 0):
@@ -502,5 +487,6 @@ def interface(config):
     Returns
     -------
 
+    
     """
     main_menu(config)

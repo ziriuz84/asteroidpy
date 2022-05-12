@@ -81,9 +81,8 @@ def weather_time(time_init, deltaT):
 
     Returns
     -------
-    string
-        The formatted time
 
+    
     """
     time_start = datetime.datetime(int(time_init[0:4]),  int(
         time_init[4:6]), int(time_init[6:8]), int(time_init[8:10]))
@@ -102,6 +101,7 @@ def weather(config):
     Returns
     -------
 
+    
     """
     configuration.load_config(config)
     lat, long = config['Observatory']['latitude'], config['Observatory']['longitude']
@@ -140,9 +140,8 @@ def skycoord_format(coord, coordid):
 
     Returns
     -------
-    string
-        the formatted coordinates
 
+    
     """
     temp = coord.split()
     if (coordid == 'ra'):
@@ -163,9 +162,8 @@ def observing_target_list_scraper(url, payload):
 
     Returns
     -------
-    array
-        data form the web page
 
+    
     """
     r = requests.post(
         url, params=payload)
@@ -201,9 +199,8 @@ def observing_target_list(config, payload):
 
     Returns
     -------
-    QTable
-        results of the scrape
 
+    
     """
     results = QTable([[""], [""], [""], [""], [""], [""]],
                      names=('Designation', 'Mag', 'Time', 'RA', 'Dec', 'Alt'),
@@ -233,9 +230,8 @@ def neocp_confirmation(config, min_score, max_magnitude, min_altitude):
 
     Returns
     -------
-    QTable
-        table of neocp found
 
+    
     """
     configuration.load_config(config)
     # r=requests.get('https://www.minorplanetcenter.net/Extended_Files/neocp.json')
@@ -279,9 +275,8 @@ def twilight_times(config):
 
     Returns
     -------
-    dictionary of strings
-        The twilight times
 
+    
     """
     configuration.load_config(config)
     location = EarthLocation.from_geodetic(float(config['Observatory']['longitude'])*u.deg, float(
@@ -308,9 +303,8 @@ def sun_moon_ephemeris(config):
 
     Returns
     -------
-    dictionary of strings
-        The sun and moon ephemeris
 
+    
     """
     configuration.load_config(config)
     location = EarthLocation.from_geodetic(float(config['Observatory']['longitude'])*u.deg, float(
