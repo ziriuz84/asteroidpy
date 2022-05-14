@@ -181,6 +181,7 @@ def print_observatory_config_menu():
     3 - Change the name of the observer
     4 - Change the name of the observatory
     5 - Change the MPC code
+    6 - Change Virtual Horizon
     0 - Back to configuration menu'''))
 
 def observatory_config_menu(config):
@@ -214,6 +215,8 @@ def observatory_config_menu(config):
             change_obs_name_menu(config)
         if choice == 5:
             change_mpc_code_menu(config)
+        if choice == 6:
+            change_horizon(config)
 
 
 def change_language(config):
@@ -490,3 +493,16 @@ def interface(config):
     
     """
     main_menu(config)
+
+def print_change_horizon_menu():
+    horizon={}
+    horizon['nord']=input(_('Nord Altitude -> '))
+    horizon['south']=input(_('South Altitude -> '))
+    horizon['east']=input(_('East Altitude -> '))
+    horizon['west']=input(_('West Altitude -> '))
+    return horizon
+def change_horizon(config):
+    horizon=print_change_horizon_menu()
+    configuration.virtual_horizon_configuration(config, horizon)
+
+
