@@ -218,14 +218,18 @@ def print_obs_config(config):
 
 def virtual_horizon_configuration(config, horizon):
     """
+    Change the Virtual horizon configuration
+
     Parameters
     ----------
     config : Configparser
         the Configparser object with configuration options
     horizon : dictionary of string
-        The horizon defined by altitude on directions
+        
+
     Returns
     -------
+
     
     """
     load_config(config)

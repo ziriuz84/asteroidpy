@@ -173,6 +173,7 @@ def change_mpc_code_menu(config):
     code = input(_('MPC Code -> '))
     configuration.change_mpc_code(config, code)
 
+
 def print_observatory_config_menu():
     """Prints Observatory config text menu"""
     print(_('''Choose an option
@@ -183,6 +184,7 @@ def print_observatory_config_menu():
     5 - Change the MPC code
     6 - Change Virtual Horizon
     0 - Back to configuration menu'''))
+
 
 def observatory_config_menu(config):
     """Prints Observatory config menu and it launches correct interface
@@ -297,6 +299,7 @@ def config_menu(config):
         if choice == 2:
             observatory_config_menu(config)
 
+
 def observing_target_list_menu(config):
     """Prints observing target list
 
@@ -357,6 +360,7 @@ def observing_target_list_menu(config):
         print(target_list)
     print('\n\n\n\n')
 
+
 def neocp_confirmation_menu(config):
     """Prints NEOcp confirmation list
 
@@ -370,11 +374,12 @@ def neocp_confirmation_menu(config):
 
     
     """
-    min_score=get_integer(_('Minimum score -> '))
-    max_magnitude=get_float(_('Maximum magnitude -> '))
-    min_altitude=get_integer(_('Minimum altitude -> '))
+    min_score = get_integer(_('Minimum score -> '))
+    max_magnitude = get_float(_('Maximum magnitude -> '))
+    min_altitude = get_integer(_('Minimum altitude -> '))
     browser_view = input(_("Do you want to view in Browser? (y/N) -> "))
-    neocp=scheduling.neocp_confirmation(config, min_score, max_magnitude, min_altitude)
+    neocp = scheduling.neocp_confirmation(
+        config, min_score, max_magnitude, min_altitude)
     # titles=['Designation', 'Score', 'R.A.', 'Dec.', 'Alt.', 'V', 'NObs', 'Arc', 'Not Seen Days']
     if (browser_view in ["y", "Y"]):
         neocp.show_in_browser(jsviewer=True)
@@ -382,6 +387,7 @@ def neocp_confirmation_menu(config):
         print(neocp)
     print('\n\n\n\n')
     # print(neocp)
+
 
 def twilight_sun_moon_menu(config):
     """Prints Twilight, sun and moon times
@@ -397,17 +403,21 @@ def twilight_sun_moon_menu(config):
     
     """
     result_times = scheduling.twilight_times(config)
-    print(_(f"Civil Twilight: {result_times['CivilM'].strftime('%H:%M:%S')} - {result_times['CivilE'].strftime('%H:%M:%S')}"))
-    print(_(f"Nautical Twilight: {result_times['NautiM'].strftime('%H:%M:%S')} - {result_times['NautiE'].strftime('%H:%M:%S')}"))
-    print(_(f"Astronomical Twilight: {result_times['AstroM'].strftime('%H:%M:%S')} - {result_times['AstroE'].strftime('%H:%M:%S')}"))
+    print(
+        _(f"Civil Twilight: {result_times['CivilM'].strftime('%H:%M:%S')} - {result_times['CivilE'].strftime('%H:%M:%S')}"))
+    print(
+        _(f"Nautical Twilight: {result_times['NautiM'].strftime('%H:%M:%S')} - {result_times['NautiE'].strftime('%H:%M:%S')}"))
+    print(
+        _(f"Astronomical Twilight: {result_times['AstroM'].strftime('%H:%M:%S')} - {result_times['AstroE'].strftime('%H:%M:%S')}"))
     print('\n')
-    ephemeris=scheduling.sun_moon_ephemeris(config)
+    ephemeris = scheduling.sun_moon_ephemeris(config)
     print(_(f"Sunrise: {ephemeris['Sunrise'].strftime('%H:%M:%S')}"))
     print(_(f"Sunset: {ephemeris['Sunset'].strftime('%H:%M:%S')}"))
     print(_(f"Moonrise: {ephemeris['Moonrise'].strftime('%H:%M:%S')}"))
     print(_(f"Moonset: {ephemeris['Sunrise'].strftime('%H:%M:%S')}"))
     print(_(f"Moon Illumination: {ephemeris['MoonIll']}"))
     print('\n\n\n\n')
+
 
 def print_scheduling_menu():
     """Prints scheduling menu"""
@@ -494,15 +504,36 @@ def interface(config):
     """
     main_menu(config)
 
+
 def print_change_horizon_menu():
-    horizon={}
-    horizon['nord']=input(_('Nord Altitude -> '))
-    horizon['south']=input(_('South Altitude -> '))
-    horizon['east']=input(_('East Altitude -> '))
-    horizon['west']=input(_('West Altitude -> '))
+    """
+    Prints Virtual Horizon menu
+
+    Returns
+    -------
+    dictionary of strings:
+        the altitude in 4 cardinal directions
+    """
+    horizon = {}
+    horizon['nord'] = input(_('Nord Altitude -> '))
+    horizon['south'] = input(_('South Altitude -> '))
+    horizon['east'] = input(_('East Altitude -> '))
+    horizon['west'] = input(_('West Altitude -> '))
     return horizon
+
+
 def change_horizon(config):
-    horizon=print_change_horizon_menu()
+    """
+    Prints Virtual horizon configuration menu and calls configuration function
+
+    Parameters
+    ----------
+    config : Configparser
+        the Configparser object with configuration option
+
+    Returns
+    -------
+
+    """
+    horizon = print_change_horizon_menu()
     configuration.virtual_horizon_configuration(config, horizon)
-
-
