@@ -187,13 +187,11 @@ def observing_target_list_scraper(url, payload):
     return data
 
 
-def observing_target_list(config, payload):
+def observing_target_list(payload):
     """Prints Observing target list from MPC
 
     Parameters
     ----------
-    config : Configparser
-        the Configparser object with configuration option
     payload : dictionary of strings
         the payload of parameters
 
