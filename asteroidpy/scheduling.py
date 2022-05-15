@@ -128,6 +128,7 @@ def weather(config):
     print('\n\n\n\n')
 
 
+
 def skycoord_format(coord, coordid):
     """Formats coordinates as described in coordid
 
@@ -149,6 +150,26 @@ def skycoord_format(coord, coordid):
     elif (coordid == 'dec'):
         return temp[0]+'d'+temp[1]+'m'+temp[2]+'s'
 
+def is_visible(config, coord, time):
+    location=EarthLocation.from_geodetic(lat=float(config['Observatory']['latitude'])*u.deg, lon=float(config['Observatory']['longitude'])*u.deg, height=float(config['Observatory']['altitude'])*u.m)
+    if isinstance(coord, list):
+        coord = SkyCoord(skycoord_format(coord[0], "ra") + " " + skycoord_format(coord[1], "dec"))
+    coord=coord.transform_to(AltAz(obstime=time, location=location))
+    configuration.load_config(config)
+    result=False
+    if (coord.az > 315*u.deg and coord.az < 45*u.deg):
+        if (coord.alt > float(config['Observatory']['nord_altitude'])*u.deg):
+            result=True
+    elif (coord.az > 45*u.deg and coord.az < 135*u.deg):
+        if (coord.alt > float(config['Observatory']['east_altitude'])*u.deg):
+            result=True
+    elif (coord.az > 135*u.deg and coord.az < 225*u.deg):
+        if (coord.alt > float(config['Observatory']['south_altitude'])*u.deg):
+            result=True
+    elif (coord.az > 225*u.deg and coord.az < 315*u.deg):
+        if (coord.alt > float(config['Observatory']['west_altitude'])*u.deg):
+            result=True
+    return result
 
 def observing_target_list_scraper(url, payload):
     """
@@ -187,7 +208,7 @@ def observing_target_list_scraper(url, payload):
     return data
 
 
-def observing_target_list(payload):
+def observing_target_list(config, payload):
     """Prints Observing target list from MPC
 
     Parameters
@@ -206,7 +227,8 @@ def observing_target_list(payload):
     data = observing_target_list_scraper(
         'https://www.minorplanetcenter.net/whatsup/index', payload)
     for d in data:
-        results.add_row([d[0], d[1], d[4].replace('z', ''), skycoord_format(
+        if (is_visible(config,[d[5],d[6]], Time(d[4].replace('T', ' ').replace('z','')))):
+            results.add_row([d[0], d[1], d[4].replace('z', ''), skycoord_format(
             d[5], 'ra'), skycoord_format(d[6], 'dec'), d[7]])
     results.remove_row(0)
     return results
