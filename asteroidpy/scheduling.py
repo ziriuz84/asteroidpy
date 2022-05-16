@@ -151,6 +151,24 @@ def skycoord_format(coord, coordid):
         return temp[0]+'d'+temp[1]+'m'+temp[2]+'s'
 
 def is_visible(config, coord, time):
+    """
+    Compare object's coordinates with Virtual Horizon to find if it's visible
+
+    Parameters
+    ----------
+    config : Configparser
+        the configparser object with configuration options
+    coord : SkyCoord or array of strings
+        Coordinate to control
+    time : Time
+        time of the observation
+
+    Returns
+    -------
+    boolean:
+        True if the point is visible
+
+    """
     location=EarthLocation.from_geodetic(lat=float(config['Observatory']['latitude'])*u.deg, lon=float(config['Observatory']['longitude'])*u.deg, height=float(config['Observatory']['altitude'])*u.m)
     if isinstance(coord, list):
         coord = SkyCoord(skycoord_format(coord[0], "ra") + " " + skycoord_format(coord[1], "dec"))
@@ -215,6 +233,8 @@ def observing_target_list(config, payload):
     ----------
     payload : dictionary of strings
         the payload of parameters
+    config :
+        
 
     Returns
     -------

@@ -506,14 +506,7 @@ def interface(config):
 
 
 def print_change_horizon_menu():
-    """
-    Prints Virtual Horizon menu
-
-    Returns
-    -------
-    dictionary of strings:
-        the altitude in 4 cardinal directions
-    """
+    """Prints Virtual Horizon menu"""
     horizon = {}
     horizon['nord'] = input(_('Nord Altitude -> '))
     horizon['south'] = input(_('South Altitude -> '))
@@ -523,8 +516,7 @@ def print_change_horizon_menu():
 
 
 def change_horizon(config):
-    """
-    Prints Virtual horizon configuration menu and calls configuration function
+    """Prints Virtual horizon configuration menu and calls configuration function
 
     Parameters
     ----------
@@ -534,6 +526,7 @@ def change_horizon(config):
     Returns
     -------
 
+    
     """
     horizon = print_change_horizon_menu()
     configuration.virtual_horizon_configuration(config, horizon)
