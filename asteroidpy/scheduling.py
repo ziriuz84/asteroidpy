@@ -175,17 +175,13 @@ def is_visible(config, coord, time):
     coord=coord.transform_to(AltAz(obstime=time, location=location))
     configuration.load_config(config)
     result=False
-    if (coord.az > 315*u.deg and coord.az < 45*u.deg):
-        if (coord.alt > float(config['Observatory']['nord_altitude'])*u.deg):
+    if (coord.az > 315*u.deg and coord.az < 45*u.deg and coord.alt > float(config['Observatory']['nord_altitude'])*u.deg):
             result=True
-    elif (coord.az > 45*u.deg and coord.az < 135*u.deg):
-        if (coord.alt > float(config['Observatory']['east_altitude'])*u.deg):
+    elif (coord.az > 45*u.deg and coord.az < 135*u.deg and coord.alt > float(config['Observatory']['east_altitude'])*u.deg):
             result=True
-    elif (coord.az > 135*u.deg and coord.az < 225*u.deg):
-        if (coord.alt > float(config['Observatory']['south_altitude'])*u.deg):
+    elif (coord.az > 135*u.deg and coord.az < 225*u.deg and coord.alt > float(config['Observatory']['south_altitude'])*u.deg):
             result=True
-    elif (coord.az > 225*u.deg and coord.az < 315*u.deg):
-        if (coord.alt > float(config['Observatory']['west_altitude'])*u.deg):
+    elif (coord.az > 225*u.deg and coord.az < 315*u.deg and coord.alt > float(config['Observatory']['west_altitude'])*u.deg):
             result=True
     return result
 
