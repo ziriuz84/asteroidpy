@@ -271,7 +271,7 @@ def neocp_confirmation(config, min_score, max_magnitude, min_altitude):
     for item in data:
         coord = SkyCoord(float(item['R.A.'])*u.deg, float(item['Decl.'])*u.deg)
         coord_altaz = coord.transform_to(altaz)
-        if (int(item['Score'] > min_score and coord_altaz.alt > min_altitude * u.deg and float(item['V'] < max_magnitude))):
+        if (int(item['Score'] > min_score and is_visible(config, coord, observing_date) and float(item['V'] < max_magnitude))):
             table.add_row([item['Temp_Desig'],
                            int(item['Score']),
                            coord.ra.to_string(u.hour),
