@@ -152,8 +152,7 @@ def skycoord_format(coord, coordid):
 
 
 def is_visible(config, coord, time):
-    """
-    Compare object's coordinates with Virtual Horizon to find if it's visible
+    """Compare object's coordinates with Virtual Horizon to find if it's visible
 
     Parameters
     ----------
@@ -166,9 +165,8 @@ def is_visible(config, coord, time):
 
     Returns
     -------
-    boolean:
-        True if the point is visible
 
+    
     """
     location = EarthLocation.from_geodetic(lat=float(config['Observatory']['latitude'])*u.deg, lon=float(
         config['Observatory']['longitude'])*u.deg, height=float(config['Observatory']['altitude'])*u.m)
@@ -362,6 +360,23 @@ def sun_moon_ephemeris(config):
 
 
 def object_ephemeris(config, object_name, stepping):
+    """Search Object ephemeris with astroquery
+
+    Parameters
+    ----------
+    config : Configparser
+        the configparser object with configuration option
+    object_name : string
+        the object name
+    stepping : string
+        steps between points
+
+    Returns
+    -------
+    QTable:
+        the ephemeris table
+
+    """
     configuration.load_config(config)
     location = EarthLocation.from_geodetic(float(config['Observatory']['longitude'])*u.deg, float(
         config['Observatory']['latitude'])*u.deg, float(config['Observatory']['altitude'])*u.m)

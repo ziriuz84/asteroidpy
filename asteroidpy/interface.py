@@ -535,6 +535,17 @@ def change_horizon(config):
     configuration.virtual_horizon_configuration(config, horizon)
 
 def object_ephemeris_menu(config):
+    """Prints Object Ephemeris menu and calls scheduling.object_ephemeris
+
+    Parameters
+    ----------
+    config : Configparser
+        the Configparser object with configuration options
+
+    Returns
+    -------
+
+    """
     object_name = input(_('Object Name -> '))
     print(_( '''Stepping
     m - 1 minute
