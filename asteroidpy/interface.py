@@ -427,7 +427,8 @@ def print_scheduling_menu():
     1 - Weather forecast
     2 - Observing target List
     3 - NEOcp list
-    4 - Twilight Times
+    4 - Object Ephemeris
+    5 - Twilight Times
     0 - Back to main menu\n'''))
 
 
@@ -456,6 +457,8 @@ def scheduling_menu(config):
         if choice == 3:
             neocp_confirmation_menu(config)
         if choice == 4:
+            object_ephemeris_menu(config)
+        if choice == 5:
             twilight_sun_moon_menu(config)
 
 
@@ -530,3 +533,15 @@ def change_horizon(config):
     """
     horizon = print_change_horizon_menu()
     configuration.virtual_horizon_configuration(config, horizon)
+
+def object_ephemeris_menu(config):
+    object_name = input(_('Object Name -> '))
+    print(_( '''Stepping
+    m - 1 minute
+    h - 1 hour
+    d - 1 day
+    w - 1 week
+    '''))
+    step=input(_('Choice -> '))
+    ephemeris = scheduling.object_ephemeris(config, object_name, step)
+    print(ephemeris)
