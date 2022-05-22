@@ -5,4 +5,3 @@ asteroidpy
    :maxdepth: 4
 
    asteroidpy
-   setup
