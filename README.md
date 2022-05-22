@@ -32,9 +32,9 @@ Using AsteroidPy is very easy. Here you can find instructions
 #### From Source:
 
 - Clone the repository in your directory
-   `git clone https://github.com/ziriuz84/asteroipy``
+   `git clone https://github.com/ziriuz84/asteroipy`
 - Enter the folder with the command of your choice, usually
-   `cd asteroidpy``
+   `cd asteroidpy`
 - (Optional) create a Virtualenv for your installation
    `virtualenv env`
 - Install AsteroidPy
