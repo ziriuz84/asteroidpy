@@ -10,6 +10,7 @@ from astropy.coordinates import (SkyCoord, EarthLocation, AltAz)
 from astropy.table import QTable
 from astropy.time import Time
 from astroplan import Observer
+from astroquery.mpc import MPC
 
 _ = gettext.gettext
 
@@ -128,7 +129,6 @@ def weather(config):
     print('\n\n\n\n')
 
 
-
 def skycoord_format(coord, coordid):
     """Formats coordinates as described in coordid
 
@@ -150,9 +150,9 @@ def skycoord_format(coord, coordid):
     elif (coordid == 'dec'):
         return temp[0]+'d'+temp[1]+'m'+temp[2]+'s'
 
+
 def is_visible(config, coord, time):
-    """
-    Compare object's coordinates with Virtual Horizon to find if it's visible
+    """Compare object's coordinates with Virtual Horizon to find if it's visible
 
     Parameters
     ----------
@@ -165,25 +165,27 @@ def is_visible(config, coord, time):
 
     Returns
     -------
-    boolean:
-        True if the point is visible
 
+    
     """
-    location=EarthLocation.from_geodetic(lat=float(config['Observatory']['latitude'])*u.deg, lon=float(config['Observatory']['longitude'])*u.deg, height=float(config['Observatory']['altitude'])*u.m)
+    location = EarthLocation.from_geodetic(lat=float(config['Observatory']['latitude'])*u.deg, lon=float(
+        config['Observatory']['longitude'])*u.deg, height=float(config['Observatory']['altitude'])*u.m)
     if isinstance(coord, list):
-        coord = SkyCoord(skycoord_format(coord[0], "ra") + " " + skycoord_format(coord[1], "dec"))
-    coord=coord.transform_to(AltAz(obstime=time, location=location))
+        coord = SkyCoord(skycoord_format(
+            coord[0], "ra") + " " + skycoord_format(coord[1], "dec"))
+    coord = coord.transform_to(AltAz(obstime=time, location=location))
     configuration.load_config(config)
-    result=False
+    result = False
     if (coord.az > 315*u.deg and coord.az < 45*u.deg and coord.alt > float(config['Observatory']['nord_altitude'])*u.deg):
-            result=True
+        result = True
     elif (coord.az > 45*u.deg and coord.az < 135*u.deg and coord.alt > float(config['Observatory']['east_altitude'])*u.deg):
-            result=True
+        result = True
     elif (coord.az > 135*u.deg and coord.az < 225*u.deg and coord.alt > float(config['Observatory']['south_altitude'])*u.deg):
-            result=True
+        result = True
     elif (coord.az > 225*u.deg and coord.az < 315*u.deg and coord.alt > float(config['Observatory']['west_altitude'])*u.deg):
-            result=True
+        result = True
     return result
+
 
 def observing_target_list_scraper(url, payload):
     """
@@ -243,9 +245,9 @@ def observing_target_list(config, payload):
     data = observing_target_list_scraper(
         'https://www.minorplanetcenter.net/whatsup/index', payload)
     for d in data:
-        if (is_visible(config,[d[5],d[6]], Time(d[4].replace('T', ' ').replace('z','')))):
+        if (is_visible(config, [d[5], d[6]], Time(d[4].replace('T', ' ').replace('z', '')))):
             results.add_row([d[0], d[1], d[4].replace('z', ''), skycoord_format(
-            d[5], 'ra'), skycoord_format(d[6], 'dec'), d[7]])
+                d[5], 'ra'), skycoord_format(d[6], 'dec'), d[7]])
     results.remove_row(0)
     return results
 
@@ -355,3 +357,40 @@ def sun_moon_ephemeris(config):
               'MoonIll': observer.moon_illumination(observing_date)
               }
     return result
+
+
+def object_ephemeris(config, object_name, stepping):
+    """Search Object ephemeris with astroquery
+
+    Parameters
+    ----------
+    config : Configparser
+        the configparser object with configuration option
+    object_name : string
+        the object name
+    stepping : string
+        steps between points
+
+    Returns
+    -------
+    QTable:
+        the ephemeris table
+
+    """
+    configuration.load_config(config)
+    location = EarthLocation.from_geodetic(float(config['Observatory']['longitude'])*u.deg, float(
+        config['Observatory']['latitude'])*u.deg, float(config['Observatory']['altitude'])*u.m)
+    if stepping == 'm':
+        step=1*u.minute
+    elif stepping == 'h':
+        step='1h'
+    elif stepping == 'd':
+        step='1d'
+    elif stepping == 'w':
+        step='7d'
+    else:
+        print(_('Wrong code'))
+    eph = MPC.get_ephemeris(str(object_name).upper(), location=location, step=step, number=30)
+    ephemeris = eph['Date', 'RA', 'Dec', 'Elongation',
+                    'V', 'Altitude', 'Proper motion', 'Direction']
+    return ephemeris
