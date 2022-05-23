@@ -50,6 +50,14 @@ Simply launch the command
 
 ## Library used
 
+- Requests
+- BeautifoulSoup 4
+- Configparser
+- Astropy
+- Astroquery
+- Astroplan
+- LXML
+
 ## Data provenience
 
 - [7Timer](https://7timer.info)
