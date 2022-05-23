@@ -9,7 +9,7 @@ setup(
     author_email='ziriuz84@gmail.com',
     license='GPL v3',
     packages=find_packages('.'),
-    install_requires=['tabulate', 'requests',
+    install_requires=['requests',
                       'bs4', 'configparser', 'astropy', 'httpx', 'astroplan', 'lxml', 'astroquery'],
     classifiers=[
         'Development Status :: 1 - Planning',
