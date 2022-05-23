@@ -10,7 +10,7 @@ setup(
     license='GPL v3',
     packages=find_packages('.'),
     install_requires=['requests',
-                      'bs4', 'configparser', 'astropy', 'httpx', 'astroplan', 'lxml'],
+                      'bs4', 'configparser', 'astropy', 'httpx', 'astroplan', 'lxml', 'astroquery'],
     classifiers=[
         'Development Status :: 1 - Planning',
         'Intended Audience :: Science/Research',
