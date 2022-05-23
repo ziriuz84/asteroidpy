@@ -52,8 +52,8 @@ Simply launch the command
 
 ## Data provenience
 
-- 7Timer
-- Minor Planet Center
+- [7Timer](https://7timer.info)
+- [Minor Planet Center](https://www.minorplanetcenter.net/)
 
 ## Contributing [![contributions welcome](https://img.shields.io/badge/contributions-welcome-brightgreen.svg?style=flat)](https://github.com/ziriuz84/asteroidpy/issues)
 
