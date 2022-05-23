@@ -28,6 +28,18 @@ wind10m_speed_dict = {1: 'Below 0.3 m/s', 2: '0.3-3.4m/s', 3: '3.4-8.0m/s', 4: '
 
 
 async def httpx_get(url, payload, return_type):
+    """
+    Returns result from get query
+
+    Args:
+      url(string): the url to be queried
+      payload(dictionary of strings): the payload of the query
+      return_type(string): the type of formatted return
+
+    Returns:
+      array: The result of query and status code of the response
+
+    """
     async with httpx.AsyncClient() as client:
         r = await client.get(url, params=payload)
     if (return_type == 'json'):
@@ -37,6 +49,18 @@ async def httpx_get(url, payload, return_type):
 
 
 async def httpx_post(url, payload, return_type):
+    """
+    Returns result from post query
+
+    Args:
+      url(string): the url to be queried
+      payload(dictionary of strings): the payload of the query
+      return_type(string): the type of formatted return
+
+    Returns:
+      array: The result of query and status code of the response
+
+    """
     async with httpx.AsyncClient() as client:
         r = await client.post(url, data=payload)
     if (return_type == 'json'):
@@ -45,17 +69,20 @@ async def httpx_post(url, payload, return_type):
         return [r.text, r.status_code]
 
 
-def decimal_part(number):
-    return number-round(number)
-
-
-def deg_to_hms_coordinates(coordinates):
-    coordinates_m = decimal_part(coordinates) * 60
-    coordinates_s = decimal_part(coordinates_m) * 60
-    return str(round(coordinates))+unity+" " + str(round(coordinates_m))+"m "+str(coordinates_s)+"s"
-
-
 def weather_time(time_init, deltaT):
+    """
+
+    Parameters
+    ----------
+    time_init : string
+        The start time of weather forecast
+    deltaT : int
+        The time from start time
+
+    Returns
+    -------
+
+    """
     time_start = datetime.datetime(int(time_init[0:4]),  int(
         time_init[4:6]), int(time_init[6:8]), int(time_init[8:10]))
     time = time_start + datetime.timedelta(hours=deltaT)
@@ -63,11 +90,16 @@ def weather_time(time_init, deltaT):
 
 
 def weather(config):
-    """
-    Prints Weather forecast up to 72 hours
+    """Prints Weather forecast up to 72 hours
 
-    :param config: the Configparser object with configuration option
-    :type config: Configparser
+    Parameters
+    ----------
+    config : Configparser
+        the Configparser object with configuration option
+
+    Returns
+    -------
+
     """
     configuration.load_config(config)
     lat, long = config['Observatory']['latitude'], config['Observatory']['longitude']
@@ -94,14 +126,20 @@ def weather(config):
     print('\n\n\n\n')
 
 
-def skycoord_format(coord, coordid):
-    """
-    Formats coordinates as described in coordid
 
-    :param coord: the coordinates to be formatted
-    :type coord: string
-    :param coordid: the format
-    :type coordid: string
+def skycoord_format(coord, coordid):
+    """Formats coordinates as described in coordid
+
+    Parameters
+    ----------
+    coord : string
+        the coordinates to be formatted
+    coordid : string
+        the format
+
+    Returns
+    -------
+
     """
     temp = coord.split()
     if (coordid == 'ra'):
@@ -109,7 +147,52 @@ def skycoord_format(coord, coordid):
     elif (coordid == 'dec'):
         return temp[0]+'d'+temp[1]+'m'+temp[2]+'s'
 
+def is_visible(config, coord, time):
+    """Compare object's coordinates with Virtual Horizon to find if it's visible
+
+    Parameters
+    ----------
+    config : Configparser
+        the configparser object with configuration options
+    coord : SkyCoord or array of strings
+        Coordinate to control
+    time : Time
+        time of the observation
+
+    Returns
+    -------
+
+    """
+    location=EarthLocation.from_geodetic(lat=float(config['Observatory']['latitude'])*u.deg, lon=float(config['Observatory']['longitude'])*u.deg, height=float(config['Observatory']['altitude'])*u.m)
+    if isinstance(coord, list):
+        coord = SkyCoord(skycoord_format(coord[0], "ra") + " " + skycoord_format(coord[1], "dec"))
+    coord=coord.transform_to(AltAz(obstime=time, location=location))
+    configuration.load_config(config)
+    result=False
+    if (coord.az > 315*u.deg and coord.az < 45*u.deg and coord.alt > float(config['Observatory']['nord_altitude'])*u.deg):
+            result=True
+    elif (coord.az > 45*u.deg and coord.az < 135*u.deg and coord.alt > float(config['Observatory']['east_altitude'])*u.deg):
+            result=True
+    elif (coord.az > 135*u.deg and coord.az < 225*u.deg and coord.alt > float(config['Observatory']['south_altitude'])*u.deg):
+            result=True
+    elif (coord.az > 225*u.deg and coord.az < 315*u.deg and coord.alt > float(config['Observatory']['west_altitude'])*u.deg):
+            result=True
+    return result
+
 def observing_target_list_scraper(url, payload):
+    """
+
+    Parameters
+    ----------
+    url : string
+        the url to scrape
+    payload : dictionary of strings
+        the payload of the request
+
+    Returns
+    -------
+
+    """
     r = requests.post(
         url, params=payload)
     soup = BeautifulSoup(r.content, 'lxml')
@@ -133,30 +216,49 @@ def observing_target_list_scraper(url, payload):
 
 
 def observing_target_list(config, payload):
-    """
-    Prints Observing target list from MPC
+    """Prints Observing target list from MPC
 
-    :param config: the Configparser object with configuration option
-    :type config: Configparser
-    :param payload: the payload of parameters
-    :type payload: dictionary of strings
+    Parameters
+    ----------
+    payload : dictionary of strings
+        the payload of parameters
+    config :
+        
+
+    Returns
+    -------
+
     """
     results = QTable([[""], [""], [""], [""], [""], [""]],
-             names=('Designation', 'Mag', 'Time', 'RA', 'Dec', 'Alt'),
-             meta={'name': 'Observing Target List'})
-    data=observing_target_list_scraper('https://www.minorplanetcenter.net/whatsup/index', payload)
+                     names=('Designation', 'Mag', 'Time', 'RA', 'Dec', 'Alt'),
+                     meta={'name': 'Observing Target List'})
+    data = observing_target_list_scraper(
+        'https://www.minorplanetcenter.net/whatsup/index', payload)
     for d in data:
-        results.add_row([d[0],d[1],d[4].replace('z',''),skycoord_format(d[5],'ra'),skycoord_format(d[6], 'dec'), d[7]])
+        if (is_visible(config,[d[5],d[6]], Time(d[4].replace('T', ' ').replace('z','')))):
+            results.add_row([d[0], d[1], d[4].replace('z', ''), skycoord_format(
+            d[5], 'ra'), skycoord_format(d[6], 'dec'), d[7]])
     results.remove_row(0)
     return results
 
 
 def neocp_confirmation(config, min_score, max_magnitude, min_altitude):
-    """
-    Prints NEOcp visible at the moment
+    """Prints NEOcp visible at the moment
 
-    :param config: the Configparser object with configuration option
-    :type config: Configparser
+    Parameters
+    ----------
+    config : Configparser
+        the Configparser object with configuration option
+    min_score : int
+        The minimum score to query
+    max_magnitude : int
+        The maximum magnitude to query
+    min_altitude : int
+        The minimum altitude of the object
+
+    Returns
+    -------
+
     """
     configuration.load_config(config)
     # r=requests.get('https://www.minorplanetcenter.net/Extended_Files/neocp.json')
@@ -176,7 +278,7 @@ def neocp_confirmation(config, min_score, max_magnitude, min_altitude):
     for item in data:
         coord = SkyCoord(float(item['R.A.'])*u.deg, float(item['Decl.'])*u.deg)
         coord_altaz = coord.transform_to(altaz)
-        if (int(item['Score'] > min_score and coord_altaz.alt > min_altitude * u.deg and float(item['V'] < max_magnitude))):
+        if (int(item['Score'] > min_score and is_visible(config, coord, observing_date) and float(item['V'] < max_magnitude))):
             table.add_row([item['Temp_Desig'],
                            int(item['Score']),
                            coord.ra.to_string(u.hour),
@@ -191,6 +293,17 @@ def neocp_confirmation(config, min_score, max_magnitude, min_altitude):
 
 
 def twilight_times(config):
+    """Returns twilight times for a given location
+
+    Parameters
+    ----------
+    config : Configparser
+        the Configparser object with configuration option
+
+    Returns
+    -------
+
+    """
     configuration.load_config(config)
     location = EarthLocation.from_geodetic(float(config['Observatory']['longitude'])*u.deg, float(
         config['Observatory']['latitude'])*u.deg, float(config['Observatory']['altitude'])*u.m)
@@ -207,6 +320,17 @@ def twilight_times(config):
 
 
 def sun_moon_ephemeris(config):
+    """Returns the Sun and Moon ephemeris
+
+    Parameters
+    ----------
+    config : Configparser
+        the Configparser object with configuration option
+
+    Returns
+    -------
+
+    """
     configuration.load_config(config)
     location = EarthLocation.from_geodetic(float(config['Observatory']['longitude'])*u.deg, float(
         config['Observatory']['latitude'])*u.deg, float(config['Observatory']['altitude'])*u.m)
