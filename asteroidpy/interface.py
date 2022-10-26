@@ -2,11 +2,12 @@ import datetime
 import gettext
 import asteroidpy.configuration as configuration
 import asteroidpy.scheduling as scheduling
+from typing import List, Dict, Union, Any
 
 _ = gettext.gettext
 
 
-def get_integer(message):
+def get_integer(message: str) -> int:
     """
 
     Parameters
@@ -26,7 +27,7 @@ def get_integer(message):
             print('You must enter an integer')
 
 
-def get_float(message):
+def get_float(message: str) -> float:
     """
 
     Parameters
@@ -46,7 +47,7 @@ def get_float(message):
             print('You must enter a number')
 
 
-def local_coords(config):
+def local_coords(config) -> Union[str,str]:
     """Returns local geographical coordinates
 
     Parameters

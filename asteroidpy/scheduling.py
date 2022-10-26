@@ -1,3 +1,5 @@
+from configparser import ConfigParser
+from typing import Dict
 import requests
 import asyncio
 import httpx
@@ -11,6 +13,8 @@ from astropy.table import QTable
 from astropy.time import Time
 from astroplan import Observer
 from astroquery.mpc import MPC
+from typing import Dict, Union, List, Any
+from astropy.units import Quantity
 
 _ = gettext.gettext
 
@@ -28,7 +32,7 @@ wind10m_speed_dict = {1: 'Below 0.3 m/s', 2: '0.3-3.4m/s', 3: '3.4-8.0m/s', 4: '
                       5: '10.8-17.2m/s', 6: '17.2-24.5m/s', 7: '24.5-32.6m/s', 8: 'Over 32.6m/s'}
 
 
-async def httpx_get(url, payload, return_type):
+async def httpx_get(url: str, payload: Dict, return_type: str):
     """
     Returns result from get query
 
@@ -49,7 +53,7 @@ async def httpx_get(url, payload, return_type):
         return [r.text, r.status_code]
 
 
-async def httpx_post(url, payload, return_type):
+async def httpx_post(url: str, payload: Dict, return_type: str):
     """
     Returns result from post query
 
@@ -70,7 +74,7 @@ async def httpx_post(url, payload, return_type):
         return [r.text, r.status_code]
 
 
-def weather_time(time_init, deltaT):
+def weather_time(time_init: str, deltaT: int):
     """
 
     Parameters
@@ -90,7 +94,7 @@ def weather_time(time_init, deltaT):
     return time.strftime('%d/%m %H:%M')
 
 
-def weather(config):
+def weather(config: ConfigParser):
     """Prints Weather forecast up to 72 hours
 
     Parameters
@@ -127,7 +131,7 @@ def weather(config):
     print('\n\n\n\n')
 
 
-def skycoord_format(coord, coordid):
+def skycoord_format(coord: str, coordid: str):
     """Formats coordinates as described in coordid
 
     Parameters
@@ -148,7 +152,7 @@ def skycoord_format(coord, coordid):
         return temp[0]+'d'+temp[1]+'m'+temp[2]+'s'
 
 
-def is_visible(config, coord, time):
+def is_visible(config: ConfigParser, coord: SkyCoord, time: Time):
     """Compare object's coordinates with Virtual Horizon to find if it's visible
 
     Parameters
@@ -184,7 +188,7 @@ def is_visible(config, coord, time):
     return result
 
 
-def observing_target_list_scraper(url, payload):
+def observing_target_list_scraper(url: str, payload: Dict):
     """
 
     Parameters
@@ -220,7 +224,7 @@ def observing_target_list_scraper(url, payload):
     return data
 
 
-def observing_target_list(config, payload):
+def observing_target_list(config: ConfigParser, payload: Dict):
     """Prints Observing target list from MPC
 
     Parameters
@@ -247,7 +251,7 @@ def observing_target_list(config, payload):
     return results
 
 
-def neocp_confirmation(config, min_score, max_magnitude, min_altitude):
+def neocp_confirmation(config: ConfigParser, min_score: int, max_magnitude: int, min_altitude: int):
     """Prints NEOcp visible at the moment
 
     Parameters
@@ -297,7 +301,7 @@ def neocp_confirmation(config, min_score, max_magnitude, min_altitude):
     return table
 
 
-def twilight_times(config):
+def twilight_times(config: ConfigParser):
     """Returns twilight times for a given location
 
     Parameters
@@ -324,7 +328,7 @@ def twilight_times(config):
     return result
 
 
-def sun_moon_ephemeris(config):
+def sun_moon_ephemeris(config: ConfigParser):
     """Returns the Sun and Moon ephemeris
 
     Parameters
@@ -351,7 +355,7 @@ def sun_moon_ephemeris(config):
     return result
 
 
-def object_ephemeris(config, object_name, stepping):
+def object_ephemeris(config: ConfigParser, object_name: str, stepping: str):
     """Search Object ephemeris with astroquery
 
     Parameters
@@ -373,7 +377,7 @@ def object_ephemeris(config, object_name, stepping):
     location = EarthLocation.from_geodetic(float(config['Observatory']['longitude'])*u.deg, float(
         config['Observatory']['latitude'])*u.deg, float(config['Observatory']['altitude'])*u.m)
     if stepping == 'm':
-        step=1*u.minute
+        step: Quantity = 1*u.minute
     elif stepping == 'h':
         step='1h'
     elif stepping == 'd':

@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
-import asteroidpy.interface
+import asteroidpy.interface as interface
 import configparser
 import cProfile, pstats
 
