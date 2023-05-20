@@ -13,7 +13,7 @@ def save_config(config):
     -------
 
     """
-    with open(os.path.expanduser('~')+'/'+'.asteroidpy', 'w') as f:
+    with open(os.path.expanduser("~") + "/" + ".asteroidpy", "w") as f:
         config.write(f)
 
 
@@ -29,15 +29,17 @@ def initialize(config):
     -------
 
     """
-    config['General'] = {'lang': 'en'}
-    config['Observatory'] = {'place': '',
-                             'latitude': 0.0,
-                             'longitude': 0.0,
-                             'altitude': 0.0,
-                             'obs_name': '',
-                             'observer_name': '',
-                             'mpc_code': 'XXX'}
-    print('inizializzato')
+    config["General"] = {"lang": "en"}
+    config["Observatory"] = {
+        "place": "",
+        "latitude": 0.0,
+        "longitude": 0.0,
+        "altitude": 0.0,
+        "obs_name": "",
+        "observer_name": "",
+        "mpc_code": "XXX",
+    }
+    print("inizializzato")
     save_config(config)
 
 
@@ -53,13 +55,13 @@ def load_config(config):
     -------
 
     """
-    dir_path = os.path.dirname(os.path.expanduser('~'))
+    dir_path = os.path.dirname(os.path.expanduser("~"))
     i = 0
     for root, dirs, files in os.walk(dir_path):
-        if '.asteroidpy' in files:
-            config.read(os.path.expanduser('~')+'/'+'.asteroidpy')
+        if ".asteroidpy" in files:
+            config.read(os.path.expanduser("~") + "/" + ".asteroidpy")
             break
-        elif (i != 0 and i != 1):
+        elif i != 0 and i != 1:
             initialize(config)
         i += 1
 
@@ -79,7 +81,7 @@ def change_language(config, lang):
 
     """
     load_config(config)
-    config['General']['lang'] = lang
+    config["General"]["lang"] = lang
     save_config(config)
 
 
@@ -102,9 +104,9 @@ def change_obs_coords(config, place, lat, long):
 
     """
     load_config(config)
-    config['Observatory']['place'] = place
-    config['Observatory']['latitude'] = str(lat)
-    config['Observatory']['longitude'] = str(long)
+    config["Observatory"]["place"] = place
+    config["Observatory"]["latitude"] = str(lat)
+    config["Observatory"]["longitude"] = str(long)
     save_config(config)
 
 
@@ -123,7 +125,7 @@ def change_obs_altitude(config, alt):
 
     """
     load_config(config)
-    config['Observatory']['altitude'] = str(alt)
+    config["Observatory"]["altitude"] = str(alt)
     save_config(config)
 
 
@@ -142,7 +144,7 @@ def change_mpc_code(config, code):
 
     """
     load_config(config)
-    config['Observatory']['mpc_code'] = str(code)
+    config["Observatory"]["mpc_code"] = str(code)
     save_config(config)
 
 
@@ -161,7 +163,7 @@ def change_obs_name(config, name):
 
     """
     load_config(config)
-    config['Observatory']['obs_name'] = str(name)
+    config["Observatory"]["obs_name"] = str(name)
     save_config(config)
 
 
@@ -180,7 +182,7 @@ def change_observer_name(config, name):
 
     """
     load_config(config)
-    config['Observatory']['observer_name'] = str(name)
+    config["Observatory"]["observer_name"] = str(name)
     save_config(config)
 
 
@@ -197,13 +199,13 @@ def print_obs_config(config):
 
     """
     load_config(config)
-    print('Località: %s' % config['Observatory']['place'])
-    print('Latitudine: %s' % config['Observatory']['latitude'])
-    print('Longitudine: %s' % config['Observatory']['longitude'])
-    print('Altitudine: %s' % config['Observatory']['altitude'])
-    print('Osservatore: %s' % config['Observatory']['observer_name'])
-    print('Nome Osservatorio: %s' % config['Observatory']['obs_name'])
-    print('Codice MPC: %s' % config['Observatory']['mpc_code'])
+    print("Località: %s" % config["Observatory"]["place"])
+    print("Latitudine: %s" % config["Observatory"]["latitude"])
+    print("Longitudine: %s" % config["Observatory"]["longitude"])
+    print("Altitudine: %s" % config["Observatory"]["altitude"])
+    print("Osservatore: %s" % config["Observatory"]["observer_name"])
+    print("Nome Osservatorio: %s" % config["Observatory"]["obs_name"])
+    print("Codice MPC: %s" % config["Observatory"]["mpc_code"])
 
 
 def virtual_horizon_configuration(config, horizon):
@@ -221,8 +223,8 @@ def virtual_horizon_configuration(config, horizon):
 
     """
     load_config(config)
-    config['Observatory']['nord_altitude'] = horizon['nord']
-    config['Observatory']['south_altitude'] = horizon['south']
-    config['Observatory']['east_altitude'] = horizon['east']
-    config['Observatory']['west_altitude'] = horizon['west']
+    config["Observatory"]["nord_altitude"] = horizon["nord"]
+    config["Observatory"]["south_altitude"] = horizon["south"]
+    config["Observatory"]["east_altitude"] = horizon["east"]
+    config["Observatory"]["west_altitude"] = horizon["west"]
     save_config(config)
