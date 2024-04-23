@@ -3,6 +3,7 @@ import gettext
 
 import asteroidpy.configuration as configuration
 import asteroidpy.scheduling as scheduling
+from astroquery.mpc import MPC
 
 _ = gettext.gettext
 
@@ -164,6 +165,7 @@ def change_mpc_code_menu(config):
     """
     code = input(_("MPC Code -> "))
     configuration.change_mpc_code(config, code)
+    update_coordinates = input(_("Update coordinates? (y/N) -> "))
 
 
 def print_observatory_config_menu():

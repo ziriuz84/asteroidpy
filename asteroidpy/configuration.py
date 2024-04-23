@@ -1,4 +1,6 @@
 import os
+from astropy.coordinates import SkyCoord, ICRS, GeocentricTrueEcliptic
+from astropy import units as u
 
 
 def save_config(config):
