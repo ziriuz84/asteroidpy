@@ -166,6 +166,12 @@ def change_mpc_code_menu(config):
     code = input(_("MPC Code -> "))
     configuration.change_mpc_code(config, code)
     update_coordinates = input(_("Update coordinates? (y/N) -> "))
+    if update_coordinates in ['y','Y','s','S']:
+        location = configuration.get_observatory_coordinates(code)
+        configuration.change_obs_coords(config, location[3], location[0], location[1])
+        configuration.change_obs_altitude(config, location[2])
+        configuration.change_obs_name(config, location[3])
+
 
 
 def print_observatory_config_menu():
