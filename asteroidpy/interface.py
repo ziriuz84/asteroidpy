@@ -166,6 +166,11 @@ def change_mpc_code_menu(config):
     code = input(_("MPC Code -> "))
     configuration.change_mpc_code(config, code)
     update_coordinates = input(_("Update coordinates? (y/N) -> "))
+    if update_coordinates in ["y", "Y", "s", "S"]:
+        location = configuration.get_observatory_coordinates(code)
+        configuration.change_obs_coords(
+            config, location[3], location[1], location[0])
+        configuration.change_obs_name(config, location[3])
 
 
 def print_observatory_config_menu():
@@ -308,7 +313,8 @@ def observing_target_list_menu(config):
     """
     authenticity_token = "W5eBzzw9Clj4tJVzkz0z%2F2EK18jvSS%2BffHxZpAshylg%3D"
     coordinates = local_coords(config)
-    select_time = input(_("Do you want to know the asteroids visible right now? [y/N]"))
+    select_time = input(
+        _("Do you want to know the asteroids visible right now? [y/N]"))
     if select_time == "s" or select_time == "y":
         time = datetime.datetime.utcnow()
     else:

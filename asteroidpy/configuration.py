@@ -1,6 +1,7 @@
 import os
-from astropy.coordinates import SkyCoord, ICRS, GeocentricTrueEcliptic
-from astropy import units as u
+import math
+from astropy.coordinates import Angle
+from astroquery.mpc import MPC
 
 
 def save_config(config):
@@ -148,6 +149,22 @@ def change_mpc_code(config, code):
     load_config(config)
     config["Observatory"]["mpc_code"] = str(code)
     save_config(config)
+
+
+def get_observatory_coordinates(code):
+    observatory_location = MPC.get_observatory_location(str(code))
+    latitude = math.acos(
+        observatory_location[1]
+        / math.sqrt(observatory_location[1] ** 2 + observatory_location[2] ** 2)
+    )
+    altitude = math.sqrt(
+        observatory_location[1] ** 2 + observatory_location[2] ** 2)
+    return (
+        observatory_location[0].degree,
+        math.degrees(latitude),
+        altitude,
+        observatory_location[3],
+    )
 
 
 def change_obs_name(config, name):
