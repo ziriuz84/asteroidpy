@@ -1,6 +1,7 @@
 import os
+from platform import system
 import math
-from platformdirs import user_config_dir
+from platformdirs import user_config_dir, user_config_path
 from astropy.coordinates import Angle
 from astroquery.mpc import MPC
 
@@ -17,10 +18,14 @@ def save_config(config):
     -------
 
     """
-    dir_path = user_config_dir("AsteroidPy")
-    if not os.path.exists(dir_path):
-        os.makedirs(dir_path)
-    with open(dir_path + "/asteroidpy.ini", "w") as f:
+    dir = user_config_dir("AsteroidPy")
+    if system() == "Windows":
+        separator = "\\"
+    else:
+        separator = "/"
+    if not os.path.exists(dir):
+        os.makedirs(dir)
+    with open(dir + separator + "asteroidpy.ini", "w") as f:
         config.write(f)
 
 
@@ -65,11 +70,14 @@ def load_config(config):
     dir_path = user_config_dir("AsteroidPy")
     if not os.path.exists(dir_path):
         os.makedirs(dir_path)
-    print(user_config_dir("AsteroidPy"))
+    if system() == "Windows":
+        separator = "\\"
+    else:
+        separator = "/"
     i = 0
     for root, dirs, files in os.walk(user_config_dir("AsteroidPy")):
         if "asteroidpy.ini" in files:
-            config.read(user_config_dir("AsteroidPy") + "/asteroidpy.ini")
+            config.read(user_config_dir("AsteroidPy") + separator + "asteroidpy.ini")
             break
         else:
             initialize(config)
