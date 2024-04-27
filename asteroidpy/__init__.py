@@ -4,9 +4,9 @@ import configparser
 import cProfile
 import pstats
 
-import asteroidpy.interface
+import asteroidpy.interface as interface
 
-PROFILE = True
+PROFILE = False
 
 config = configparser.ConfigParser()
 
