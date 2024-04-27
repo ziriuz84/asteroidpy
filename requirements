@@ -5,3 +5,6 @@ tabulate
 bs4
 lxml
 astroplan
+astropy
+astroquery
+platformdirs

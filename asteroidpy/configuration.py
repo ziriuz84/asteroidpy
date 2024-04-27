@@ -1,5 +1,6 @@
 import os
 import math
+from platformdirs import user_config_dir
 from astropy.coordinates import Angle
 from astroquery.mpc import MPC
 
@@ -16,7 +17,10 @@ def save_config(config):
     -------
 
     """
-    with open(os.path.expanduser("~") + "/" + ".asteroidpy", "w") as f:
+    dir_path = user_config_dir("AsteroidPy")
+    if not os.path.exists(dir_path):
+        os.makedirs(dir_path)
+    with open(dir_path + "/asteroidpy.ini", "w") as f:
         config.write(f)
 
 
@@ -58,13 +62,16 @@ def load_config(config):
     -------
 
     """
-    dir_path = os.path.dirname(os.path.expanduser("~"))
+    dir_path = user_config_dir("AsteroidPy")
+    if not os.path.exists(dir_path):
+        os.makedirs(dir_path)
+    print(user_config_dir("AsteroidPy"))
     i = 0
-    for root, dirs, files in os.walk(dir_path):
-        if ".asteroidpy" in files:
-            config.read(os.path.expanduser("~") + "/" + ".asteroidpy")
+    for root, dirs, files in os.walk(user_config_dir("AsteroidPy")):
+        if "asteroidpy.ini" in files:
+            config.read(user_config_dir("AsteroidPy") + "/asteroidpy.ini")
             break
-        elif i != 0 and i != 1:
+        else:
             initialize(config)
         i += 1
 
@@ -157,8 +164,7 @@ def get_observatory_coordinates(code):
         observatory_location[1]
         / math.sqrt(observatory_location[1] ** 2 + observatory_location[2] ** 2)
     )
-    altitude = math.sqrt(
-        observatory_location[1] ** 2 + observatory_location[2] ** 2)
+    altitude = math.sqrt(observatory_location[1] ** 2 + observatory_location[2] ** 2)
     return (
         observatory_location[0].degree,
         math.degrees(latitude),
@@ -218,13 +224,21 @@ def print_obs_config(config):
 
     """
     load_config(config)
-    print("Località: %s" % config["Observatory"]["place"])
-    print("Latitudine: %s" % config["Observatory"]["latitude"])
-    print("Longitudine: %s" % config["Observatory"]["longitude"])
-    print("Altitudine: %s" % config["Observatory"]["altitude"])
-    print("Osservatore: %s" % config["Observatory"]["observer_name"])
-    print("Nome Osservatorio: %s" % config["Observatory"]["obs_name"])
-    print("Codice MPC: %s" % config["Observatory"]["mpc_code"])
+    if config.has_section("Observatory"):
+        if config.has_option("Observatory", "place"):
+            print("Località: %s" % config["Observatory"]["place"])
+        if config.has_option("Observatory", "latitude"):
+            print("Latitudine: %s" % config["Observatory"]["latitude"])
+        if config.has_option("Observatory", "longitude"):
+            print("Longitudine: %s" % config["Observatory"]["longitude"])
+        if config.has_option("Observatory", "altitude"):
+            print("Altitudine: %s" % config["Observatory"]["altitude"])
+        if config.has_option("Observatory", "observer_name"):
+            print("Osservatore: %s" % config["Observatory"]["observer_name"])
+        if config.has_option("Observatory", "obs_name"):
+            print("Nome Osservatorio: %s" % config["Observatory"]["obs_name"])
+        if config.has_option("Observatory", "mpc_code"):
+            print("Codice MPC: %s" % config["Observatory"]["mpc_code"])
 
 
 def virtual_horizon_configuration(config, horizon):
