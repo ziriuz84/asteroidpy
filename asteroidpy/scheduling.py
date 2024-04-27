@@ -363,7 +363,7 @@ def observing_target_list(config, payload):
     return results
 
 
-def neocp_confirmation(config, min_score, max_magnitude, min_altitude):
+def neocp_confirmation(config, min_score, max_magnitude):
     """Prints NEOcp visible at the moment
 
     Parameters
@@ -393,7 +393,7 @@ def neocp_confirmation(config, min_score, max_magnitude, min_altitude):
     lat = config["Observatory"]["latitude"]
     long = config["Observatory"]["longitude"]
     location = EarthLocation.from_geodetic(lon=float(long), lat=float(lat))
-    observing_date = Time(datetime.datetime.utcnow())
+    observing_date = Time(datetime.datetime.now(datetime.UTC))
     altaz = AltAz(location=location, obstime=observing_date)
     table = QTable(
         [[""], [0], [""], [""], [0.0], [0.0], [0], [0.0], [0.0]],
@@ -454,7 +454,7 @@ def twilight_times(config):
         float(config["Observatory"]["altitude"]) * u.m,
     )
     observer = Observer(name=config["Observatory"]["obs_name"], location=location)
-    observing_date = Time(datetime.datetime.utcnow())
+    observing_date = Time(datetime.datetime.now(datetime.UTC))
     result = {
         "AstroM": observer.twilight_morning_astronomical(observing_date, which="next"),
         "AstroE": observer.twilight_evening_astronomical(observing_date, which="next"),
@@ -485,7 +485,7 @@ def sun_moon_ephemeris(config):
         float(config["Observatory"]["altitude"]) * u.m,
     )
     observer = Observer(name=config["Observatory"]["obs_name"], location=location)
-    observing_date = Time(datetime.datetime.utcnow())
+    observing_date = Time(datetime.datetime.now(datetime.UTC))
     result = {
         "Sunrise": observer.sun_rise_time(observing_date, which="next"),
         "Sunset": observer.sun_set_time(observing_date, which="next"),
