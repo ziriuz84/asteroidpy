@@ -50,6 +50,10 @@ def initialize(config):
         "obs_name": "",
         "observer_name": "",
         "mpc_code": "XXX",
+        "east_altitude": 0,
+        "nord_altitude": 0,
+        "south_altitude": 0,
+        "west_altitude": 0,
     }
     print("inizializzato")
     save_config(config)
@@ -77,7 +81,8 @@ def load_config(config):
     i = 0
     for root, dirs, files in os.walk(user_config_dir("AsteroidPy")):
         if "asteroidpy.ini" in files:
-            config.read(user_config_dir("AsteroidPy") + separator + "asteroidpy.ini")
+            config.read(user_config_dir("AsteroidPy") +
+                        separator + "asteroidpy.ini")
             break
         else:
             initialize(config)
@@ -172,7 +177,8 @@ def get_observatory_coordinates(code):
         observatory_location[1]
         / math.sqrt(observatory_location[1] ** 2 + observatory_location[2] ** 2)
     )
-    altitude = math.sqrt(observatory_location[1] ** 2 + observatory_location[2] ** 2)
+    altitude = math.sqrt(
+        observatory_location[1] ** 2 + observatory_location[2] ** 2)
     return (
         observatory_location[0].degree,
         math.degrees(latitude),
