@@ -529,10 +529,9 @@ def object_ephemeris(config, object_name, stepping):
     elif stepping == "w":
         step = "7d"
     else:
+        step="1d"
         print(_("Wrong code"))
-    eph = MPC.get_ephemeris(
-        str(object_name).upper(), location=location, step=step, number=30
-    )
+    eph = MPC.get_ephemeris(str(object_name).upper(), location=location, step=step, number=30)
     ephemeris = eph[
         "Date", "RA", "Dec", "Elongation", "V", "Altitude", "Proper motion", "Direction"
     ]
