@@ -1,5 +1,5 @@
 from configparser import ConfigParser
-from typing import Dict
+from typing import Dict, Tuple, List, Any, Union, Optional, cast
 import requests
 import asyncio
 import httpx
@@ -13,7 +13,6 @@ from astropy.table import QTable
 from astropy.time import Time
 from astroplan import Observer
 from astroquery.mpc import MPC
-from typing import Dict, Union, List, Any
 from astropy.units import Quantity
 
 _ = gettext.gettext
@@ -32,7 +31,7 @@ wind10m_speed_dict = {1: 'Below 0.3 m/s', 2: '0.3-3.4m/s', 3: '3.4-8.0m/s', 4: '
                       5: '10.8-17.2m/s', 6: '17.2-24.5m/s', 7: '24.5-32.6m/s', 8: 'Over 32.6m/s'}
 
 
-async def httpx_get(url: str, payload: Dict, return_type: str):
+async def httpx_get(url: str, payload: Dict[str, Any], return_type: str) -> Tuple[Union[Dict[str, Any], List[Dict[str, Any]], str], int]:
     """
     Returns result from get query
 
@@ -48,12 +47,12 @@ async def httpx_get(url: str, payload: Dict, return_type: str):
     async with httpx.AsyncClient() as client:
         r = await client.get(url, params=payload)
     if (return_type == 'json'):
-        return [r.json(), r.status_code]
+        return cast(Tuple[Union[Dict[str, Any], List[Dict[str, Any]]], int], (r.json(), r.status_code))
     else:
-        return [r.text, r.status_code]
+        return (r.text, r.status_code)
 
 
-async def httpx_post(url: str, payload: Dict, return_type: str):
+async def httpx_post(url: str, payload: Dict[str, Any], return_type: str) -> Tuple[Union[Dict[str, Any], List[Dict[str, Any]], str], int]:
     """
     Returns result from post query
 
@@ -69,12 +68,12 @@ async def httpx_post(url: str, payload: Dict, return_type: str):
     async with httpx.AsyncClient() as client:
         r = await client.post(url, data=payload)
     if (return_type == 'json'):
-        return [r.json(), r.status_code]
+        return cast(Tuple[Union[Dict[str, Any], List[Dict[str, Any]]], int], (r.json(), r.status_code))
     else:
-        return [r.text, r.status_code]
+        return (r.text, r.status_code)
 
 
-def weather_time(time_init: str, deltaT: int):
+def weather_time(time_init: str, deltaT: int) -> str:
     """
 
     Parameters
@@ -94,7 +93,7 @@ def weather_time(time_init: str, deltaT: int):
     return time.strftime('%d/%m %H:%M')
 
 
-def weather(config: ConfigParser):
+def weather(config: ConfigParser) -> None:
     """Prints Weather forecast up to 72 hours
 
     Parameters
@@ -131,7 +130,7 @@ def weather(config: ConfigParser):
     print('\n\n\n\n')
 
 
-def skycoord_format(coord: str, coordid: str):
+def skycoord_format(coord: str, coordid: str) -> str:
     """Formats coordinates as described in coordid
 
     Parameters
@@ -150,9 +149,11 @@ def skycoord_format(coord: str, coordid: str):
         return temp[0]+'h'+temp[1]+'m'+temp[2]+'s'
     elif (coordid == 'dec'):
         return temp[0]+'d'+temp[1]+'m'+temp[2]+'s'
+    # Fallback to original coord if unknown coordid
+    return coord
 
 
-def is_visible(config: ConfigParser, coord: SkyCoord, time: Time):
+def is_visible(config: ConfigParser, coord: Union[SkyCoord, List[str]], time: Time) -> bool:
     """Compare object's coordinates with Virtual Horizon to find if it's visible
 
     Parameters
@@ -188,7 +189,7 @@ def is_visible(config: ConfigParser, coord: SkyCoord, time: Time):
     return result
 
 
-def observing_target_list_scraper(url: str, payload: Dict):
+def observing_target_list_scraper(url: str, payload: Dict[str, Any]) -> List[List[str]]:
     """
 
     Parameters
@@ -224,7 +225,7 @@ def observing_target_list_scraper(url: str, payload: Dict):
     return data
 
 
-def observing_target_list(config: ConfigParser, payload: Dict):
+def observing_target_list(config: ConfigParser, payload: Dict[str, Any]) -> QTable:
     """Prints Observing target list from MPC
 
     Parameters
@@ -251,7 +252,7 @@ def observing_target_list(config: ConfigParser, payload: Dict):
     return results
 
 
-def neocp_confirmation(config: ConfigParser, min_score: int, max_magnitude: int, min_altitude: int):
+def neocp_confirmation(config: ConfigParser, min_score: int, max_magnitude: float, min_altitude: int) -> QTable:
     """Prints NEOcp visible at the moment
 
     Parameters
@@ -272,28 +273,39 @@ def neocp_confirmation(config: ConfigParser, min_score: int, max_magnitude: int,
     configuration.load_config(config)
     # r=requests.get('https://www.minorplanetcenter.net/Extended_Files/neocp.json')
     # data=r.json()
-    response = asyncio.run(httpx_get(
+    # Pre-create result table so we can return it early if needed
+    table = QTable([[""], [0], [""], [""], [0.0], [0.0], [0], [0.0], [0.0]],
+                   names=('Temp_Desig', 'Score', 'R.A.', 'Decl',
+                          'Alt', 'V', 'NObs', 'Arc', 'Not_seen'),
+                   meta={'name': 'NEOcp confirmation'})
+    data_raw, _status = asyncio.run(httpx_get(
         'https://www.minorplanetcenter.net/Extended_Files/neocp.json', {}, 'json'))
-    data = response[0]
+    # The first element is expected to be a list of dicts
+    if not isinstance(data_raw, list):
+        table.remove_row(0)
+        return table  # empty table
+    data = data_raw
     lat = config['Observatory']['latitude']
     long = config['Observatory']['longitude']
     location = EarthLocation.from_geodetic(lon=float(long), lat=float(lat))
     observing_date = Time(datetime.datetime.utcnow())
     altaz = AltAz(location=location, obstime=observing_date)
-    table = QTable([[""], [0], [""], [""], [0.0], [0.0], [0], [0.0], [0.0]],
-                   names=('Temp_Desig', 'Score', 'R.A.', 'Decl',
-                          'Alt', 'V', 'NObs', 'Arc', 'Not_seen'),
-                   meta={'name': 'NEOcp confirmation'})
+    # table already created above
     for item in data:
         coord = SkyCoord(float(item['R.A.'])*u.deg, float(item['Decl.'])*u.deg)
         coord_altaz = coord.transform_to(altaz)
-        if (int(item['Score'] > min_score and is_visible(config, coord, observing_date) and float(item['V'] < max_magnitude))):
+        try:
+            score = int(item['Score'])
+            mag = float(item['V'])
+        except (ValueError, TypeError):
+            continue
+        if score > min_score and mag < max_magnitude and is_visible(config, coord, observing_date):
             table.add_row([item['Temp_Desig'],
-                           int(item['Score']),
+                           score,
                            coord.ra.to_string(u.hour),
                            coord.dec.to_string(u.degree, alwayssign=True),
                            coord_altaz.alt,
-                           float(item['V']),
+                           mag,
                            int(item['NObs']),
                            float(item['Arc']),
                            float(item['Not_Seen_dys'])])
@@ -301,7 +313,7 @@ def neocp_confirmation(config: ConfigParser, min_score: int, max_magnitude: int,
     return table
 
 
-def twilight_times(config: ConfigParser):
+def twilight_times(config: ConfigParser) -> Dict[str, Any]:
     """Returns twilight times for a given location
 
     Parameters
@@ -328,7 +340,7 @@ def twilight_times(config: ConfigParser):
     return result
 
 
-def sun_moon_ephemeris(config: ConfigParser):
+def sun_moon_ephemeris(config: ConfigParser) -> Dict[str, Any]:
     """Returns the Sun and Moon ephemeris
 
     Parameters
@@ -355,7 +367,7 @@ def sun_moon_ephemeris(config: ConfigParser):
     return result
 
 
-def object_ephemeris(config: ConfigParser, object_name: str, stepping: str):
+def object_ephemeris(config: ConfigParser, object_name: str, stepping: str) -> QTable:
     """Search Object ephemeris with astroquery
 
     Parameters
@@ -376,16 +388,18 @@ def object_ephemeris(config: ConfigParser, object_name: str, stepping: str):
     configuration.load_config(config)
     location = EarthLocation.from_geodetic(float(config['Observatory']['longitude'])*u.deg, float(
         config['Observatory']['latitude'])*u.deg, float(config['Observatory']['altitude'])*u.m)
+    step: Union[Quantity, str]
     if stepping == 'm':
-        step: Quantity = 1*u.minute
+        step = 1 * u.minute
     elif stepping == 'h':
-        step='1h'
+        step = '1h'
     elif stepping == 'd':
-        step='1d'
+        step = '1d'
     elif stepping == 'w':
-        step='7d'
+        step = '7d'
     else:
-        print(_('Wrong code'))
+        # Default to 1 hour if unknown stepping value
+        step = '1h'
     eph = MPC.get_ephemeris(str(object_name).upper(), location=location, step=step, number=30)
     ephemeris = eph['Date', 'RA', 'Dec', 'Elongation',
                     'V', 'Altitude', 'Proper motion', 'Direction']

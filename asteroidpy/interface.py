@@ -1,8 +1,9 @@
 import datetime
 import gettext
+from configparser import ConfigParser
 import asteroidpy.configuration as configuration
 import asteroidpy.scheduling as scheduling
-from typing import List, Dict, Union, Any
+from typing import List, Dict, Union, Any, Tuple
 
 _ = gettext.gettext
 
@@ -47,7 +48,7 @@ def get_float(message: str) -> float:
             print('You must enter a number')
 
 
-def local_coords(config) -> Union[str,str]:
+def local_coords(config: ConfigParser) -> List[str]:
     """Returns local geographical coordinates
 
     Parameters
@@ -65,7 +66,7 @@ def local_coords(config) -> Union[str,str]:
     return [lat, long]
 
 
-def select_specific_time():
+def select_specific_time() -> datetime.datetime:
     """Returns specific time"""
     print(_('Provide me with the observation start time parameters (UTC)'))
     day = get_integer(_('Day -> '))
@@ -79,13 +80,13 @@ def select_specific_time():
     return time
 
 
-def WIP():
+def WIP() -> None:
     """Prints a simply Work in Progress"""
     print(_('Work in Progress'))
     print('\n\n\n\n\n\n\n\n')
 
 
-def change_obs_coords_menu(config):
+def change_obs_coords_menu(config: ConfigParser) -> None:
     """Changes Observatory coordinates in Configuration file
 
     Parameters
@@ -103,7 +104,7 @@ def change_obs_coords_menu(config):
     configuration.change_obs_coords(config, place, latitude, longitude)
 
 
-def change_obs_altitude_menu(config):
+def change_obs_altitude_menu(config: ConfigParser) -> None:
     """Changes Observatory altitude in Configuration file
 
     Parameters
@@ -119,7 +120,7 @@ def change_obs_altitude_menu(config):
     configuration.change_obs_altitude(config, altitude)
 
 
-def change_observer_name_menu(config):
+def change_observer_name_menu(config: ConfigParser) -> None:
     """Changes Observer name in Configuration file
 
     Parameters
@@ -135,7 +136,7 @@ def change_observer_name_menu(config):
     configuration.change_observer_name(config, name)
 
 
-def change_obs_name_menu(config):
+def change_obs_name_menu(config: ConfigParser) -> None:
     """Changes Observatory name in Configuration file
 
     Parameters
@@ -151,7 +152,7 @@ def change_obs_name_menu(config):
     configuration.change_obs_name(config, name)
 
 
-def change_mpc_code_menu(config):
+def change_mpc_code_menu(config: ConfigParser) -> None:
     """Changes MPC code in Configuration file
 
     Parameters
@@ -167,7 +168,7 @@ def change_mpc_code_menu(config):
     configuration.change_mpc_code(config, code)
 
 
-def print_observatory_config_menu():
+def print_observatory_config_menu() -> None:
     """Prints Observatory config text menu"""
     print(_('''Choose an option
     1 - Change coordinates
@@ -179,7 +180,7 @@ def print_observatory_config_menu():
     0 - Back to configuration menu'''))
 
 
-def observatory_config_menu(config):
+def observatory_config_menu(config: ConfigParser) -> None:
     """Prints Observatory config menu and it launches correct interface
 
     Parameters
@@ -213,7 +214,7 @@ def observatory_config_menu(config):
             change_horizon(config)
 
 
-def change_language(config):
+def change_language(config: ConfigParser) -> None:
     """Prints language configuration menu
 
     Parameters
@@ -234,7 +235,7 @@ def change_language(config):
     configuration.change_language(config, lang)
 
 
-def general_config_menu(config):
+def general_config_menu(config: ConfigParser) -> None:
     """Prints menu for general configuration options and it launches correct interface
 
     Parameters
@@ -260,7 +261,7 @@ def general_config_menu(config):
             change_language(config)
 
 
-def config_menu(config):
+def config_menu(config: ConfigParser) -> None:
     """Prints main config menu and it launches correct interface
 
     Parameters
@@ -289,7 +290,7 @@ def config_menu(config):
             observatory_config_menu(config)
 
 
-def observing_target_list_menu(config):
+def observing_target_list_menu(config: ConfigParser) -> None:
     """Prints observing target list
 
     Parameters
@@ -349,7 +350,7 @@ def observing_target_list_menu(config):
     print('\n\n\n\n')
 
 
-def neocp_confirmation_menu(config):
+def neocp_confirmation_menu(config: ConfigParser) -> None:
     """Prints NEOcp confirmation list
 
     Parameters
@@ -376,7 +377,7 @@ def neocp_confirmation_menu(config):
     # print(neocp)
 
 
-def twilight_sun_moon_menu(config):
+def twilight_sun_moon_menu(config: ConfigParser) -> None:
     """Prints Twilight, sun and moon times
 
     Parameters
@@ -405,7 +406,7 @@ def twilight_sun_moon_menu(config):
     print('\n\n\n\n')
 
 
-def print_scheduling_menu():
+def print_scheduling_menu() -> None:
     """Prints scheduling menu"""
     print(_('Observation scheduling'))
     print('==============================\n')
@@ -418,7 +419,7 @@ def print_scheduling_menu():
     0 - Back to main menu\n'''))
 
 
-def scheduling_menu(config):
+def scheduling_menu(config: ConfigParser) -> None:
     """Prints scheduling menu and it launches correct interface
 
     Parameters
@@ -447,7 +448,7 @@ def scheduling_menu(config):
             twilight_sun_moon_menu(config)
 
 
-def main_menu(config):
+def main_menu(config: ConfigParser) -> None:
     """Prints Main menu
 
     Parameters
@@ -476,7 +477,7 @@ def main_menu(config):
             scheduling_menu(config)
 
 
-def interface(config):
+def interface(config: ConfigParser) -> None:
     """Main interface function
 
     Parameters
@@ -491,7 +492,7 @@ def interface(config):
     main_menu(config)
 
 
-def print_change_horizon_menu():
+def print_change_horizon_menu() -> Dict[str, str]:
     """Prints Virtual Horizon menu"""
     horizon = {}
     horizon['nord'] = input(_('Nord Altitude -> '))
@@ -501,7 +502,7 @@ def print_change_horizon_menu():
     return horizon
 
 
-def change_horizon(config):
+def change_horizon(config: ConfigParser) -> None:
     """Prints Virtual horizon configuration menu and calls configuration function
 
     Parameters
@@ -516,7 +517,7 @@ def change_horizon(config):
     horizon = print_change_horizon_menu()
     configuration.virtual_horizon_configuration(config, horizon)
 
-def object_ephemeris_menu(config):
+def object_ephemeris_menu(config: ConfigParser) -> None:
     """Prints Object Ephemeris menu and calls scheduling.object_ephemeris
 
     Parameters
