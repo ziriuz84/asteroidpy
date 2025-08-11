@@ -3,12 +3,13 @@
 import asteroidpy.interface as interface
 import configparser
 import cProfile, pstats
+from configparser import ConfigParser
 
 PROFILE = True
 
-config = configparser.ConfigParser()
+config: ConfigParser = configparser.ConfigParser()
 
-def main():
+def main() -> None:
     """Main function"""
     if (PROFILE):
         profiler = cProfile.Profile()
