@@ -297,7 +297,7 @@ def neocp_confirmation(config: ConfigParser, min_score: int, max_magnitude: floa
         try:
             score = int(item['Score'])
             mag = float(item['V'])
-        except Exception:
+        except (ValueError, TypeError):
             continue
         if score > min_score and mag < max_magnitude and is_visible(config, coord, observing_date):
             table.add_row([item['Temp_Desig'],
