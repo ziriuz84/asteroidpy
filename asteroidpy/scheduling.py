@@ -115,10 +115,7 @@ def weather(config: ConfigParser) -> None:
                           'Instab', 'Temp', 'RH', 'Wind', 'Precip'),
                    meta={'name': 'Weather forecast'})
     def map_or_na(mapping: Dict[int, str], key: Any) -> str:
-        try:
-            return mapping.get(key, 'N/A')
-        except Exception:
-            return 'N/A'
+        return mapping.get(key, 'N/A')
 
     for time in weather_forecast.get('dataseries', []):
         try:
