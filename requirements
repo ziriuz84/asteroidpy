@@ -1,7 +1,6 @@
 asyncio
 httpx
 requests
-tabulate
 bs4
 lxml
 astroplan

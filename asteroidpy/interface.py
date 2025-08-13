@@ -1,14 +1,29 @@
 import datetime
 import gettext
-
+import os
+from configparser import ConfigParser
 import asteroidpy.configuration as configuration
 import asteroidpy.scheduling as scheduling
+from typing import List, Dict, Union, Any, Tuple
 from astroquery.mpc import MPC
 
-_ = gettext.gettext
+def setup_gettext(config: ConfigParser) -> None:
+    """Initialize gettext based on configured language and install _ globally.
+
+    Looks up the language from the user's configuration file and installs
+    the appropriate translator using the `locales` directory at the project root.
+    """
+    # Ensure configuration is loaded so we read the latest language
+    configuration.load_config(config)
+    lang = config.get('General', 'lang', fallback='en')
+    # Compute path to locales directory (project_root/locales)
+    locale_dir = os.path.abspath(os.path.join(os.path.dirname(__file__), '..', 'locales'))
+    # Install translator; fallback keeps UI working even if .mo is missing
+    translator = gettext.translation('base', localedir=locale_dir, languages=[lang], fallback=True)
+    translator.install()
 
 
-def get_integer(message):
+def get_integer(message: str) -> int:
     """
 
     Parameters
@@ -28,7 +43,7 @@ def get_integer(message):
             print("You must enter an integer")
 
 
-def get_float(message):
+def get_float(message: str) -> float:
     """
 
     Parameters
@@ -48,7 +63,7 @@ def get_float(message):
             print("You must enter a number")
 
 
-def local_coords(config):
+def local_coords(config: ConfigParser) -> List[str]:
     """Returns local geographical coordinates
 
     Parameters
@@ -66,7 +81,7 @@ def local_coords(config):
     return [lat, long]
 
 
-def select_specific_time():
+def select_specific_time() -> datetime.datetime:
     """Returns specific time"""
     print(_("Provide me with the observation start time parameters (UTC)"))
     day = get_integer(_("Day -> "))
@@ -79,13 +94,13 @@ def select_specific_time():
     return time
 
 
-def WIP():
+def WIP() -> None:
     """Prints a simply Work in Progress"""
     print(_("Work in Progress"))
     print("\n\n\n\n\n\n\n\n")
 
 
-def change_obs_coords_menu(config):
+def change_obs_coords_menu(config: ConfigParser) -> None:
     """Changes Observatory coordinates in Configuration file
 
     Parameters
@@ -103,7 +118,7 @@ def change_obs_coords_menu(config):
     configuration.change_obs_coords(config, place, latitude, longitude)
 
 
-def change_obs_altitude_menu(config):
+def change_obs_altitude_menu(config: ConfigParser) -> None:
     """Changes Observatory altitude in Configuration file
 
     Parameters
@@ -119,7 +134,7 @@ def change_obs_altitude_menu(config):
     configuration.change_obs_altitude(config, altitude)
 
 
-def change_observer_name_menu(config):
+def change_observer_name_menu(config: ConfigParser) -> None:
     """Changes Observer name in Configuration file
 
     Parameters
@@ -135,7 +150,7 @@ def change_observer_name_menu(config):
     configuration.change_observer_name(config, name)
 
 
-def change_obs_name_menu(config):
+def change_obs_name_menu(config: ConfigParser) -> None:
     """Changes Observatory name in Configuration file
 
     Parameters
@@ -151,7 +166,7 @@ def change_obs_name_menu(config):
     configuration.change_obs_name(config, name)
 
 
-def change_mpc_code_menu(config):
+def change_mpc_code_menu(config: ConfigParser) -> None:
     """Changes MPC code in Configuration file
 
     Parameters
@@ -172,7 +187,7 @@ def change_mpc_code_menu(config):
         configuration.change_obs_name(config, location[3])
 
 
-def print_observatory_config_menu():
+def print_observatory_config_menu() -> None:
     """Prints Observatory config text menu"""
     print(
         _(
@@ -188,7 +203,7 @@ def print_observatory_config_menu():
     )
 
 
-def observatory_config_menu(config):
+def observatory_config_menu(config: ConfigParser) -> None:
     """Prints Observatory config menu and it launches correct interface
 
     Parameters
@@ -222,7 +237,7 @@ def observatory_config_menu(config):
             change_horizon(config)
 
 
-def change_language(config):
+def change_language(config: ConfigParser) -> None:
     """Prints language configuration menu
 
     Parameters
@@ -234,16 +249,56 @@ def change_language(config):
     -------
 
     """
-    lang = ""
-    print(_("Select a language"))
-    print("1 - English")
-    lang_chosen = get_integer(_("Language -> "))
-    if lang_chosen == 1:
-        lang = "en"
+    # Discover available languages by scanning the locales directory
+    locale_dir = os.path.abspath(os.path.join(os.path.dirname(__file__), '..', 'locales'))
+    try:
+        candidates = sorted([d for d in os.listdir(locale_dir) if os.path.isdir(os.path.join(locale_dir, d))])
+    except FileNotFoundError:
+        candidates = ['en']
+
+    import warnings
+    # Only include languages that have a compiled base.mo.
+    available_langs = []
+    for code in candidates:
+        lc_dir = os.path.join(locale_dir, code, 'LC_MESSAGES')
+        mo_path = os.path.join(lc_dir, 'base.mo')
+        po_path = os.path.join(lc_dir, 'base.po')
+        if os.path.exists(mo_path):
+            available_langs.append(code)
+        elif os.path.exists(po_path):
+            warnings.warn(f"Locale '{code}' has a base.po but no compiled base.mo. Translation may not be available until compiled.")
+
+    # Provide native names for known languages; fall back to the code itself
+    native_names = {
+        'en': 'English',
+        'it': 'Italiano',
+        'de': 'Deutsch',
+        'fr': 'Français',
+        'es': 'Español',
+        'pt': 'Português',
+    }
+
+    # Ensure English is always present as a fallback option
+    if 'en' not in available_langs:
+        available_langs.insert(0, 'en')
+
+    print(_('Select a language'))
+    for index, code in enumerate(available_langs, start=1):
+        print(f"{index} - {native_names.get(code, code)}")
+
+    # Read and validate choice
+    choice = get_integer(_('Language -> '))
+    while choice < 1 or choice > len(available_langs):
+        print(_('Invalid choice. Please enter a number between 1 and {max_choice}.').format(max_choice=len(available_langs)))
+        choice = get_integer(_('Language -> '))
+
+    lang = available_langs[choice - 1]
     configuration.change_language(config, lang)
+    # Re-initialize gettext so language takes effect immediately
+    setup_gettext(config)
 
 
-def general_config_menu(config):
+def general_config_menu(config: ConfigParser) -> None:
     """Prints menu for general configuration options and it launches correct interface
 
     Parameters
@@ -269,7 +324,7 @@ def general_config_menu(config):
             change_language(config)
 
 
-def config_menu(config):
+def config_menu(config: ConfigParser) -> None:
     """Prints main config menu and it launches correct interface
 
     Parameters
@@ -298,7 +353,7 @@ def config_menu(config):
             observatory_config_menu(config)
 
 
-def observing_target_list_menu(config):
+def observing_target_list_menu(config: ConfigParser) -> None:
     """Prints observing target list
 
     Parameters
@@ -358,7 +413,7 @@ def observing_target_list_menu(config):
     print("\n\n\n\n")
 
 
-def neocp_confirmation_menu(config):
+def neocp_confirmation_menu(config: ConfigParser) -> None:
     """Prints NEOcp confirmation list
 
     Parameters
@@ -383,7 +438,7 @@ def neocp_confirmation_menu(config):
     # print(neocp)
 
 
-def twilight_sun_moon_menu(config):
+def twilight_sun_moon_menu(config: ConfigParser) -> None:
     """Prints Twilight, sun and moon times
 
     Parameters
@@ -421,7 +476,7 @@ def twilight_sun_moon_menu(config):
     print("\n\n\n\n")
 
 
-def print_scheduling_menu():
+def print_scheduling_menu() -> None:
     """Prints scheduling menu"""
     print(_("Observation scheduling"))
     print("==============================\n")
@@ -438,7 +493,7 @@ def print_scheduling_menu():
     )
 
 
-def scheduling_menu(config):
+def scheduling_menu(config: ConfigParser) -> None:
     """Prints scheduling menu and it launches correct interface
 
     Parameters
@@ -467,7 +522,7 @@ def scheduling_menu(config):
             twilight_sun_moon_menu(config)
 
 
-def main_menu(config):
+def main_menu(config: ConfigParser) -> None:
     """Prints Main menu
 
     Parameters
@@ -496,7 +551,7 @@ def main_menu(config):
             scheduling_menu(config)
 
 
-def interface(config):
+def interface(config: ConfigParser) -> None:
     """Main interface function
 
     Parameters
@@ -508,10 +563,12 @@ def interface(config):
     -------
 
     """
+    # Initialize gettext before printing any UI strings
+    setup_gettext(config)
     main_menu(config)
 
 
-def print_change_horizon_menu():
+def print_change_horizon_menu() -> Dict[str, str]:
     """Prints Virtual Horizon menu"""
     horizon = {}
     horizon["nord"] = input(_("Nord Altitude -> "))
@@ -521,7 +578,7 @@ def print_change_horizon_menu():
     return horizon
 
 
-def change_horizon(config):
+def change_horizon(config: ConfigParser) -> None:
     """Prints Virtual horizon configuration menu and calls configuration function
 
     Parameters
@@ -536,8 +593,7 @@ def change_horizon(config):
     horizon = print_change_horizon_menu()
     configuration.virtual_horizon_configuration(config, horizon)
 
-
-def object_ephemeris_menu(config):
+def object_ephemeris_menu(config: ConfigParser) -> None:
     """Prints Object Ephemeris menu and calls scheduling.object_ephemeris
 
     Parameters

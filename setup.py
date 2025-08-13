@@ -18,6 +18,7 @@ setup(
         "astroplan",
         "lxml",
         "astroquery",
+        "platformdirs",
     ],
     classifiers=[
         "Development Status :: 1 - Planning",

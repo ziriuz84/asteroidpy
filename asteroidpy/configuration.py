@@ -1,4 +1,6 @@
+from configparser import ConfigParser
 import os
+from typing import Dict
 from platform import system
 import math
 from platformdirs import user_config_dir, user_config_path
@@ -6,7 +8,7 @@ from astropy.coordinates import Angle
 from astroquery.mpc import MPC
 
 
-def save_config(config):
+def save_config(config: ConfigParser) -> None:
     """Save configurations in config.ini file
 
     Parameters
@@ -29,7 +31,7 @@ def save_config(config):
         config.write(f)
 
 
-def initialize(config):
+def initialize(config: ConfigParser) -> None:
     """Initialize Configuration parameters
 
     Parameters
@@ -41,25 +43,26 @@ def initialize(config):
     -------
 
     """
-    config["General"] = {"lang": "en"}
-    config["Observatory"] = {
-        "place": "",
-        "latitude": 0.0,
-        "longitude": 0.0,
-        "altitude": 0.0,
-        "obs_name": "",
-        "observer_name": "",
-        "mpc_code": "XXX",
-        "east_altitude": 0,
-        "nord_altitude": 0,
-        "south_altitude": 0,
-        "west_altitude": 0,
+    config['General'] = {'lang': 'en'}
+    # ConfigParser stores values as strings; ensure all values are strings
+    config['Observatory'] = {
+        'place': '',
+        'latitude': '0.0',
+        'longitude': '0.0',
+        'altitude': '0.0',
+        'obs_name': '',
+        'observer_name': '',
+        'mpc_code': 'XXX',
+        "east_altitude": '0',
+        "nord_altitude": '0',
+        "south_altitude": '0',
+        "west_altitude": '0,
     }
     print("inizializzato")
     save_config(config)
 
 
-def load_config(config):
+def load_config(config: ConfigParser) -> None:
     """Searchs for .asteroidpy. If it's in the folder then it loads all parameter, else it initialize it
 
     Parameters
@@ -89,7 +92,7 @@ def load_config(config):
         i += 1
 
 
-def change_language(config, lang):
+def change_language(config: ConfigParser, lang: str) -> None:
     """Changes language for interface
 
     Parameters
@@ -108,7 +111,7 @@ def change_language(config, lang):
     save_config(config)
 
 
-def change_obs_coords(config, place, lat, long):
+def change_obs_coords(config: ConfigParser, place: str, lat: float, long: float) -> None:
     """Changes Observatory coordinates
 
     Parameters
@@ -133,7 +136,7 @@ def change_obs_coords(config, place, lat, long):
     save_config(config)
 
 
-def change_obs_altitude(config, alt):
+def change_obs_altitude(config: ConfigParser, alt: int) -> None:
     """Changes Observatory altitude
 
     Parameters
@@ -152,7 +155,7 @@ def change_obs_altitude(config, alt):
     save_config(config)
 
 
-def change_mpc_code(config, code):
+def change_mpc_code(config: ConfigParser, code: str) -> None:
     """Changes MPC code
 
     Parameters
@@ -186,8 +189,8 @@ def get_observatory_coordinates(code):
         observatory_location[3],
     )
 
+def change_obs_name(config: ConfigParser, name: str) -> None:
 
-def change_obs_name(config, name):
     """Changes Observatory name
 
     Parameters
@@ -206,7 +209,7 @@ def change_obs_name(config, name):
     save_config(config)
 
 
-def change_observer_name(config, name):
+def change_observer_name(config: ConfigParser, name: str) -> None:
     """Changes observer name
 
     Parameters
@@ -225,7 +228,7 @@ def change_observer_name(config, name):
     save_config(config)
 
 
-def print_obs_config(config):
+def print_obs_config(config: ConfigParser) -> None:
     """Prints Observatory configuration parameters
 
     Parameters
@@ -255,7 +258,7 @@ def print_obs_config(config):
             print("Codice MPC: %s" % config["Observatory"]["mpc_code"])
 
 
-def virtual_horizon_configuration(config, horizon):
+def virtual_horizon_configuration(config: ConfigParser, horizon: Dict[str, str]) -> None:
     """Change the Virtual horizon configuration
 
     Parameters

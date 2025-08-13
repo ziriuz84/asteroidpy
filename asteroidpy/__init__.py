@@ -1,17 +1,18 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
+import asteroidpy.interface as interface
 import configparser
-import cProfile
-import pstats
+import cProfile, pstats
+from configparser import ConfigParser
 
 import asteroidpy.interface as interface
 
 PROFILE = False
 
-config = configparser.ConfigParser()
+config: ConfigParser = configparser.ConfigParser()
 
+def main() -> None:
 
-def main():
     """Main function"""
     if PROFILE:
         profiler = cProfile.Profile()
