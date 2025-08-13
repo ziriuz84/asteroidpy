@@ -130,7 +130,7 @@ def weather(config: ConfigParser) -> None:
         temp = f"{time.get('temp2m', 'N/A')} C" if 'temp2m' in time else 'N/A'
         rh = map_or_na(rh2m_dict, time.get('rh2m'))
         wind = time.get('wind10m') or {}
-        wind_dir = wind.get('direction', '?')
+        wind_dir = wind.get('direction', 'N/A')
         wind_speed = map_or_na(wind10m_speed_dict, wind.get('speed'))
         wind_str = f"{wind_dir} {wind_speed}"
         precip = time.get('prec_type', 'N/A')
