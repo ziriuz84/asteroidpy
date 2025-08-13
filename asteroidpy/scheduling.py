@@ -119,8 +119,11 @@ def weather(config: ConfigParser) -> None:
 
     for time in weather_forecast.get('dataseries', []):
         try:
-            when = weather_time(weather_forecast.get('init', ''), time.get('timepoint', 0))
-        except Exception:
+            when = weather_time(
+                weather_forecast.get('init', ''),
+                time.get('timepoint', 0),
+            )
+        except (TypeError, ValueError):
             when = 'N/A'
 
         cloudcover = map_or_na(cloudcover_dict, time.get('cloudcover'))
