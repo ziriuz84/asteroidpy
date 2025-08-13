@@ -6,3 +6,4 @@ lxml
 astroplan
 astropy
 astroquery
+platformdirs

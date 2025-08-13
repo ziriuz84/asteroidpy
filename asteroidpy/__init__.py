@@ -5,19 +5,21 @@ import configparser
 import cProfile, pstats
 from configparser import ConfigParser
 
-PROFILE = True
+import asteroidpy.interface as interface
+
+PROFILE = False
 
 config: ConfigParser = configparser.ConfigParser()
 
 def main() -> None:
+
     """Main function"""
-    if (PROFILE):
+    if PROFILE:
         profiler = cProfile.Profile()
         profiler.enable()
         interface.interface(config)
         profiler.disable()
-        stats= pstats.Stats(profiler).sort_stats('ncalls')
-        stats.dump_stats('asteroidpy.prof')
+        stats = pstats.Stats(profiler).sort_stats("ncalls")
+        stats.dump_stats("asteroidpy.prof")
     else:
         interface.interface(config)
-
