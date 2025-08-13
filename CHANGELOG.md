@@ -5,6 +5,7 @@
 - UI: Language menu lists installed locales with native names
 - Locales: Added it, en, de, fr, es, pt and compiled `.mo`
 - Weather: Handle unknown forecast codes gracefully (avoid KeyError)
+- Weather: Narrow exception handling when formatting forecast time (catch only TypeError/ValueError to avoid masking bugs)
 
 ### 2025-08-11
 - types: Add and refine type hints across package and configure mypy
