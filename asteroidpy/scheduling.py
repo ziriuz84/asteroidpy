@@ -15,7 +15,7 @@ from astroplan import Observer
 from astroquery.mpc import MPC
 from astropy.units import Quantity
 
-_ = gettext.gettext
+# Use globally installed gettext from interface.setup_gettext
 
 cloudcover_dict = {1: '0%-6%', 2: '6%-19%', 3: '19%-31%', 4: '31%-44%',
                    5: '44%-56%', 6: '56%-69%', 7: '69%-81%', 8: '81%-94%', 9: '94%-100%'}
@@ -114,17 +114,38 @@ def weather(config: ConfigParser) -> None:
                    names=('Time', 'Clouds', 'Seeing', 'Transp',
                           'Instab', 'Temp', 'RH', 'Wind', 'Precip'),
                    meta={'name': 'Weather forecast'})
-    for time in weather_forecast['dataseries']:
-        table.add_row([weather_time(weather_forecast['init'], time['timepoint']),
-                       cloudcover_dict[time['cloudcover']],
-                       seeing_dict[time['seeing']],
-                       transparency_dict[time['transparency']],
-                       liftedIndex_dict[time['lifted_index']],
-                       str(time['temp2m'])+' C',
-                       rh2m_dict[time['rh2m']],
-                       time['wind10m']['direction'] +
-                       ' ' + wind10m_speed_dict[time['wind10m']['speed']],
-                       time['prec_type']])
+    def map_or_na(mapping: Dict[int, str], key: Any) -> str:
+        return mapping.get(key, 'N/A')
+
+    for time in weather_forecast.get('dataseries', []):
+        try:
+            when = weather_time(weather_forecast.get('init', ''), time.get('timepoint', 0))
+        except Exception:
+            when = 'N/A'
+
+        cloudcover = map_or_na(cloudcover_dict, time.get('cloudcover'))
+        seeing = map_or_na(seeing_dict, time.get('seeing'))
+        transp = map_or_na(transparency_dict, time.get('transparency'))
+        lifted = map_or_na(liftedIndex_dict, time.get('lifted_index'))
+        temp = f"{time.get('temp2m', 'N/A')} C" if 'temp2m' in time else 'N/A'
+        rh = map_or_na(rh2m_dict, time.get('rh2m'))
+        wind = time.get('wind10m') or {}
+        wind_dir = wind.get('direction', 'N/A')
+        wind_speed = map_or_na(wind10m_speed_dict, wind.get('speed'))
+        wind_str = f"{wind_dir} {wind_speed}"
+        precip = time.get('prec_type', 'N/A')
+
+        table.add_row([
+            when,
+            cloudcover,
+            seeing,
+            transp,
+            lifted,
+            temp,
+            rh,
+            wind_str,
+            precip,
+        ])
     table.remove_row(0)
     print(table)
     print('\n\n\n\n')

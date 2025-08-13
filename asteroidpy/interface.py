@@ -1,11 +1,25 @@
 import datetime
 import gettext
+import os
 from configparser import ConfigParser
 import asteroidpy.configuration as configuration
 import asteroidpy.scheduling as scheduling
 from typing import List, Dict, Union, Any, Tuple
 
-_ = gettext.gettext
+def setup_gettext(config: ConfigParser) -> None:
+    """Initialize gettext based on configured language and install _ globally.
+
+    Looks up the language from the user's configuration file and installs
+    the appropriate translator using the `locales` directory at the project root.
+    """
+    # Ensure configuration is loaded so we read the latest language
+    configuration.load_config(config)
+    lang = config.get('General', 'lang', fallback='en')
+    # Compute path to locales directory (project_root/locales)
+    locale_dir = os.path.abspath(os.path.join(os.path.dirname(__file__), '..', 'locales'))
+    # Install translator; fallback keeps UI working even if .mo is missing
+    translator = gettext.translation('base', localedir=locale_dir, languages=[lang], fallback=True)
+    translator.install()
 
 
 def get_integer(message: str) -> int:
@@ -226,13 +240,48 @@ def change_language(config: ConfigParser) -> None:
     -------
 
     """
-    lang = ''
+    # Discover available languages by scanning the locales directory
+    locale_dir = os.path.abspath(os.path.join(os.path.dirname(__file__), '..', 'locales'))
+    try:
+        candidates = sorted([d for d in os.listdir(locale_dir) if os.path.isdir(os.path.join(locale_dir, d))])
+    except FileNotFoundError:
+        candidates = ['en']
+
+    # Only include languages that have a base.po or base.mo
+    available_langs = []
+    for code in candidates:
+        lc_dir = os.path.join(locale_dir, code, 'LC_MESSAGES')
+        if os.path.exists(os.path.join(lc_dir, 'base.mo')) or os.path.exists(os.path.join(lc_dir, 'base.po')):
+            available_langs.append(code)
+
+    # Provide native names for known languages; fall back to the code itself
+    native_names = {
+        'en': 'English',
+        'it': 'Italiano',
+        'de': 'Deutsch',
+        'fr': 'Français',
+        'es': 'Español',
+        'pt': 'Português',
+    }
+
+    # Ensure English is always present as a fallback option
+    if 'en' not in available_langs:
+        available_langs.insert(0, 'en')
+
     print(_('Select a language'))
-    print('1 - English')
-    lang_chosen = get_integer(_('Language -> '))
-    if lang_chosen == 1:
-        lang = 'en'
+    for index, code in enumerate(available_langs, start=1):
+        print(f"{index} - {native_names.get(code, code)}")
+
+    # Read and validate choice
+    choice = get_integer(_('Language -> '))
+    while choice < 1 or choice > len(available_langs):
+        print(_('Invalid choice. Please enter a number between 1 and {max_choice}.').format(max_choice=len(available_langs)))
+        choice = get_integer(_('Language -> '))
+
+    lang = available_langs[choice - 1]
     configuration.change_language(config, lang)
+    # Re-initialize gettext so language takes effect immediately
+    setup_gettext(config)
 
 
 def general_config_menu(config: ConfigParser) -> None:
@@ -489,6 +538,8 @@ def interface(config: ConfigParser) -> None:
     -------
 
     """
+    # Initialize gettext before printing any UI strings
+    setup_gettext(config)
     main_menu(config)
 
 
