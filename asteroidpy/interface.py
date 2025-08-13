@@ -256,12 +256,17 @@ def change_language(config: ConfigParser) -> None:
     except FileNotFoundError:
         candidates = ['en']
 
-    # Only include languages that have a base.po or base.mo
+    import warnings
+    # Only include languages that have a compiled base.mo.
     available_langs = []
     for code in candidates:
         lc_dir = os.path.join(locale_dir, code, 'LC_MESSAGES')
-        if os.path.exists(os.path.join(lc_dir, 'base.mo')) or os.path.exists(os.path.join(lc_dir, 'base.po')):
+        mo_path = os.path.join(lc_dir, 'base.mo')
+        po_path = os.path.join(lc_dir, 'base.po')
+        if os.path.exists(mo_path):
             available_langs.append(code)
+        elif os.path.exists(po_path):
+            warnings.warn(f"Locale '{code}' has a base.po but no compiled base.mo. Translation may not be available until compiled.")
 
     # Provide native names for known languages; fall back to the code itself
     native_names = {
