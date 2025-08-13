@@ -275,6 +275,7 @@ def change_language(config: ConfigParser) -> None:
     # Read and validate choice
     choice = get_integer(_('Language -> '))
     while choice < 1 or choice > len(available_langs):
+        print(_('Invalid choice. Please enter a number between 1 and {max_choice}.').format(max_choice=len(available_langs)))
         choice = get_integer(_('Language -> '))
 
     lang = available_langs[choice - 1]
