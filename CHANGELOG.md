@@ -10,6 +10,7 @@
 - Configuration: Use `~/.asteroidpy` for config and correct defaults; align tests
 - Configuration: Gracefully handle unreadable or invalid `~/.asteroidpy` by falling back to initialize
 - tests: Add coverage for unreadable config file permissions scenario
+- tests: Add coverage for corrupted/invalid config content fallback in `load_config` (closes #88)
 - i18n: Clarify that checking only `base.po/.mo` may not guarantee translation availability
 - Weather/UI: Improve default wind direction display (avoid ambiguous '?')
 - Docs/Security: Add `SECURITY.md` policy
