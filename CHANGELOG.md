@@ -11,6 +11,7 @@
 - i18n: Clarify that checking only `base.po/.mo` may not guarantee translation availability
 - Weather/UI: Improve default wind direction display (avoid ambiguous '?')
 - Docs/Security: Add `SECURITY.md` policy
+- Fix: Make `skycoord_format` robust to invalid strings and accept colon-separated input; return original string on invalid tokens (closes #90)
 
 ### 2025-08-11
 - types: Add and refine type hints across package and configure mypy
