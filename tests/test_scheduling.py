@@ -146,7 +146,7 @@ def test_observing_target_list_scraper_parses_table(monkeypatch, sch):
     data = sch.observing_target_list_scraper("https://mpc", {"k": "v"})
 
     # Expect at least one non-empty row present
-    assert any(row for row in data), "Expected at least one parsed row"
+    assert any(data), "Expected at least one parsed row"
     assert [
         "2025 AB",
         "18.2",

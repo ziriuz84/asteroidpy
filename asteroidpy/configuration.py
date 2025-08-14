@@ -20,14 +20,12 @@ def save_config(config: ConfigParser) -> None:
     -------
 
     """
-    dir = user_config_dir("AsteroidPy")
-    if system() == "Windows":
-        separator = "\\"
-    else:
-        separator = "/"
-    if not os.path.exists(dir):
-        os.makedirs(dir)
-    with open(dir + separator + "asteroidpy.ini", "w") as f:
+    # Persist configuration at $HOME/.asteroidpy
+    home_dir = os.path.expanduser("~")
+    config_path = os.path.join(home_dir, ".asteroidpy")
+    if home_dir and not os.path.exists(home_dir):
+        os.makedirs(home_dir, exist_ok=True)
+    with open(config_path, "w", encoding="utf-8") as f:
         config.write(f)
 
 
@@ -56,7 +54,7 @@ def initialize(config: ConfigParser) -> None:
         "east_altitude": '0',
         "nord_altitude": '0',
         "south_altitude": '0',
-        "west_altitude": '0,
+        "west_altitude": '0',
     }
     print("inizializzato")
     save_config(config)
@@ -74,22 +72,13 @@ def load_config(config: ConfigParser) -> None:
     -------
 
     """
-    dir_path = user_config_dir("AsteroidPy")
-    if not os.path.exists(dir_path):
-        os.makedirs(dir_path)
-    if system() == "Windows":
-        separator = "\\"
-    else:
-        separator = "/"
-    i = 0
-    for root, dirs, files in os.walk(user_config_dir("AsteroidPy")):
-        if "asteroidpy.ini" in files:
-            config.read(user_config_dir("AsteroidPy") +
-                        separator + "asteroidpy.ini")
-            break
-        else:
-            initialize(config)
-        i += 1
+    # Read configuration from $HOME/.asteroidpy if it exists; otherwise initialize
+    home_dir = os.path.expanduser("~")
+    config_path = os.path.join(home_dir, ".asteroidpy")
+    if os.path.exists(config_path):
+        config.read(config_path, encoding="utf-8")
+        return
+    initialize(config)
 
 
 def change_language(config: ConfigParser, lang: str) -> None:
