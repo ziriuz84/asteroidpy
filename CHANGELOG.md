@@ -18,6 +18,9 @@
 - Fix: Accept case-insensitive `coordid` in `skycoord_format` (allow 'RA'/'Dec')
  - Fix: Apply `min_altitude` filtering in `neocp_confirmation` and expose it via the menu (closes #86)
  - tests: Add positive-path test for NEOCP confirmation including a valid object passing all filters
+- Fix: Make `observing_target_list_scraper` robust when the MPC page has fewer than four tables or unexpected/missing headers; return an empty list when no suitable table is found (closes #85)
+- Fix: Make `observing_target_list` skip malformed rows and unparseable times defensively
+- tests: Add coverage for no-table, wrong-headers, and malformed-row cases in observing target list scraping
 
 ### 2025-08-11
 - types: Add and refine type hints across package and configure mypy

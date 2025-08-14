@@ -350,21 +350,33 @@ def observing_target_list_scraper(url: str, payload: Dict[str, Any]) -> List[Lis
     r = requests.post(url, params=payload)
     soup = BeautifulSoup(r.content, "lxml")
     tables = soup.find_all("table")
-    table = tables[3]
-    headerstag = table.find_all("th")
-    headers = []
-    for header in headerstag:
-        headers.append(header.string.strip())
-    rowstag = table.find_all("tr")
-    datatag = []
-    for row in rowstag:
-        datatag.append(row.find_all("td"))
-    data = []
-    for d in datatag:
-        temp = []
-        for i in d:
-            temp.append(i.string.strip())
-        data.append(temp)
+
+    # Prefer the 4th table if present (legacy behavior), otherwise try to detect by headers
+    target_table = None
+    if len(tables) >= 4:
+        target_table = tables[3]
+    else:
+        for candidate in tables:
+            header_cells = [th.get_text(strip=True) for th in candidate.find_all("th")]
+            header_set = set(h for h in header_cells if h)
+            expected_headers = {"Designation", "Mag", "Time", "RA", "Dec", "Alt"}
+            if expected_headers.issubset(header_set):
+                target_table = candidate
+                break
+
+    # If no suitable table was found, return an empty result gracefully
+    if target_table is None:
+        return []
+
+    # Extract non-empty data rows, skipping header rows
+    data: List[List[str]] = []
+    for row in target_table.find_all("tr"):
+        cells = row.find_all("td")
+        if not cells:
+            continue
+        values = [cell.get_text(strip=True) for cell in cells]
+        if any(values):
+            data.append(values)
     return data
 
 
@@ -391,9 +403,15 @@ def observing_target_list(config: ConfigParser, payload: Dict[str, Any]) -> QTab
         "https://www.minorplanetcenter.net/whatsup/index", payload
     )
     for d in data:
-        if is_visible(
-            config, [d[5], d[6]], Time(d[4].replace("T", " ").replace("z", ""))
-        ):
+        # Require at least 8 fields as used below; skip malformed rows defensively
+        if len(d) < 8:
+            continue
+        try:
+            observing_time = Time(d[4].replace("T", " ").replace("z", ""))
+        except Exception:
+            # Skip rows with unparseable time values
+            continue
+        if is_visible(config, [d[5], d[6]], observing_time):
             results.add_row(
                 [
                     d[0],
