@@ -21,6 +21,8 @@
 - Fix: Make `observing_target_list_scraper` robust when the MPC page has fewer than four tables or unexpected/missing headers; return an empty list when no suitable table is found (closes #85)
 - Fix: Make `observing_target_list` skip malformed rows and unparseable times defensively
 - tests: Add coverage for no-table, wrong-headers, and malformed-row cases in observing target list scraping
+ - Fix: Add robust error handling to `httpx_get`/`httpx_post`; return safe defaults on exceptions and preserve non-200 status codes; gracefully handle JSON parse failures
+ - tests: Add coverage for non-200 responses and request exceptions in `httpx_get`/`httpx_post` (closes #84)
 
 ### 2025-08-11
 - types: Add and refine type hints across package and configure mypy
