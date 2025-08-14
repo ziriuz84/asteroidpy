@@ -74,7 +74,15 @@ def load_config(config: ConfigParser) -> None:
     home_dir = os.path.expanduser("~")
     config_path = os.path.join(home_dir, ".asteroidpy")
     if os.path.exists(config_path):
-        config.read(config_path, encoding="utf-8")
+        # Attempt to read. If unreadable (permissions) or invalid/empty,
+        # fall back to initialize to ensure required sections exist.
+        try:
+            read_files = config.read(config_path, encoding="utf-8")
+        except Exception:
+            read_files = []
+
+        if not read_files or not config.sections():
+            initialize(config)
         return
     initialize(config)
 
