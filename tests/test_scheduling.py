@@ -108,6 +108,72 @@ def test_httpx_get_and_post(monkeypatch, sch):
     assert status == 200 and text == "<ok/>"
 
 
+def test_httpx_get_post_non_200(monkeypatch, sch):
+    class DummyResponse:
+        def __init__(self, payload: Dict[str, Any], status_code: int, text: str):
+            self._payload = payload
+            self.text = text
+            self.status_code = status_code
+
+        def json(self) -> Dict[str, Any]:
+            return self._payload
+
+    class DummyAsyncClient:
+        async def __aenter__(self):
+            return self
+
+        async def __aexit__(self, exc_type, exc, tb):
+            return False
+
+        async def get(self, url, params=None):
+            return DummyResponse({"error": "not found"}, 404, "Not Found")
+
+        async def post(self, url, data=None):
+            return DummyResponse({"error": "bad request"}, 400, "Bad Request")
+
+    monkeypatch.setattr(sch.httpx, "AsyncClient", lambda *a, **k: DummyAsyncClient())
+
+    data, status = asyncio.run(sch.httpx_get("https://example.com/miss", {}, "json"))
+    assert status == 404 and data == {"error": "not found"}
+
+    text, status = asyncio.run(sch.httpx_get("https://example.com/miss", {}, "text"))
+    assert status == 404 and text == "Not Found"
+
+    data, status = asyncio.run(sch.httpx_post("https://example.com/bad", {}, "json"))
+    assert status == 400 and data == {"error": "bad request"}
+
+    text, status = asyncio.run(sch.httpx_post("https://example.com/bad", {}, "text"))
+    assert status == 400 and text == "Bad Request"
+
+
+def test_httpx_get_post_exception(monkeypatch, sch):
+    class FailingAsyncClient:
+        async def __aenter__(self):
+            return self
+
+        async def __aexit__(self, exc_type, exc, tb):
+            return False
+
+        async def get(self, url, params=None):
+            raise RuntimeError("boom")
+
+        async def post(self, url, data=None):
+            raise RuntimeError("boom")
+
+    monkeypatch.setattr(sch.httpx, "AsyncClient", lambda *a, **k: FailingAsyncClient())
+
+    data, status = asyncio.run(sch.httpx_get("https://example.com", {}, "json"))
+    assert status == 0 and data == {}
+
+    text, status = asyncio.run(sch.httpx_get("https://example.com", {}, "text"))
+    assert status == 0 and text == ""
+
+    data, status = asyncio.run(sch.httpx_post("https://example.com", {}, "json"))
+    assert status == 0 and data == {}
+
+    text, status = asyncio.run(sch.httpx_post("https://example.com", {}, "text"))
+    assert status == 0 and text == ""
+
 def test_is_visible_quadrants(fresh_config, monkeypatch, sch):
     # Build a minimal object that mimics astropy's transform_to result
     class FakeAltAz:

@@ -109,10 +109,21 @@ async def httpx_get(url: str, payload: Dict[str, Any], return_type: str) -> Tupl
       array: The result of query and status code of the response
 
     """
-    async with httpx.AsyncClient() as client:
-        r = await client.get(url, params=payload)
-    if (return_type == 'json'):
-        return cast(Tuple[Union[Dict[str, Any], List[Dict[str, Any]]], int], (r.json(), r.status_code))
+    try:
+        async with httpx.AsyncClient() as client:
+            r = await client.get(url, params=payload)
+    except Exception:
+        # Network/timeout or unexpected errors: return safe defaults and status 0
+        if return_type == 'json':
+            return cast(Tuple[Union[Dict[str, Any], List[Dict[str, Any]]], int], ({}, 0))
+        return ("", 0)
+
+    if return_type == 'json':
+        try:
+            parsed = r.json()
+        except Exception:
+            parsed = {}
+        return cast(Tuple[Union[Dict[str, Any], List[Dict[str, Any]]], int], (parsed, r.status_code))
     else:
         return (r.text, r.status_code)
 
@@ -130,10 +141,20 @@ async def httpx_post(url: str, payload: Dict[str, Any], return_type: str) -> Tup
       array: The result of query and status code of the response
 
     """
-    async with httpx.AsyncClient() as client:
-        r = await client.post(url, data=payload)
-    if (return_type == 'json'):
-        return cast(Tuple[Union[Dict[str, Any], List[Dict[str, Any]]], int], (r.json(), r.status_code))
+    try:
+        async with httpx.AsyncClient() as client:
+            r = await client.post(url, data=payload)
+    except Exception:
+        if return_type == 'json':
+            return cast(Tuple[Union[Dict[str, Any], List[Dict[str, Any]]], int], ({}, 0))
+        return ("", 0)
+
+    if return_type == 'json':
+        try:
+            parsed = r.json()
+        except Exception:
+            parsed = {}
+        return cast(Tuple[Union[Dict[str, Any], List[Dict[str, Any]]], int], (parsed, r.status_code))
     else:
         return (r.text, r.status_code)
 
