@@ -174,7 +174,7 @@ def test_httpx_get_post_exception(monkeypatch, sch):
     text, status = asyncio.run(sch.httpx_post("https://example.com", {}, "text"))
     assert status == 0 and text == ""
 
-def test_is_visible_quadrants(fresh_config, monkeypatch, sch):
+def test_is_visible_quadrants_and_boundaries(fresh_config, monkeypatch, sch):
     # Build a minimal object that mimics astropy's transform_to result
     class FakeAltAz:
         def __init__(self, az_deg: float, alt_deg: float):
@@ -197,8 +197,17 @@ def test_is_visible_quadrants(fresh_config, monkeypatch, sch):
     assert sch.is_visible(fresh_config, FakeCoord(180.0, 30.0), sch.Time.now()) is True
     # West (225-315)
     assert sch.is_visible(fresh_config, FakeCoord(270.0, 30.0), sch.Time.now()) is True
-    # North sector check as implemented (315..45) is impossible; expect False
-    assert sch.is_visible(fresh_config, FakeCoord(0.0, 30.0), sch.Time.now()) is False
+    # North (wrap-around 315-360 or 0-45) now handled inclusively
+    assert sch.is_visible(fresh_config, FakeCoord(0.0, 30.0), sch.Time.now()) is True
+
+    # Boundary azimuths should be visible when altitude equals threshold (10 deg)
+    assert sch.is_visible(fresh_config, FakeCoord(45.0, 10.0), sch.Time.now()) is True  # East boundary
+    assert sch.is_visible(fresh_config, FakeCoord(135.0, 10.0), sch.Time.now()) is True  # South boundary
+    assert sch.is_visible(fresh_config, FakeCoord(225.0, 10.0), sch.Time.now()) is True  # West boundary
+    assert sch.is_visible(fresh_config, FakeCoord(315.0, 10.0), sch.Time.now()) is True  # North boundary
+
+    # Below threshold altitude should be not visible even in correct sector
+    assert sch.is_visible(fresh_config, FakeCoord(90.0, 9.9), sch.Time.now()) is False
 
 
 def test_observing_target_list_scraper_parses_table(monkeypatch, sch):

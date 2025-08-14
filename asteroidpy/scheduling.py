@@ -326,32 +326,31 @@ def is_visible(config: ConfigParser, coord: Union[SkyCoord, List[str]], time: Ti
         )
     coord = coord.transform_to(AltAz(obstime=time, location=location))
     configuration.load_config(config)
-    result = False
-    if (
-        coord.az > 315 * u.deg
-        and coord.az < 45 * u.deg
-        and coord.alt > float(config["Observatory"]["nord_altitude"]) * u.deg
-    ):
-        result = True
-    elif (
-        coord.az > 45 * u.deg
-        and coord.az < 135 * u.deg
-        and coord.alt > float(config["Observatory"]["east_altitude"]) * u.deg
-    ):
-        result = True
-    elif (
-        coord.az > 135 * u.deg
-        and coord.az < 225 * u.deg
-        and coord.alt > float(config["Observatory"]["south_altitude"]) * u.deg
-    ):
-        result = True
-    elif (
-        coord.az > 225 * u.deg
-        and coord.az < 315 * u.deg
-        and coord.alt > float(config["Observatory"]["west_altitude"]) * u.deg
-    ):
-        result = True
-    return result
+
+    # Extract degrees for clear comparisons
+    azimuth_deg: float = coord.az.to(u.deg).value
+    altitude_deg: float = coord.alt.to(u.deg).value
+
+    north_alt_threshold = float(config["Observatory"]["nord_altitude"])
+    east_alt_threshold = float(config["Observatory"]["east_altitude"])
+    south_alt_threshold = float(config["Observatory"]["south_altitude"])
+    west_alt_threshold = float(config["Observatory"]["west_altitude"])
+
+    # Define inclusive azimuth sectors with proper wrap-around for North
+    in_north = azimuth_deg >= 315.0 or azimuth_deg < 45.0
+    in_east = 45.0 <= azimuth_deg < 135.0
+    in_south = 135.0 <= azimuth_deg < 225.0
+    in_west = 225.0 <= azimuth_deg < 315.0
+
+    if in_north and altitude_deg >= north_alt_threshold:
+        return True
+    if in_east and altitude_deg >= east_alt_threshold:
+        return True
+    if in_south and altitude_deg >= south_alt_threshold:
+        return True
+    if in_west and altitude_deg >= west_alt_threshold:
+        return True
+    return False
 
 
 def observing_target_list_scraper(url: str, payload: Dict[str, Any]) -> List[List[str]]:
