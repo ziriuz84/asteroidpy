@@ -23,8 +23,6 @@ def save_config(config: ConfigParser) -> None:
     # Persist configuration at $HOME/.asteroidpy
     home_dir = os.path.expanduser("~")
     config_path = os.path.join(home_dir, ".asteroidpy")
-    if home_dir and not os.path.exists(home_dir):
-        os.makedirs(home_dir, exist_ok=True)
     with open(config_path, "w", encoding="utf-8") as f:
         config.write(f)
 
