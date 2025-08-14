@@ -18,9 +18,7 @@ def tmp_home(monkeypatch, tmp_path):
     original_expanduser = os.path.expanduser
 
     def fake_expanduser(path: str) -> str:
-        if path == "~":
-            return str(fake_home)
-        return original_expanduser(path)
+        return str(fake_home) if path == "~" else original_expanduser(path)
 
     monkeypatch.setattr(os.path, "expanduser", fake_expanduser)
 

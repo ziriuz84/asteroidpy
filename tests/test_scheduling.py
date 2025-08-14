@@ -58,6 +58,18 @@ def test_skycoord_format_ra_dec(sch):
     assert sch.skycoord_format("-30 15 30", "dec") == "-30d15m30s"
 
 
+def test_skycoord_format_invalid_inputs_return_original(sch):
+    # Wrong number of fields
+    assert sch.skycoord_format("12 30", "ra") == "12 30"
+    # Non-numeric fields
+    assert sch.skycoord_format("12 aa 00", "ra") == "12 aa 00"
+    assert sch.skycoord_format("+x 10 10", "dec") == "+x 10 10"
+    # Accept colon-separated and zero-pad
+    assert sch.skycoord_format("12:3:5", "ra") == "12h03m05s"
+    # Unknown coordid falls back to original
+    assert sch.skycoord_format("12 30 00", "foo") == "12 30 00"
+
+
 def test_httpx_get_and_post(monkeypatch, sch):
     class DummyResponse:
         def __init__(self, payload: Dict[str, Any]):
@@ -146,7 +158,7 @@ def test_observing_target_list_scraper_parses_table(monkeypatch, sch):
     data = sch.observing_target_list_scraper("https://mpc", {"k": "v"})
 
     # Expect at least one non-empty row present
-    assert any(row for row in data), "Expected at least one parsed row"
+    assert any(data), "Expected at least one parsed row"
     assert [
         "2025 AB",
         "18.2",
