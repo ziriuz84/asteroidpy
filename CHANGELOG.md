@@ -16,6 +16,7 @@
 - Docs/Security: Add `SECURITY.md` policy
 - Fix: Make `skycoord_format` robust to invalid strings and accept colon-separated input; return original string on invalid tokens (closes #90)
 - Fix: Accept case-insensitive `coordid` in `skycoord_format` (allow 'RA'/'Dec')
+- tests: Add coverage for `object_ephemeris` invalid stepping code; default to 1-hour on unknown code (closes #87)
 
 ### 2025-08-11
 - types: Add and refine type hints across package and configure mypy
