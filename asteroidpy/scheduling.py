@@ -443,6 +443,11 @@ def neocp_confirmation(config: ConfigParser, min_score: int, max_magnitude: floa
     data = data_raw
     lat = config['Observatory']['latitude']
     long = config['Observatory']['longitude']
+    # Normalize altitude threshold once
+    try:
+        min_altitude_deg = float(min_altitude)
+    except (TypeError, ValueError):
+        min_altitude_deg = 0.0
 
     location = EarthLocation.from_geodetic(lon=float(long), lat=float(lat))
     observing_date = Time(datetime.datetime.now(datetime.UTC))
@@ -456,7 +461,13 @@ def neocp_confirmation(config: ConfigParser, min_score: int, max_magnitude: floa
             mag = float(item['V'])
         except (ValueError, TypeError):
             continue
-        if score > min_score and mag < max_magnitude and is_visible(config, coord, observing_date):
+        # Apply score, magnitude, altitude threshold and visibility filters
+        if (
+            score > min_score
+            and mag < max_magnitude
+            and coord_altaz.alt.to(u.deg).value > min_altitude_deg
+            and is_visible(config, coord, observing_date)
+        ):
             table.add_row([item['Temp_Desig'],
                            score,
                            coord.ra.to_string(u.hour),

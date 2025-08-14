@@ -234,6 +234,38 @@ def test_neocp_confirmation_returns_table_even_when_filtering_all(monkeypatch, f
     assert len(tbl) == 0
 
 
+def test_neocp_confirmation_includes_valid_object(monkeypatch, fresh_config, sch):
+    # A sample entry that should pass all filters
+    sample = [
+        {
+            "Temp_Desig": "X12345",
+            "R.A.": "10.0",  # degrees
+            "Decl.": "30.0",  # degrees
+            "Score": 85,
+            "V": "18.5",
+            "NObs": "4",
+            "Arc": "0.5",
+            "Not_Seen_dys": "0.0",
+        }
+    ]
+
+    async def fake_httpx_get(url, payload, return_type):
+        return [sample, 200]
+
+    # Ensure visibility gate passes deterministically
+    monkeypatch.setattr(sch, "httpx_get", fake_httpx_get)
+    monkeypatch.setattr(sch, "is_visible", lambda c, coord, t: True)
+
+    tbl = sch.neocp_confirmation(fresh_config, min_score=50, max_magnitude=19.0, min_altitude=0)
+
+    assert len(tbl) == 1
+    row = tbl[0]
+    assert row["Temp_Desig"] == "X12345"
+    assert int(row["Score"]) == 85
+    assert float(row["V"]) == 18.5
+    assert int(row["NObs"]) == 4
+
+
 def test_twilight_times(monkeypatch, fresh_config, sch):
     class FakeObserver:
         def __init__(self, name: str, location: Any):

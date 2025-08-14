@@ -16,6 +16,8 @@
 - Docs/Security: Add `SECURITY.md` policy
 - Fix: Make `skycoord_format` robust to invalid strings and accept colon-separated input; return original string on invalid tokens (closes #90)
 - Fix: Accept case-insensitive `coordid` in `skycoord_format` (allow 'RA'/'Dec')
+ - Fix: Apply `min_altitude` filtering in `neocp_confirmation` and expose it via the menu (closes #86)
+ - tests: Add positive-path test for NEOCP confirmation including a valid object passing all filters
 
 ### 2025-08-11
 - types: Add and refine type hints across package and configure mypy
