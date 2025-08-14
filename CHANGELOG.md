@@ -8,6 +8,8 @@
 - Weather: Narrow exception handling when formatting forecast time (catch only TypeError/ValueError to avoid masking bugs)
 - Configuration: Avoid creating the user's home directory; write to `~/.asteroidpy` directly
 - Configuration: Use `~/.asteroidpy` for config and correct defaults; align tests
+- Configuration: Gracefully handle unreadable or invalid `~/.asteroidpy` by falling back to initialize
+- tests: Add coverage for unreadable config file permissions scenario
 - i18n: Clarify that checking only `base.po/.mo` may not guarantee translation availability
 - Weather/UI: Improve default wind direction display (avoid ambiguous '?')
 - Docs/Security: Add `SECURITY.md` policy
