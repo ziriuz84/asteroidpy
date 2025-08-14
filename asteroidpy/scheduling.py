@@ -266,9 +266,12 @@ def skycoord_format(coord: str, coordid: str) -> str:
     minutes = minutes.zfill(2)
     seconds = seconds.zfill(2)
 
-    if coordid == 'ra':
+    # Be liberal in what we accept: allow case-insensitive coord identifiers
+    coordid_normalized = coordid.lower()
+
+    if coordid_normalized == 'ra':
         return f"{hours_or_degrees}h{minutes}m{seconds}s"
-    elif coordid == 'dec':
+    elif coordid_normalized == 'dec':
         return f"{hours_or_degrees}d{minutes}m{seconds}s"
     # Fallback to original coord if unknown coordid
     return coord
