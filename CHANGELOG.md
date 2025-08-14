@@ -7,6 +7,10 @@
 - Weather: Handle unknown forecast codes gracefully (avoid KeyError)
 - Weather: Narrow exception handling when formatting forecast time (catch only TypeError/ValueError to avoid masking bugs)
 - Configuration: Avoid creating the user's home directory; write to `~/.asteroidpy` directly
+- Configuration: Use `~/.asteroidpy` for config and correct defaults; align tests
+- i18n: Clarify that checking only `base.po/.mo` may not guarantee translation availability
+- Weather/UI: Improve default wind direction display (avoid ambiguous '?')
+- Docs/Security: Add `SECURITY.md` policy
 
 ### 2025-08-11
 - types: Add and refine type hints across package and configure mypy
