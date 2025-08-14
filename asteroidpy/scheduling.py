@@ -231,17 +231,45 @@ def skycoord_format(coord: str, coordid: str) -> str:
     coord : string
         the coordinates to be formatted
     coordid : string
-        the format
+        the format (either 'ra' or 'dec')
 
     Returns
     -------
+    string
+        Formatted coordinate or the original string if invalid.
 
+    Notes
+    -----
+    This function is intentionally defensive: when the input does not
+    represent three numeric fields (hours/degrees, minutes, seconds),
+    the original string is returned unchanged instead of raising.
     """
-    temp = coord.split()
-    if (coordid == 'ra'):
-        return temp[0]+'h'+temp[1]+'m'+temp[2]+'s'
-    elif (coordid == 'dec'):
-        return temp[0]+'d'+temp[1]+'m'+temp[2]+'s'
+    # Normalize common separators and split
+    parts = coord.replace(":", " ").split()
+    if len(parts) != 3:
+        return coord
+
+    hours_or_degrees, minutes, seconds = parts
+
+    # Validate that all parts are integers (sign allowed on the first)
+    def _is_int_string(value: str) -> bool:
+        try:
+            int(value)
+            return True
+        except (TypeError, ValueError):
+            return False
+
+    if not (_is_int_string(hours_or_degrees) and _is_int_string(minutes) and _is_int_string(seconds)):
+        return coord
+
+    # Zero-pad minutes and seconds to two digits; keep sign on the first part
+    minutes = minutes.zfill(2)
+    seconds = seconds.zfill(2)
+
+    if coordid == 'ra':
+        return f"{hours_or_degrees}h{minutes}m{seconds}s"
+    elif coordid == 'dec':
+        return f"{hours_or_degrees}d{minutes}m{seconds}s"
     # Fallback to original coord if unknown coordid
     return coord
 
