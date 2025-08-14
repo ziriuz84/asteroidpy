@@ -197,6 +197,57 @@ def test_observing_target_list_filters_and_formats(monkeypatch, fresh_config, sc
     assert table[0]["Time"] == "2025-01-01T00:00"
 
 
+def test_observing_target_list_scraper_no_tables(monkeypatch, sch):
+    class DummyResp:
+        def __init__(self, content: bytes):
+            self.content = content
+
+    html = b"<html><body><p>No tables here</p></body></html>"
+    monkeypatch.setattr(sch.requests, "post", lambda url, params=None: DummyResp(html))
+
+    data = sch.observing_target_list_scraper("https://mpc", {"k": "v"})
+    assert data == []
+
+
+def test_observing_target_list_scraper_tables_without_expected_headers(monkeypatch, sch):
+    class DummyResp:
+        def __init__(self, content: bytes):
+            self.content = content
+
+    # Two tables, but none has the expected headers; also fewer than 4 tables
+    html = (
+        "<html><body>"
+        "<table><tr><th>A</th><th>B</th></tr><tr><td>1</td><td>2</td></tr></table>"
+        "<table><tr><th>C</th><th>D</th></tr><tr><td>3</td><td>4</td></tr></table>"
+        "</body></html>"
+    ).encode("utf-8")
+    monkeypatch.setattr(sch.requests, "post", lambda url, params=None: DummyResp(html))
+
+    data = sch.observing_target_list_scraper("https://mpc", {"k": "v"})
+    assert data == []
+
+
+def test_observing_target_list_skips_malformed_rows(monkeypatch, fresh_config, sch):
+    # Row with fewer than 8 fields and one with bad time should be skipped
+    rows: List[List[str]] = [
+        ["2025 AB", "18.2"],  # malformed short row
+        [
+            "2025 AC",
+            "18.2",
+            "x",
+            "y",
+            "bad-time-value",
+            "12 00 00",
+            "-30 00 00",
+            "45",
+        ],
+    ]
+    monkeypatch.setattr(sch, "observing_target_list_scraper", lambda url, payload: rows)
+    monkeypatch.setattr(sch, "is_visible", lambda config, coord, t: True)
+
+    table = sch.observing_target_list(fresh_config, {"dummy": "1"})
+    assert len(table) == 0
+
 def test_neocp_confirmation_returns_table_even_when_filtering_all(monkeypatch, fresh_config, sch):
     # Short-circuit the risky branch by ensuring first condition fails (Score <= min_score)
     sample = [
