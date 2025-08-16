@@ -109,10 +109,21 @@ async def httpx_get(url: str, payload: Dict[str, Any], return_type: str) -> Tupl
       array: The result of query and status code of the response
 
     """
-    async with httpx.AsyncClient() as client:
-        r = await client.get(url, params=payload)
-    if (return_type == 'json'):
-        return cast(Tuple[Union[Dict[str, Any], List[Dict[str, Any]]], int], (r.json(), r.status_code))
+    try:
+        async with httpx.AsyncClient() as client:
+            r = await client.get(url, params=payload)
+    except Exception:
+        # Network/timeout or unexpected errors: return safe defaults and status 0
+        if return_type == 'json':
+            return cast(Tuple[Union[Dict[str, Any], List[Dict[str, Any]]], int], ({}, 0))
+        return ("", 0)
+
+    if return_type == 'json':
+        try:
+            parsed = r.json()
+        except Exception:
+            parsed = {}
+        return cast(Tuple[Union[Dict[str, Any], List[Dict[str, Any]]], int], (parsed, r.status_code))
     else:
         return (r.text, r.status_code)
 
@@ -130,10 +141,20 @@ async def httpx_post(url: str, payload: Dict[str, Any], return_type: str) -> Tup
       array: The result of query and status code of the response
 
     """
-    async with httpx.AsyncClient() as client:
-        r = await client.post(url, data=payload)
-    if (return_type == 'json'):
-        return cast(Tuple[Union[Dict[str, Any], List[Dict[str, Any]]], int], (r.json(), r.status_code))
+    try:
+        async with httpx.AsyncClient() as client:
+            r = await client.post(url, data=payload)
+    except Exception:
+        if return_type == 'json':
+            return cast(Tuple[Union[Dict[str, Any], List[Dict[str, Any]]], int], ({}, 0))
+        return ("", 0)
+
+    if return_type == 'json':
+        try:
+            parsed = r.json()
+        except Exception:
+            parsed = {}
+        return cast(Tuple[Union[Dict[str, Any], List[Dict[str, Any]]], int], (parsed, r.status_code))
     else:
         return (r.text, r.status_code)
 
@@ -305,32 +326,29 @@ def is_visible(config: ConfigParser, coord: Union[SkyCoord, List[str]], time: Ti
         )
     coord = coord.transform_to(AltAz(obstime=time, location=location))
     configuration.load_config(config)
-    result = False
-    if (
-        coord.az > 315 * u.deg
-        and coord.az < 45 * u.deg
-        and coord.alt > float(config["Observatory"]["nord_altitude"]) * u.deg
-    ):
-        result = True
-    elif (
-        coord.az > 45 * u.deg
-        and coord.az < 135 * u.deg
-        and coord.alt > float(config["Observatory"]["east_altitude"]) * u.deg
-    ):
-        result = True
-    elif (
-        coord.az > 135 * u.deg
-        and coord.az < 225 * u.deg
-        and coord.alt > float(config["Observatory"]["south_altitude"]) * u.deg
-    ):
-        result = True
-    elif (
-        coord.az > 225 * u.deg
-        and coord.az < 315 * u.deg
-        and coord.alt > float(config["Observatory"]["west_altitude"]) * u.deg
-    ):
-        result = True
-    return result
+
+    # Extract degrees for clear comparisons
+    azimuth_deg: float = coord.az.to(u.deg).value
+    altitude_deg: float = coord.alt.to(u.deg).value
+
+    north_alt_threshold = float(config["Observatory"]["nord_altitude"])
+    east_alt_threshold = float(config["Observatory"]["east_altitude"])
+    south_alt_threshold = float(config["Observatory"]["south_altitude"])
+    west_alt_threshold = float(config["Observatory"]["west_altitude"])
+
+    # Define inclusive azimuth sectors with proper wrap-around for North
+    in_north = azimuth_deg >= 315.0 or azimuth_deg < 45.0
+    in_east = 45.0 <= azimuth_deg < 135.0
+    in_south = 135.0 <= azimuth_deg < 225.0
+    in_west = 225.0 <= azimuth_deg < 315.0
+
+    if in_north and altitude_deg >= north_alt_threshold:
+        return True
+    if in_east and altitude_deg >= east_alt_threshold:
+        return True
+    if in_south and altitude_deg >= south_alt_threshold:
+        return True
+    return in_west and altitude_deg >= west_alt_threshold
 
 
 def observing_target_list_scraper(url: str, payload: Dict[str, Any]) -> List[List[str]]:
@@ -350,21 +368,33 @@ def observing_target_list_scraper(url: str, payload: Dict[str, Any]) -> List[Lis
     r = requests.post(url, params=payload)
     soup = BeautifulSoup(r.content, "lxml")
     tables = soup.find_all("table")
-    table = tables[3]
-    headerstag = table.find_all("th")
-    headers = []
-    for header in headerstag:
-        headers.append(header.string.strip())
-    rowstag = table.find_all("tr")
-    datatag = []
-    for row in rowstag:
-        datatag.append(row.find_all("td"))
-    data = []
-    for d in datatag:
-        temp = []
-        for i in d:
-            temp.append(i.string.strip())
-        data.append(temp)
+
+    # Prefer the 4th table if present (legacy behavior), otherwise try to detect by headers
+    target_table = None
+    if len(tables) >= 4:
+        target_table = tables[3]
+    else:
+        for candidate in tables:
+            header_cells = [th.get_text(strip=True) for th in candidate.find_all("th")]
+            header_set = set(h for h in header_cells if h)
+            expected_headers = {"Designation", "Mag", "Time", "RA", "Dec", "Alt"}
+            if expected_headers.issubset(header_set):
+                target_table = candidate
+                break
+
+    # If no suitable table was found, return an empty result gracefully
+    if target_table is None:
+        return []
+
+    # Extract non-empty data rows, skipping header rows
+    data: List[List[str]] = []
+    for row in target_table.find_all("tr"):
+        cells = row.find_all("td")
+        if not cells:
+            continue
+        values = [cell.get_text(strip=True) for cell in cells]
+        if any(values):
+            data.append(values)
     return data
 
 
@@ -391,9 +421,15 @@ def observing_target_list(config: ConfigParser, payload: Dict[str, Any]) -> QTab
         "https://www.minorplanetcenter.net/whatsup/index", payload
     )
     for d in data:
-        if is_visible(
-            config, [d[5], d[6]], Time(d[4].replace("T", " ").replace("z", ""))
-        ):
+        # Require at least 8 fields as used below; skip malformed rows defensively
+        if len(d) < 8:
+            continue
+        try:
+            observing_time = Time(d[4].replace("T", " ").replace("z", ""))
+        except Exception:
+            # Skip rows with unparseable time values
+            continue
+        if is_visible(config, [d[5], d[6]], observing_time):
             results.add_row(
                 [
                     d[0],
@@ -443,6 +479,11 @@ def neocp_confirmation(config: ConfigParser, min_score: int, max_magnitude: floa
     data = data_raw
     lat = config['Observatory']['latitude']
     long = config['Observatory']['longitude']
+    # Normalize altitude threshold once
+    try:
+        min_altitude_deg = float(min_altitude)
+    except (TypeError, ValueError):
+        min_altitude_deg = 0.0
 
     location = EarthLocation.from_geodetic(lon=float(long), lat=float(lat))
     observing_date = Time(datetime.datetime.now(datetime.UTC))
@@ -456,7 +497,13 @@ def neocp_confirmation(config: ConfigParser, min_score: int, max_magnitude: floa
             mag = float(item['V'])
         except (ValueError, TypeError):
             continue
-        if score > min_score and mag < max_magnitude and is_visible(config, coord, observing_date):
+        # Apply score, magnitude, altitude threshold and visibility filters
+        if (
+            score > min_score
+            and mag < max_magnitude
+            and coord_altaz.alt.to(u.deg).value > min_altitude_deg
+            and is_visible(config, coord, observing_date)
+        ):
             table.add_row([item['Temp_Desig'],
                            score,
                            coord.ra.to_string(u.hour),

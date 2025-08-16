@@ -108,7 +108,73 @@ def test_httpx_get_and_post(monkeypatch, sch):
     assert status == 200 and text == "<ok/>"
 
 
-def test_is_visible_quadrants(fresh_config, monkeypatch, sch):
+def test_httpx_get_post_non_200(monkeypatch, sch):
+    class DummyResponse:
+        def __init__(self, payload: Dict[str, Any], status_code: int, text: str):
+            self._payload = payload
+            self.text = text
+            self.status_code = status_code
+
+        def json(self) -> Dict[str, Any]:
+            return self._payload
+
+    class DummyAsyncClient:
+        async def __aenter__(self):
+            return self
+
+        async def __aexit__(self, exc_type, exc, tb):
+            return False
+
+        async def get(self, url, params=None):
+            return DummyResponse({"error": "not found"}, 404, "Not Found")
+
+        async def post(self, url, data=None):
+            return DummyResponse({"error": "bad request"}, 400, "Bad Request")
+
+    monkeypatch.setattr(sch.httpx, "AsyncClient", lambda *a, **k: DummyAsyncClient())
+
+    data, status = asyncio.run(sch.httpx_get("https://example.com/miss", {}, "json"))
+    assert status == 404 and data == {"error": "not found"}
+
+    text, status = asyncio.run(sch.httpx_get("https://example.com/miss", {}, "text"))
+    assert status == 404 and text == "Not Found"
+
+    data, status = asyncio.run(sch.httpx_post("https://example.com/bad", {}, "json"))
+    assert status == 400 and data == {"error": "bad request"}
+
+    text, status = asyncio.run(sch.httpx_post("https://example.com/bad", {}, "text"))
+    assert status == 400 and text == "Bad Request"
+
+
+def test_httpx_get_post_exception(monkeypatch, sch):
+    class FailingAsyncClient:
+        async def __aenter__(self):
+            return self
+
+        async def __aexit__(self, exc_type, exc, tb):
+            return False
+
+        async def get(self, url, params=None):
+            raise RuntimeError("boom")
+
+        async def post(self, url, data=None):
+            raise RuntimeError("boom")
+
+    monkeypatch.setattr(sch.httpx, "AsyncClient", lambda *a, **k: FailingAsyncClient())
+
+    data, status = asyncio.run(sch.httpx_get("https://example.com", {}, "json"))
+    assert status == 0 and data == {}
+
+    text, status = asyncio.run(sch.httpx_get("https://example.com", {}, "text"))
+    assert status == 0 and text == ""
+
+    data, status = asyncio.run(sch.httpx_post("https://example.com", {}, "json"))
+    assert status == 0 and data == {}
+
+    text, status = asyncio.run(sch.httpx_post("https://example.com", {}, "text"))
+    assert status == 0 and text == ""
+
+def test_is_visible_quadrants_and_boundaries(fresh_config, monkeypatch, sch):
     # Build a minimal object that mimics astropy's transform_to result
     class FakeAltAz:
         def __init__(self, az_deg: float, alt_deg: float):
@@ -131,8 +197,17 @@ def test_is_visible_quadrants(fresh_config, monkeypatch, sch):
     assert sch.is_visible(fresh_config, FakeCoord(180.0, 30.0), sch.Time.now()) is True
     # West (225-315)
     assert sch.is_visible(fresh_config, FakeCoord(270.0, 30.0), sch.Time.now()) is True
-    # North sector check as implemented (315..45) is impossible; expect False
-    assert sch.is_visible(fresh_config, FakeCoord(0.0, 30.0), sch.Time.now()) is False
+    # North (wrap-around 315-360 or 0-45) now handled inclusively
+    assert sch.is_visible(fresh_config, FakeCoord(0.0, 30.0), sch.Time.now()) is True
+
+    # Boundary azimuths should be visible when altitude equals threshold (10 deg)
+    assert sch.is_visible(fresh_config, FakeCoord(45.0, 10.0), sch.Time.now()) is True  # East boundary
+    assert sch.is_visible(fresh_config, FakeCoord(135.0, 10.0), sch.Time.now()) is True  # South boundary
+    assert sch.is_visible(fresh_config, FakeCoord(225.0, 10.0), sch.Time.now()) is True  # West boundary
+    assert sch.is_visible(fresh_config, FakeCoord(315.0, 10.0), sch.Time.now()) is True  # North boundary
+
+    # Below threshold altitude should be not visible even in correct sector
+    assert sch.is_visible(fresh_config, FakeCoord(90.0, 9.9), sch.Time.now()) is False
 
 
 def test_observing_target_list_scraper_parses_table(monkeypatch, sch):
@@ -197,6 +272,57 @@ def test_observing_target_list_filters_and_formats(monkeypatch, fresh_config, sc
     assert table[0]["Time"] == "2025-01-01T00:00"
 
 
+def test_observing_target_list_scraper_no_tables(monkeypatch, sch):
+    class DummyResp:
+        def __init__(self, content: bytes):
+            self.content = content
+
+    html = b"<html><body><p>No tables here</p></body></html>"
+    monkeypatch.setattr(sch.requests, "post", lambda url, params=None: DummyResp(html))
+
+    data = sch.observing_target_list_scraper("https://mpc", {"k": "v"})
+    assert data == []
+
+
+def test_observing_target_list_scraper_tables_without_expected_headers(monkeypatch, sch):
+    class DummyResp:
+        def __init__(self, content: bytes):
+            self.content = content
+
+    # Two tables, but none has the expected headers; also fewer than 4 tables
+    html = (
+        "<html><body>"
+        "<table><tr><th>A</th><th>B</th></tr><tr><td>1</td><td>2</td></tr></table>"
+        "<table><tr><th>C</th><th>D</th></tr><tr><td>3</td><td>4</td></tr></table>"
+        "</body></html>"
+    ).encode("utf-8")
+    monkeypatch.setattr(sch.requests, "post", lambda url, params=None: DummyResp(html))
+
+    data = sch.observing_target_list_scraper("https://mpc", {"k": "v"})
+    assert data == []
+
+
+def test_observing_target_list_skips_malformed_rows(monkeypatch, fresh_config, sch):
+    # Row with fewer than 8 fields and one with bad time should be skipped
+    rows: List[List[str]] = [
+        ["2025 AB", "18.2"],  # malformed short row
+        [
+            "2025 AC",
+            "18.2",
+            "x",
+            "y",
+            "bad-time-value",
+            "12 00 00",
+            "-30 00 00",
+            "45",
+        ],
+    ]
+    monkeypatch.setattr(sch, "observing_target_list_scraper", lambda url, payload: rows)
+    monkeypatch.setattr(sch, "is_visible", lambda config, coord, t: True)
+
+    table = sch.observing_target_list(fresh_config, {"dummy": "1"})
+    assert len(table) == 0
+
 def test_neocp_confirmation_returns_table_even_when_filtering_all(monkeypatch, fresh_config, sch):
     # Short-circuit the risky branch by ensuring first condition fails (Score <= min_score)
     sample = [
@@ -232,6 +358,38 @@ def test_neocp_confirmation_returns_table_even_when_filtering_all(monkeypatch, f
         "Not_seen",
     ]
     assert len(tbl) == 0
+
+
+def test_neocp_confirmation_includes_valid_object(monkeypatch, fresh_config, sch):
+    # A sample entry that should pass all filters
+    sample = [
+        {
+            "Temp_Desig": "X12345",
+            "R.A.": "10.0",  # degrees
+            "Decl.": "30.0",  # degrees
+            "Score": 85,
+            "V": "18.5",
+            "NObs": "4",
+            "Arc": "0.5",
+            "Not_Seen_dys": "0.0",
+        }
+    ]
+
+    async def fake_httpx_get(url, payload, return_type):
+        return [sample, 200]
+
+    # Ensure visibility gate passes deterministically
+    monkeypatch.setattr(sch, "httpx_get", fake_httpx_get)
+    monkeypatch.setattr(sch, "is_visible", lambda c, coord, t: True)
+
+    tbl = sch.neocp_confirmation(fresh_config, min_score=50, max_magnitude=19.0, min_altitude=0)
+
+    assert len(tbl) == 1
+    row = tbl[0]
+    assert row["Temp_Desig"] == "X12345"
+    assert int(row["Score"]) == 85
+    assert float(row["V"]) == 18.5
+    assert int(row["NObs"]) == 4
 
 
 def test_twilight_times(monkeypatch, fresh_config, sch):

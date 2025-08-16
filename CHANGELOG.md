@@ -16,6 +16,15 @@
 - Docs/Security: Add `SECURITY.md` policy
 - Fix: Make `skycoord_format` robust to invalid strings and accept colon-separated input; return original string on invalid tokens (closes #90)
 - Fix: Accept case-insensitive `coordid` in `skycoord_format` (allow 'RA'/'Dec')
+- Fix: Apply `min_altitude` filtering in `neocp_confirmation` and expose it via the menu (closes #86)
+- tests: Add positive-path test for NEOCP confirmation including a valid object passing all filters
+- Fix: Make `observing_target_list_scraper` robust when the MPC page has fewer than four tables or unexpected/missing headers; return an empty list when no suitable table is found (closes #85)
+- Fix: Make `observing_target_list` skip malformed rows and unparseable times defensively
+- tests: Add coverage for no-table, wrong-headers, and malformed-row cases in observing target list scraping
+- Fix: Add robust error handling to `httpx_get`/`httpx_post`; return safe defaults on exceptions and preserve non-200 status codes; gracefully handle JSON parse failures
+- tests: Add coverage for non-200 responses and request exceptions in `httpx_get`/`httpx_post` (closes #84)
+- Fix: Make `is_visible` inclusive at boundary azimuths (45/135/225/315) and correct north-sector wrap-around; compare in degrees and allow altitude ≥ threshold (closes #83)
+- tests: Add edge-case tests for boundary azimuths and equal-to-threshold altitudes in `is_visible`
 - tests: Add coverage for `object_ephemeris` invalid stepping code; default to 1-hour on unknown code (closes #87)
 
 ### 2025-08-11
