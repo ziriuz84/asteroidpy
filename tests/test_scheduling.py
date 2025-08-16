@@ -497,3 +497,32 @@ def test_object_ephemeris_monkeypatched_mpc(monkeypatch, fresh_config, sch):
 
     t = sch.object_ephemeris(fresh_config, "Ceres", stepping="w")
     assert len(t) == 2
+
+
+def test_object_ephemeris_invalid_stepping_defaults_to_hour(monkeypatch, fresh_config, sch):
+    calls: Dict[str, Any] = {}
+
+    def fake_get_ephemeris(name: str, location: Any, step: Any, number: int):
+        calls["step"] = step
+        from astropy.table import QTable
+
+        # Single-row minimal table carrying expected columns
+        return QTable(
+            {
+                "Date": ["t1"],
+                "RA": ["1h"],
+                "Dec": ["+1d"],
+                "Elongation": [10.0],
+                "V": [18.0],
+                "Altitude": [30.0],
+                "Proper motion": [0.1],
+                "Direction": ["E"],
+            }
+        )
+
+    monkeypatch.setattr(sch.MPC, "get_ephemeris", fake_get_ephemeris)
+
+    # Use an unsupported stepping code; implementation should default to '1h'
+    t = sch.object_ephemeris(fresh_config, "Ceres", stepping="x")
+    assert len(t) == 1
+    assert calls["step"] == "1h"
