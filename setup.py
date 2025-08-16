@@ -21,7 +21,7 @@ setup(
         "platformdirs",
     ],
     classifiers=[
-        "Development Status :: 1 - Planning",
+        "Development Status :: 4 - Beta",
         "Intended Audience :: Science/Research",
         "License :: OSI Approved :: GPL v3",
         "Operating System :: POSIX :: Linux",
