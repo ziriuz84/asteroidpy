@@ -348,9 +348,7 @@ def is_visible(config: ConfigParser, coord: Union[SkyCoord, List[str]], time: Ti
         return True
     if in_south and altitude_deg >= south_alt_threshold:
         return True
-    if in_west and altitude_deg >= west_alt_threshold:
-        return True
-    return False
+    return in_west and altitude_deg >= west_alt_threshold
 
 
 def observing_target_list_scraper(url: str, payload: Dict[str, Any]) -> List[List[str]]:
