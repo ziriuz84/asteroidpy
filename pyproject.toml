@@ -10,7 +10,6 @@ description="A tool for asteroid observation scheduling and analysis"
 readme="README.md"
 requires-python=">=3.9"
 license={"text" = "GPL v3"}
-i
 classifiers=[
 "Development Status :: 4 - Beta",
 "Intended Audience :: Science/Research",
