@@ -223,13 +223,15 @@ def change_observer_name(config: ConfigParser, name: str) -> None:
     save_config(config)
 
 
-def print_obs_config(config: ConfigParser) -> None:
+def print_obs_config(config: ConfigParser, show_sensitive: bool = False) -> None:
     """Prints Observatory configuration parameters
 
     Parameters
     ----------
     config : Configparser
         the Configparser object with configuration option
+    show_sensitive : bool, optional
+        If True, prints sensitive observer location information. Defaults to False (redacted).
 
     Returns
     -------
@@ -240,11 +242,11 @@ def print_obs_config(config: ConfigParser) -> None:
         if config.has_option("Observatory", "place"):
             print("Località: %s" % config["Observatory"]["place"])
         if config.has_option("Observatory", "latitude"):
-            print("Latitudine: %s" % config["Observatory"]["latitude"])
+            print("Latitudine: %s" % (config["Observatory"]["latitude"] if show_sensitive else "***REDACTED***"))
         if config.has_option("Observatory", "longitude"):
-            print("Longitudine: %s" % config["Observatory"]["longitude"])
+            print("Longitudine: %s" % (config["Observatory"]["longitude"] if show_sensitive else "***REDACTED***"))
         if config.has_option("Observatory", "altitude"):
-            print("Altitudine: %s" % config["Observatory"]["altitude"])
+            print("Altitudine: %s" % (config["Observatory"]["altitude"] if show_sensitive else "***REDACTED***"))
         if config.has_option("Observatory", "observer_name"):
             print("Osservatore: %s" % config["Observatory"]["observer_name"])
         if config.has_option("Observatory", "obs_name"):
