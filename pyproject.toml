@@ -13,7 +13,7 @@ license="GPL-3.0"
 classifiers=[
 "Development Status :: 4 - Beta",
 "Intended Audience :: Science/Research",
-"License :: OSI Approved :: GPL v3",
+# "License :: OSI Approved :: GPL v3",
 "Operating System :: POSIX :: Linux",
 "Programming Language :: Python :: 3",
 ]
