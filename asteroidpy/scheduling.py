@@ -1,4 +1,5 @@
 from configparser import ConfigParser
+import re
 from typing import Dict, Tuple, List, Any, Union, Optional, cast
 import requests
 import asyncio
@@ -517,7 +518,7 @@ def neocp_confirmation(
     # data=r.json()
     # Pre-create result table so we can return it early if needed
     table = QTable(
-        [[""], [0], [""], [""], [0.0], [0.0], [0], [0.0], [0.0]],
+        [[""], [0], [""], [""], [0.0], [0.0], [0.0], [0.0], [0], [0.0], [0.0]],
         names=(
             "Temp_Desig",
             "Score",
@@ -525,6 +526,8 @@ def neocp_confirmation(
             "Decl",
             "Alt",
             "V",
+            "Velocity \"/min",
+            "Direction",
             "NObs",
             "Arc",
             "Not_seen",
@@ -557,8 +560,8 @@ def neocp_confirmation(
     for item in data:
         neo_designation = item["Temp_Desig"]
         neocp_designation_names.append(neo_designation)
-    response = asyncio.run(get_neocp_velocity(config, neocp_designation_names))
-    print(response)
+    response = asyncio.run(get_neocp_ephemeris(config, neocp_designation_names))
+    # retrieve response values for key XA65oXA and print it on screen
 
     # table already created above
     for item in data:
@@ -576,14 +579,31 @@ def neocp_confirmation(
             and coord_altaz.alt.to(u.deg).value > min_altitude_deg
             and is_visible(config, coord, observing_date)
         ):
+            # Safely access ephemeris data with bounds checking
+            temp_desig = item["Temp_Desig"]
+            
+            # Check if the object exists in the response and has enough data
+            if temp_desig in response and len(response[temp_desig]) > 13:
+                velocity = float(response[temp_desig][12])
+                direction = float(response[temp_desig][13])
+            else:
+                # Use default values if ephemeris data is not available
+                velocity = 0.0
+                direction = 0.0
+
+            if velocity == 0.0:
+                continue
+
             table.add_row(
                 [
-                    item["Temp_Desig"],
+                    temp_desig,
                     score,
                     coord.ra.to_string(u.hour),
                     coord.dec.to_string(u.degree, alwayssign=True),
                     coord_altaz.alt,
                     mag,
+                    velocity,
+                    direction,
                     int(item["NObs"]),
                     float(item["Arc"]),
                     float(item["Not_Seen_dys"]),
@@ -593,7 +613,7 @@ def neocp_confirmation(
     return table
 
 
-async def get_neocp_velocity(
+async def get_neocp_ephemeris(
     config: ConfigParser, object_names: List[str]
 ) -> Tuple[Union[Dict[str, Any], List[Dict[str, Any]], str], int]:
     configuration.load_config(config)
@@ -607,29 +627,6 @@ async def get_neocp_velocity(
     longitude = (
         config["Observatory"]["longitude"] if config["Observatory"]["longitude"] else ""
     )
-    payload = {
-        "mb": -30,
-        "ma": 30,
-        "dl": -90,
-        "du": 90,
-        "nl": 0,
-        "nu": 100,
-        "sort": "d",
-        "W": "j",
-        "obj": object_names[0],
-        "Parallax": "1",
-        "obscode": obs_code,
-        "lat": latitude,
-        "long": longitude,
-        "int": 0,
-        "start": 0,
-        "raty": "a",
-        "mot": "m",
-        "dmot": "p",
-        "out": "f",
-        "sun": "x",
-        "oalt": 20,
-    }
     payload = f"mb=-30&mf=30&dl=-90&du=%2B90&nl=0&nu=100&sort=d&W=j&obj={object_names_str}&Parallax=1&obscode={obs_code}&long={longitude}&lat={latitude}&int=0&start=0&raty=a&mot=m&dmot=p&out=f&sun=x&oalt=20"
     # response = await httpx_post(
     #     "https://cgi.minorplanetcenter.net/cgi-bin/confirmeph2.cgi", payload, "text"
@@ -638,8 +635,39 @@ async def get_neocp_velocity(
     headers = {"Content-Type": "application/x-www-form-urlencoded"}
 
     response = requests.request("POST", url, headers=headers, data=payload)
-    print(response.text)
-    return response
+
+    # Definire la regex
+    pattern = r"<b>([A-Za-z0-9]+)</b>[\s\S]*?<pre>([\s\S]*?)</pre>"
+
+    # Trovare tutti i valori corrispondenti nella risposta
+    matches = re.findall(pattern, response.text)
+
+    # Creare un dizionario dai risultati
+    result_dict = {}
+    for key, value in matches:
+        # Dividere il secondo gruppo in righe e prendere la seconda riga (indice 2)
+        lines = value.strip().split("\n")
+        if len(lines) > 2:
+            second_line = lines[2]  # Seconda riga del secondo gruppo
+        else:
+            second_line = (
+                lines[0] if lines else ""
+            )  # Fallback alla prima riga se c'è solo una riga
+
+        # Dividere la riga in valori usando regex per gestire uno o più spazi bianchi
+        # Usa \s+ per dividere su uno o più caratteri di spazio bianco
+        values_array = re.split(r"\s+", second_line.strip())
+
+        # if values_array elements number is less than 4
+        if len(values_array) < 4:
+            continue
+
+        # Rimuovi elementi vuoti dalla lista
+        values_array = [val for val in values_array if val]
+
+        result_dict[key] = values_array
+
+    return result_dict
 
 
 def twilight_times(config: ConfigParser) -> Dict[str, Any]:
