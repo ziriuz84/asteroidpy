@@ -19,6 +19,28 @@ import os
 import sys
 sys.path.insert(0, os.path.abspath(os.path.join('..', '..')))
 
+# Add type hints support
+autodoc_typehints = 'description'
+autodoc_typehints_description_target = 'documented'
+
+# Mock imports for documentation generation
+# This allows Sphinx to generate docs without installing all dependencies
+autodoc_mock_imports = [
+    'astropy',
+    'astropy.coordinates',
+    'astropy.units',
+    'astropy.time',
+    'astropy.table',
+    'astroquery',
+    'astroquery.mpc',
+    'astroplan',
+    'platformdirs',
+    'bs4',
+    'httpx',
+    'requests',
+    'lxml',
+]
+
 
 
 # -- Project information -----------------------------------------------------
@@ -28,7 +50,7 @@ copyright = '2022, Sirio Negri'
 author = 'Sirio Negri'
 
 # The short X.Y version
-version = ''
+version = '0.1'
 # The full version, including alpha/beta/rc tags
 release = '0.1'
 
@@ -60,7 +82,7 @@ templates_path = ['_templates']
 # You can specify multiple suffix as a list of string:
 #
 # source_suffix = ['.rst', '.md']
-source_suffix = '.rst'
+source_suffix = {'.rst': 'restructuredtext'}
 
 # The master toctree document.
 master_doc = 'index'
@@ -70,7 +92,7 @@ master_doc = 'index'
 #
 # This is also used if you do content translation via gettext catalogs.
 # Usually you set "language" from the command line for these cases.
-language = None
+language = 'en'
 
 # List of patterns, relative to source directory, that match files and
 # directories to ignore when looking for source files.
@@ -190,7 +212,9 @@ epub_exclude_files = ['search.html']
 # -- Options for intersphinx extension ---------------------------------------
 
 # Example configuration for intersphinx: refer to the Python standard library.
-intersphinx_mapping = {'https://docs.python.org/': None}
+intersphinx_mapping = {
+    'python': ('https://docs.python.org/3', None),
+}
 
 # -- Options for todo extension ----------------------------------------------
 

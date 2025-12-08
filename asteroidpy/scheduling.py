@@ -101,17 +101,34 @@ wind10m_speed_dict = {
 async def httpx_get(
     url: str, payload: Dict[str, Any], return_type: str
 ) -> Tuple[Union[Dict[str, Any], List[Dict[str, Any]], str], int]:
-    """
-    Returns result from get query
+    """Perform an asynchronous HTTP GET request.
 
-    Args:
-      url(string): the url to be queried
-      payload(dictionary of strings): the payload of the query
-      return_type(string): the type of formatted return
+    Makes an async GET request to the specified URL with the given query
+    parameters and returns the parsed response along with the status code.
 
-    Returns:
-      array: The result of query and status code of the response
+    Parameters
+    ----------
+    url : str
+        The URL to query.
+    payload : dict of str to Any
+        Dictionary of query parameters to include in the request.
+    return_type : str
+        Expected return type format. Use 'json' for JSON responses,
+        any other value for text responses.
 
+    Returns
+    -------
+    tuple
+        A tuple containing the response data and status code. The first
+        element is parsed JSON (dict or list) if return_type is 'json',
+        otherwise the response text as a string. The second element is the
+        HTTP status code (int), or 0 if the request failed.
+
+    Notes
+    -----
+    On network errors or timeouts, returns empty data ({}, "", or []) and
+    status code 0. JSON parsing errors result in an empty dict for JSON
+    requests.
     """
     try:
         async with httpx.AsyncClient() as client:
@@ -140,17 +157,34 @@ async def httpx_get(
 async def httpx_post(
     url: str, payload: Dict[str, Any], return_type: str
 ) -> Tuple[Union[Dict[str, Any], List[Dict[str, Any]], str], int]:
-    """
-    Returns result from post query
+    """Perform an asynchronous HTTP POST request.
 
-    Args:
-      url(string): the url to be queried
-      payload(dictionary of strings): the payload of the query
-      return_type(string): the type of formatted return
+    Makes an async POST request to the specified URL with the given form data
+    and returns the parsed response along with the status code.
 
-    Returns:
-      array: The result of query and status code of the response
+    Parameters
+    ----------
+    url : str
+        The URL to query.
+    payload : dict of str to Any
+        Dictionary of form data to include in the POST request body.
+    return_type : str
+        Expected return type format. Use 'json' for JSON responses,
+        any other value for text responses.
 
+    Returns
+    -------
+    tuple
+        A tuple containing the response data and status code. The first
+        element is parsed JSON (dict or list) if return_type is 'json',
+        otherwise the response text as a string. The second element is the
+        HTTP status code (int), or 0 if the request failed.
+
+    Notes
+    -----
+    On network errors or timeouts, returns empty data ({}, "", or []) and
+    status code 0. JSON parsing errors result in an empty dict for JSON
+    requests. The request uses 'application/x-www-form-urlencoded' content type.
     """
     try:
         async with httpx.AsyncClient() as client:
@@ -181,18 +215,27 @@ async def httpx_post(
 
 
 def weather_time(time_init: str, deltaT: int) -> str:
-    """
+    """Calculate a future time from an initial time string and time delta.
+
+    Parses an initial time string in format 'YYYYMMDDHH' and adds a specified
+    number of hours to calculate a future time, then formats it for display.
 
     Parameters
     ----------
-    time_init : string
-        The start time of weather forecast
+    time_init : str
+        Initial time string in format 'YYYYMMDDHH' (e.g., '2024010112').
     deltaT : int
-        The time from start time
+        Number of hours to add to the initial time.
 
     Returns
     -------
+    str
+        Formatted time string in format 'DD/MM HH:MM' (e.g., '01/01 14:00').
 
+    Notes
+    -----
+    The function assumes the time_init string is exactly 10 characters long
+    and follows the format YYYYMMDDHH.
     """
     time_start = datetime.datetime(
         int(time_init[0:4]),
@@ -205,16 +248,29 @@ def weather_time(time_init: str, deltaT: int) -> str:
 
 
 def weather(config: ConfigParser) -> None:
-    """Prints Weather forecast up to 72 hours
+    """Display weather forecast for the observatory location.
+
+    Retrieves astronomical weather forecast data from 7Timer API for up to
+    72 hours and displays it in a formatted table. Includes cloud cover,
+    seeing conditions, transparency, atmospheric instability, temperature,
+    relative humidity, wind conditions, and precipitation.
 
     Parameters
     ----------
-    config : Configparser
-        the Configparser object with configuration option
+    config : ConfigParser
+        The ConfigParser object with configuration options, including
+        observatory latitude and longitude.
 
     Returns
     -------
+    None
+        This function does not return a value.
 
+    Notes
+    -----
+    The forecast data is retrieved from the 7Timer API using the 'astro'
+    product type. All values are mapped from numeric codes to human-readable
+    strings using predefined dictionaries.
     """
     configuration.load_config(config)
     lat, long = config["Observatory"]["latitude"], config["Observatory"]["longitude"]
@@ -280,25 +336,35 @@ def weather(config: ConfigParser) -> None:
 
 
 def skycoord_format(coord: str, coordid: str) -> str:
-    """Formats coordinates as described in coordid
+    """Format celestial coordinates in a standardized string format.
+
+    Converts coordinate strings to a standardized format suitable for
+    astronomical use. Supports both right ascension (RA) and declination (Dec)
+    formats.
 
     Parameters
     ----------
-    coord : string
-        the coordinates to be formatted
-    coordid : string
-        the format (either 'ra' or 'dec')
+    coord : str
+        The coordinate string to format. Should contain three numeric values
+        separated by spaces or colons (e.g., '12 34 56.7' or '12:34:56.7').
+    coordid : str
+        The coordinate type identifier. Use 'ra' or 'RA' for right ascension,
+        'dec' or 'Dec' for declination (case-insensitive).
 
     Returns
     -------
-    string
-        Formatted coordinate or the original string if invalid.
+    str
+        Formatted coordinate string:
+        - For RA: 'HHhMMmSSs' format (e.g., '12h34m56s')
+        - For Dec: 'DDdMMmSSs' format (e.g., '+45d30m15s')
+        - Original string if input is invalid or coordid is unknown.
 
     Notes
     -----
     This function is intentionally defensive: when the input does not
     represent three numeric fields (hours/degrees, minutes, seconds),
-    the original string is returned unchanged instead of raising.
+    the original string is returned unchanged instead of raising an exception.
+    Minutes and seconds are zero-padded to two digits.
     """
     # Normalize common separators and split
     coord = coord.strip()
@@ -348,21 +414,40 @@ def skycoord_format(coord: str, coordid: str) -> str:
 def is_visible(
     config: ConfigParser, coord: Union[SkyCoord, List[str]], time: Time
 ) -> bool:
-    """Compare object's coordinates with Virtual Horizon to find if it's visible
+    """Check if an object is visible above the virtual horizon.
+
+    Determines whether an object at the given celestial coordinates is
+    visible from the observatory location at the specified time, taking into
+    account the configured virtual horizon altitude thresholds for each
+    cardinal direction.
 
     Parameters
     ----------
-    config : Configparser
-        the configparser object with configuration options
-    coord : SkyCoord or array of strings
-        Coordinate to control
+    config : ConfigParser
+        The ConfigParser object with configuration options, including
+        observatory location and virtual horizon settings.
+    coord : SkyCoord or list of str
+        Celestial coordinates to check. Can be a SkyCoord object or a list
+        of two strings [RA, Dec] that will be converted to SkyCoord.
     time : Time
-        time of the observation
+        Observation time (astropy Time object).
 
     Returns
     -------
+    bool
+        True if the object is above the virtual horizon threshold for its
+        azimuth direction, False otherwise.
 
+    Notes
+    -----
+    The function divides the sky into four azimuth sectors:
+    - North: 315° to 45° (wrapping around 0°)
+    - East: 45° to 135°
+    - South: 135° to 225°
+    - West: 225° to 315°
 
+    Each sector has its own minimum altitude threshold configured in the
+    virtual horizon settings.
     """
     location = EarthLocation.from_geodetic(
         lat=float(config["Observatory"]["latitude"]) * u.deg,
@@ -401,18 +486,31 @@ def is_visible(
 
 
 def observing_target_list_scraper(url: str, payload: Dict[str, Any]) -> List[List[str]]:
-    """
+    """Scrape observing target list data from a web page.
+
+    Performs a POST request to the specified URL and extracts table data
+    containing observing target information. The function looks for a table
+    with specific headers related to asteroid observations.
 
     Parameters
     ----------
-    url : string
-        the url to scrape
-    payload : dictionary of strings
-        the payload of the request
+    url : str
+        The URL to scrape for observing target data.
+    payload : dict of str to Any
+        Form data to include in the POST request.
 
     Returns
     -------
+    list of list of str
+        A list of rows, where each row is a list of strings representing
+        the cell values from the target table. Returns an empty list if
+        no suitable table is found.
 
+    Notes
+    -----
+    The function prefers the 4th table on the page (legacy behavior), but
+    will also search for tables containing expected headers like 'Designation',
+    'Mag', 'Time', 'RA', 'Dec', 'Alt'. Only non-empty data rows are returned.
     """
     r = requests.post(url, params=payload)
     soup = BeautifulSoup(r.content, "lxml")
@@ -448,18 +546,43 @@ def observing_target_list_scraper(url: str, payload: Dict[str, Any]) -> List[Lis
 
 
 def observing_target_list(config: ConfigParser, payload: Dict[str, Any]) -> QTable:
-    """Prints Observing target list from MPC
+    """Generate an observing target list from the Minor Planet Center.
+
+    Queries the MPC website for objects visible from the observatory location
+    based on the provided parameters, filters them by virtual horizon visibility,
+    and returns a formatted table.
 
     Parameters
     ----------
-    payload : dictionary of strings
-        the payload of parameters
-    config :
-
+    config : ConfigParser
+        The ConfigParser object with configuration options, including
+        observatory location and virtual horizon settings.
+    payload : dict of str to Any
+        Dictionary of query parameters including:
+        - latitude, longitude: Observatory coordinates
+        - year, month, day, hour, minute: Observation start time
+        - duration: Observation duration
+        - max_objects: Maximum number of objects to return
+        - min_alt: Minimum altitude
+        - solar_elong, lunar_elong: Minimum elongations
+        - object_type: Type of objects ('mp', 'neo', or 'cmt')
 
     Returns
     -------
+    QTable
+        An astropy QTable containing visible objects with columns:
+        - Designation: Object designation
+        - Mag: Magnitude
+        - Time: Observation time
+        - RA: Right ascension
+        - Dec: Declination
+        - Alt: Altitude
 
+    Notes
+    -----
+    Objects are filtered to only include those visible above the virtual
+    horizon at the specified observation time. The function scrapes HTML
+    from the MPC website and parses table data.
     """
     results = QTable(
         [[""], [""], [""], [""], [""], [""]],
@@ -496,22 +619,47 @@ def observing_target_list(config: ConfigParser, payload: Dict[str, Any]) -> QTab
 def neocp_confirmation(
     config: ConfigParser, min_score: int, max_magnitude: float, min_altitude: int
 ) -> QTable:
-    """Prints NEOcp visible at the moment
+    """Generate a list of NEOcp (Near Earth Object Confirmation Page) candidates.
+
+    Queries the Minor Planet Center's NEOcp database for near-Earth objects
+    that meet the specified criteria and are visible from the observatory
+    location. Includes ephemeris data such as velocity and direction.
 
     Parameters
     ----------
-    config : Configparser
-        the Configparser object with configuration option
+    config : ConfigParser
+        The ConfigParser object with configuration options, including
+        observatory location, MPC code, and virtual horizon settings.
     min_score : int
-        The minimum score to query
-    max_magnitude : int
-        The maximum magnitude to query
+        Minimum score threshold for NEO candidates (higher scores indicate
+        higher priority).
+    max_magnitude : float
+        Maximum visual magnitude (brighter objects have lower magnitudes).
     min_altitude : int
-        The minimum altitude of the object
+        Minimum altitude in degrees above the horizon.
 
     Returns
     -------
+    QTable
+        An astropy QTable containing NEOcp candidates with columns:
+        - Temp_Desig: Temporary designation
+        - Score: Priority score
+        - R.A.: Right ascension
+        - Decl: Declination
+        - Alt: Altitude
+        - V: Visual magnitude
+        - Velocity "/min: Angular velocity in arcseconds per minute
+        - Direction: Motion direction
+        - NObs: Number of observations
+        - Arc: Observation arc
+        - Not_seen: Days since last observation
 
+    Notes
+    -----
+    Objects are filtered by score, magnitude, altitude, and virtual horizon
+    visibility. Ephemeris data is retrieved asynchronously for all candidates
+    to calculate velocity and direction. Objects with zero velocity are
+    excluded from the results.
     """
     configuration.load_config(config)
     # r=requests.get('https://www.minorplanetcenter.net/Extended_Files/neocp.json')
@@ -615,7 +763,35 @@ def neocp_confirmation(
 
 async def get_neocp_ephemeris(
     config: ConfigParser, object_names: List[str]
-) -> Tuple[Union[Dict[str, Any], List[Dict[str, Any]], str], int]:
+) -> Dict[str, List[str]]:
+    """Retrieve ephemeris data for NEOcp objects from the Minor Planet Center.
+
+    Queries the MPC confirmation ephemeris service for multiple objects and
+    parses the HTML response to extract ephemeris data including velocity
+    and direction information.
+
+    Parameters
+    ----------
+    config : ConfigParser
+        The ConfigParser object with configuration options, including
+        observatory location and MPC code.
+    object_names : list of str
+        List of temporary designations for NEOcp objects to query.
+
+    Returns
+    -------
+    dict of str to list of str
+        Dictionary mapping object temporary designations to lists of
+        ephemeris values. Each list contains parsed values from the ephemeris
+        table, including velocity (index 12) and direction (index 13).
+
+    Notes
+    -----
+    The function constructs a form-encoded payload with observation parameters
+    and queries the MPC CGI service. The HTML response is parsed using regex
+    to extract ephemeris data. Only objects with at least 4 values in their
+    ephemeris data are included in the results.
+    """
     configuration.load_config(config)
     object_names_str = ",".join(object_names)
     obs_code = (
@@ -671,16 +847,35 @@ async def get_neocp_ephemeris(
 
 
 def twilight_times(config: ConfigParser) -> Dict[str, Any]:
-    """Returns twilight times for a given location
+    """Calculate twilight times for the observatory location.
+
+    Computes civil, nautical, and astronomical twilight times (both morning
+    and evening) for the next occurrence from the current UTC time.
 
     Parameters
     ----------
-    config : Configparser
-        the Configparser object with configuration option
+    config : ConfigParser
+        The ConfigParser object with configuration options, including
+        observatory location (latitude, longitude, altitude) and name.
 
     Returns
     -------
+    dict of str to Time
+        Dictionary containing twilight times with keys:
+        - 'CivilM': Morning civil twilight (astropy Time)
+        - 'CivilE': Evening civil twilight (astropy Time)
+        - 'NautiM': Morning nautical twilight (astropy Time)
+        - 'NautiE': Evening nautical twilight (astropy Time)
+        - 'AstroM': Morning astronomical twilight (astropy Time)
+        - 'AstroE': Evening astronomical twilight (astropy Time)
 
+    Notes
+    -----
+    All times are calculated for the next occurrence from the current UTC time
+    using the astroplan Observer class. Twilight definitions:
+    - Civil: Sun 6° below horizon
+    - Nautical: Sun 12° below horizon
+    - Astronomical: Sun 18° below horizon
     """
     configuration.load_config(config)
     location = EarthLocation.from_geodetic(
@@ -702,16 +897,32 @@ def twilight_times(config: ConfigParser) -> Dict[str, Any]:
 
 
 def sun_moon_ephemeris(config: ConfigParser) -> Dict[str, Any]:
-    """Returns the Sun and Moon ephemeris
+    """Calculate Sun and Moon ephemeris for the observatory location.
+
+    Computes sunrise, sunset, moonrise, moonset times and moon illumination
+    for the next occurrence from the current UTC time.
 
     Parameters
     ----------
-    config : Configparser
-        the Configparser object with configuration option
+    config : ConfigParser
+        The ConfigParser object with configuration options, including
+        observatory location (latitude, longitude, altitude) and name.
 
     Returns
     -------
+    dict of str to Time or float
+        Dictionary containing ephemeris data with keys:
+        - 'Sunrise': Next sunrise time (astropy Time)
+        - 'Sunset': Next sunset time (astropy Time)
+        - 'Moonrise': Next moonrise time (astropy Time)
+        - 'Moonset': Next moonset time (astropy Time)
+        - 'MoonIll': Moon illumination fraction (float, 0.0 to 1.0)
 
+    Notes
+    -----
+    All times are calculated for the next occurrence from the current UTC time
+    using the astroplan Observer class. Moon illumination is a fraction
+    between 0.0 (new moon) and 1.0 (full moon).
     """
     configuration.load_config(config)
     location = EarthLocation.from_geodetic(
@@ -732,22 +943,44 @@ def sun_moon_ephemeris(config: ConfigParser) -> Dict[str, Any]:
 
 
 def object_ephemeris(config: ConfigParser, object_name: str, stepping: str) -> QTable:
-    """Search Object ephemeris with astroquery
+    """Retrieve ephemeris data for a specific object from the Minor Planet Center.
+
+    Queries the MPC database for ephemeris data of the specified object,
+    calculated for the observatory location with the requested time step.
 
     Parameters
     ----------
-    config : Configparser
-        the configparser object with configuration option
-    object_name : string
-        the object name
-    stepping : string
-        steps between points
+    config : ConfigParser
+        The ConfigParser object with configuration options, including
+        observatory location (latitude, longitude, altitude).
+    object_name : str
+        The object designation or name (e.g., 'Ceres', '2001 AA').
+        The name is automatically converted to uppercase.
+    stepping : str
+        Time step between ephemeris points. Valid options:
+        - 'm': 1 minute
+        - 'h': 1 hour
+        - 'd': 1 day
+        - 'w': 1 week
+        Defaults to '1h' if an unknown value is provided.
 
     Returns
     -------
-    QTable:
-        the ephemeris table
+    QTable
+        An astropy QTable containing 30 ephemeris points with columns:
+        - Date: Observation date/time
+        - RA: Right ascension
+        - Dec: Declination
+        - Elongation: Solar elongation
+        - V: Visual magnitude
+        - Altitude: Altitude above horizon
+        - Proper motion: Angular motion
+        - Direction: Motion direction
 
+    Notes
+    -----
+    The function uses astroquery.mpc.MPC to query the Minor Planet Center
+    database. Ephemeris is calculated for the configured observatory location.
     """
     configuration.load_config(config)
     location = EarthLocation.from_geodetic(

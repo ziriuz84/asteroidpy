@@ -29,16 +29,24 @@ def setup_gettext(config: ConfigParser) -> None:
 
 
 def get_integer(message: str) -> int:
-    """
+    """Prompt user for an integer input with validation.
+
+    Continuously prompts the user until a valid integer is entered.
+    Displays an error message if the input cannot be converted to an integer.
 
     Parameters
     ----------
-    message :
-        the input given
+    message : str
+        The prompt message to display to the user.
 
     Returns
     -------
+    int
+        The integer value entered by the user.
 
+    Notes
+    -----
+    This function will loop indefinitely until a valid integer is provided.
     """
     while True:
         try:
@@ -49,16 +57,24 @@ def get_integer(message: str) -> int:
 
 
 def get_float(message: str) -> float:
-    """
+    """Prompt user for a float input with validation.
+
+    Continuously prompts the user until a valid floating-point number is entered.
+    Displays an error message if the input cannot be converted to a float.
 
     Parameters
     ----------
-    message :
-        the input given
+    message : str
+        The prompt message to display to the user.
 
     Returns
     -------
+    float
+        The floating-point value entered by the user.
 
+    Notes
+    -----
+    This function will loop indefinitely until a valid float is provided.
     """
     while True:
         try:
@@ -69,16 +85,20 @@ def get_float(message: str) -> float:
 
 
 def local_coords(config: ConfigParser) -> List[str]:
-    """Returns local geographical coordinates
+    """Get local geographical coordinates from configuration.
+
+    Retrieves the observatory's latitude and longitude from the configuration
+    file and returns them as a list of strings.
 
     Parameters
     ----------
-    config :
-
+    config : ConfigParser
+        The ConfigParser object containing the observatory configuration.
 
     Returns
     -------
-
+    list of str
+        A list containing [latitude, longitude] as strings.
     """
     configuration.load_config(config)
     lat = config["Observatory"]["latitude"]
@@ -87,7 +107,21 @@ def local_coords(config: ConfigParser) -> List[str]:
 
 
 def select_specific_time() -> datetime.datetime:
-    """Returns specific time"""
+    """Prompt user to input a specific observation start time.
+
+    Interactively collects date and time components (day, month, year, hour,
+    minutes, seconds) from the user and constructs a datetime object in UTC.
+
+    Returns
+    -------
+    datetime.datetime
+        A datetime object representing the observation start time in UTC.
+
+    Notes
+    -----
+    All time components are collected via user input prompts. The function
+    assumes UTC timezone.
+    """
     print(_("Provide me with the observation start time parameters (UTC)"))
     day = get_integer(_("Day -> "))
     month = get_integer(_("Month -> "))
@@ -100,22 +134,35 @@ def select_specific_time() -> datetime.datetime:
 
 
 def WIP() -> None:
-    """Prints a simply Work in Progress"""
+    """Display a work in progress message.
+
+    Prints a localized "Work in Progress" message followed by blank lines
+    for visual separation in the interface.
+
+    Returns
+    -------
+    None
+        This function does not return a value.
+    """
     print(_("Work in Progress"))
     print("\n\n\n\n\n\n\n\n")
 
 
 def change_obs_coords_menu(config: ConfigParser) -> None:
-    """Changes Observatory coordinates in Configuration file
+    """Interactive menu to change observatory coordinates.
+
+    Prompts the user for locality name, latitude, and longitude, then updates
+    the configuration file with the new values.
 
     Parameters
     ----------
-    config : Configparser
-        the Configparser object with configuration option
+    config : ConfigParser
+        The ConfigParser object with configuration options.
 
     Returns
     -------
-
+    None
+        This function does not return a value.
     """
     place = input(_("Locality -> "))
     latitude = get_float(_("Latitude -> "))
@@ -124,64 +171,84 @@ def change_obs_coords_menu(config: ConfigParser) -> None:
 
 
 def change_obs_altitude_menu(config: ConfigParser) -> None:
-    """Changes Observatory altitude in Configuration file
+    """Interactive menu to change observatory altitude.
+
+    Prompts the user for the observatory altitude in meters and updates
+    the configuration file.
 
     Parameters
     ----------
-    config : Configparser
-        the Configparser object with configuration option
+    config : ConfigParser
+        The ConfigParser object with configuration options.
 
     Returns
     -------
-
+    None
+        This function does not return a value.
     """
     altitude = get_integer(_("Altitude -> "))
     configuration.change_obs_altitude(config, altitude)
 
 
 def change_observer_name_menu(config: ConfigParser) -> None:
-    """Changes Observer name in Configuration file
+    """Interactive menu to change observer name.
+
+    Prompts the user for the observer's name and updates the configuration file.
 
     Parameters
     ----------
-    config : Configparser
-        the Configparser object with configuration option
+    config : ConfigParser
+        The ConfigParser object with configuration options.
 
     Returns
     -------
-
+    None
+        This function does not return a value.
     """
     name = input(_("Observer name -> "))
     configuration.change_observer_name(config, name)
 
 
 def change_obs_name_menu(config: ConfigParser) -> None:
-    """Changes Observatory name in Configuration file
+    """Interactive menu to change observatory name.
+
+    Prompts the user for the observatory name and updates the configuration file.
 
     Parameters
     ----------
-    config : Configparser
-        the Configparser object with configuration option
+    config : ConfigParser
+        The ConfigParser object with configuration options.
 
     Returns
     -------
-
+    None
+        This function does not return a value.
     """
     name = input(_("Observatory name -> "))
     configuration.change_obs_name(config, name)
 
 
 def change_mpc_code_menu(config: ConfigParser) -> None:
-    """Changes MPC code in Configuration file
+    """Interactive menu to change MPC observatory code.
+
+    Prompts the user for the MPC code and optionally updates the observatory
+    coordinates and name from the MPC database if the user confirms.
 
     Parameters
     ----------
-    config : Configparser
-        the Configparser object with configuration option
+    config : ConfigParser
+        The ConfigParser object with configuration options.
 
     Returns
     -------
+    None
+        This function does not return a value.
 
+    Notes
+    -----
+    After entering the MPC code, the user is prompted whether to update
+    coordinates from the MPC database. If confirmed, the observatory name,
+    latitude, and longitude are automatically updated.
     """
     code = input(_("MPC Code -> "))
     configuration.change_mpc_code(config, code)
@@ -193,7 +260,16 @@ def change_mpc_code_menu(config: ConfigParser) -> None:
 
 
 def print_observatory_config_menu() -> None:
-    """Prints Observatory config text menu"""
+    """Print the observatory configuration menu options.
+
+    Displays a localized menu with options to configure various observatory
+    settings including coordinates, altitude, names, MPC code, and virtual horizon.
+
+    Returns
+    -------
+    None
+        This function does not return a value.
+    """
     print(
         _(
             """Choose an option
@@ -209,16 +285,32 @@ def print_observatory_config_menu() -> None:
 
 
 def observatory_config_menu(config: ConfigParser) -> None:
-    """Prints Observatory config menu and it launches correct interface
+    """Main observatory configuration menu loop.
+
+    Displays the observatory configuration menu and current settings, then
+    handles user input to navigate to various configuration submenus.
 
     Parameters
     ----------
-    config : Configparser
-        the Configparser object with configuration option
+    config : ConfigParser
+        The ConfigParser object with configuration options.
 
     Returns
     -------
+    None
+        This function does not return a value.
 
+    Notes
+    -----
+    The menu loops until the user selects option 0 to return to the main
+    configuration menu. Available options:
+    - 1: Change coordinates
+    - 2: Change altitude
+    - 3: Change observer name
+    - 4: Change observatory name
+    - 5: Change MPC code
+    - 6: Change virtual horizon
+    - 0: Back to configuration menu
     """
     choice = 99
     while choice != 0:
@@ -243,16 +335,27 @@ def observatory_config_menu(config: ConfigParser) -> None:
 
 
 def change_language(config: ConfigParser) -> None:
-    """Prints language configuration menu
+    """Interactive menu to change the interface language.
+
+    Discovers available languages from the locales directory, displays them
+    to the user, and updates the configuration with the selected language.
+    Re-initializes gettext so the language change takes effect immediately.
 
     Parameters
     ----------
-    config : Configparser
-        the Configparser object with configuration option
+    config : ConfigParser
+        The ConfigParser object with configuration options.
 
     Returns
     -------
+    None
+        This function does not return a value.
 
+    Notes
+    -----
+    Only languages with compiled .mo files are shown. If a language has only
+    a .po file, a warning is issued. English is always available as a fallback.
+    The language change is applied immediately to the current session.
     """
     # Discover available languages by scanning the locales directory
     locale_dir = os.path.abspath(
@@ -319,16 +422,27 @@ def change_language(config: ConfigParser) -> None:
 
 
 def general_config_menu(config: ConfigParser) -> None:
-    """Prints menu for general configuration options and it launches correct interface
+    """Main general configuration menu loop.
+
+    Displays the general configuration menu and handles user input to navigate
+    to various general configuration submenus (e.g., language settings).
 
     Parameters
     ----------
-    config : Configparser
-        the Configparser object with configuration option
+    config : ConfigParser
+        The ConfigParser object with configuration options.
 
     Returns
     -------
+    None
+        This function does not return a value.
 
+    Notes
+    -----
+    The menu loops until the user selects option 0 to return to the main
+    configuration menu. Available options:
+    - 1: Language settings
+    - 0: Back to configuration menu
     """
     choice = 99
     while choice != 0:
@@ -345,16 +459,33 @@ def general_config_menu(config: ConfigParser) -> None:
 
 
 def config_menu(config: ConfigParser) -> None:
-    """Prints main config menu and it launches correct interface
+    """Main configuration menu loop.
+
+    Displays the main configuration menu and handles user input to navigate
+    to general or observatory configuration submenus.
 
     Parameters
     ----------
-    config : Configparser
-        the Configparser object with configuration option
+    config : ConfigParser
+        The ConfigParser object with configuration options.
 
     Returns
     -------
+    None
+        This function does not return a value.
 
+    Notes
+    -----
+    The menu loops until the user selects option 0 to return to the main menu.
+    Available options:
+    - 1: General configuration
+    - 2: Observatory configuration
+    - 0: Back to main menu
+
+    Warning
+    -------
+    This function uses `eval()` on user input, which is a security risk.
+    Consider replacing with `get_integer()` for safer input handling.
     """
     choice = 99
     while choice != 0:
@@ -374,16 +505,35 @@ def config_menu(config: ConfigParser) -> None:
 
 
 def observing_target_list_menu(config: ConfigParser) -> None:
-    """Prints observing target list
+    """Interactive menu to generate and display observing target list.
+
+    Prompts the user for observation parameters (time, duration, constraints)
+    and object type, then queries the Minor Planet Center for visible objects.
+    Displays the results either in the terminal or in a browser.
 
     Parameters
     ----------
-    config : Configparser
-        the Configparser object with configuration option
+    config : ConfigParser
+        The ConfigParser object with configuration options.
 
     Returns
     -------
+    None
+        This function does not return a value.
 
+    Notes
+    -----
+    The function collects the following parameters from the user:
+    - Observation time (current time or specific time)
+    - Duration of observation
+    - Minimum solar elongation
+    - Minimum lunar elongation
+    - Minimum altitude
+    - Maximum number of objects
+    - Object type (Asteroids, NEAs, or Comets)
+
+    Results are filtered by the virtual horizon configuration and can be
+    displayed in a browser for better visualization.
     """
     authenticity_token = "W5eBzzw9Clj4tJVzkz0z%2F2EK18jvSS%2BffHxZpAshylg%3D"
     coordinates = local_coords(config)
@@ -434,16 +584,27 @@ def observing_target_list_menu(config: ConfigParser) -> None:
 
 
 def neocp_confirmation_menu(config: ConfigParser) -> None:
-    """Prints NEOcp confirmation list
+    """Interactive menu to display NEOcp (Near Earth Object Confirmation Page) list.
+
+    Prompts the user for filtering criteria (minimum score, maximum magnitude,
+    minimum altitude) and displays NEO candidates that meet the criteria and
+    are visible from the configured observatory location.
 
     Parameters
     ----------
-    config : Configparser
-        the Configparser object with configuration option
+    config : ConfigParser
+        The ConfigParser object with configuration options.
 
     Returns
     -------
+    None
+        This function does not return a value.
 
+    Notes
+    -----
+    The function queries the Minor Planet Center's NEOcp database and filters
+    results based on user-specified criteria. Results can be displayed in the
+    terminal or in a browser for better visualization.
     """
     min_score = get_integer(_("Minimum score -> "))
     max_magnitude = get_float(_("Maximum magnitude -> "))
@@ -462,16 +623,26 @@ def neocp_confirmation_menu(config: ConfigParser) -> None:
 
 
 def twilight_sun_moon_menu(config: ConfigParser) -> None:
-    """Prints Twilight, sun and moon times
+    """Display twilight times and sun/moon ephemeris information.
+
+    Calculates and displays civil, nautical, and astronomical twilight times
+    for the configured observatory location, as well as sunrise, sunset,
+    moonrise, moonset, and moon illumination.
 
     Parameters
     ----------
-    config : Configparser
-        the Configparser object with configuration option
+    config : ConfigParser
+        The ConfigParser object with configuration options.
 
     Returns
     -------
+    None
+        This function does not return a value.
 
+    Notes
+    -----
+    All times are calculated for the next occurrence from the current UTC time.
+    Times are displayed in HH:MM:SS format.
     """
     result_times = scheduling.twilight_times(config)
     print(
@@ -494,13 +665,22 @@ def twilight_sun_moon_menu(config: ConfigParser) -> None:
     print(_(f"Sunrise: {ephemeris['Sunrise'].strftime('%H:%M:%S')}"))
     print(_(f"Sunset: {ephemeris['Sunset'].strftime('%H:%M:%S')}"))
     print(_(f"Moonrise: {ephemeris['Moonrise'].strftime('%H:%M:%S')}"))
-    print(_(f"Moonset: {ephemeris['Sunrise'].strftime('%H:%M:%S')}"))
+    print(_(f"Moonset: {ephemeris['Moonset'].strftime('%H:%M:%S')}"))
     print(_(f"Moon Illumination: {ephemeris['MoonIll']}"))
     print("\n\n\n\n")
 
 
 def print_scheduling_menu() -> None:
-    """Prints scheduling menu"""
+    """Print the observation scheduling menu options.
+
+    Displays a localized menu with options for various observation scheduling
+    and planning features.
+
+    Returns
+    -------
+    None
+        This function does not return a value.
+    """
     print(_("Observation scheduling"))
     print("==============================\n")
     print(
@@ -517,16 +697,31 @@ def print_scheduling_menu() -> None:
 
 
 def scheduling_menu(config: ConfigParser) -> None:
-    """Prints scheduling menu and it launches correct interface
+    """Main observation scheduling menu loop.
+
+    Displays the scheduling menu and handles user input to navigate to various
+    scheduling and planning features.
 
     Parameters
     ----------
-    config : Configparser
-        the Configparser object with configuration option
+    config : ConfigParser
+        The ConfigParser object with configuration options.
 
     Returns
     -------
+    None
+        This function does not return a value.
 
+    Notes
+    -----
+    The menu loops until the user selects option 0 to return to the main menu.
+    Available options:
+    - 1: Weather forecast
+    - 2: Observing target list
+    - 3: NEOcp list
+    - 4: Object ephemeris
+    - 5: Twilight times
+    - 0: Back to main menu
     """
     choice = 99
     while choice != 0:
@@ -546,16 +741,28 @@ def scheduling_menu(config: ConfigParser) -> None:
 
 
 def main_menu(config: ConfigParser) -> None:
-    """Prints Main menu
+    """Main application menu loop.
+
+    Displays the main menu and handles user input to navigate to configuration
+    or observation scheduling features.
 
     Parameters
     ----------
-    config : Configparser
-        the Configparser object with configuration option
+    config : ConfigParser
+        The ConfigParser object with configuration options.
 
     Returns
     -------
+    None
+        This function does not return a value.
 
+    Notes
+    -----
+    The menu loops until the user selects option 0 to exit the application.
+    Available options:
+    - 1: Configuration
+    - 2: Observation scheduling
+    - 0: Exit
     """
     choice = 99
     while choice != 0:
@@ -575,16 +782,26 @@ def main_menu(config: ConfigParser) -> None:
 
 
 def interface(config: ConfigParser) -> None:
-    """Main interface function
+    """Main interface entry point for the application.
+
+    Initializes internationalization (gettext) based on the configured language
+    and launches the main menu.
 
     Parameters
     ----------
-    config : Configparser
-        the Configparser object with configuration option
+    config : ConfigParser
+        The ConfigParser object with configuration options.
 
     Returns
     -------
+    None
+        This function does not return a value.
 
+    Notes
+    -----
+    This is the primary entry point for the interactive user interface.
+    It sets up localization before displaying any UI elements to ensure
+    all text is properly translated.
     """
     # Initialize gettext before printing any UI strings
     setup_gettext(config)
@@ -592,7 +809,17 @@ def interface(config: ConfigParser) -> None:
 
 
 def print_change_horizon_menu() -> Dict[str, str]:
-    """Prints Virtual Horizon menu"""
+    """Interactive menu to configure virtual horizon altitudes.
+
+    Prompts the user for minimum altitude thresholds in each cardinal direction
+    (north, south, east, west) used to simulate obstructions.
+
+    Returns
+    -------
+    dict of str
+        Dictionary with keys 'nord', 'south', 'east', 'west' containing
+        the altitude thresholds as strings.
+    """
     horizon = {}
     horizon["nord"] = input(_("Nord Altitude -> "))
     horizon["south"] = input(_("South Altitude -> "))
@@ -602,32 +829,51 @@ def print_change_horizon_menu() -> Dict[str, str]:
 
 
 def change_horizon(config: ConfigParser) -> None:
-    """Prints Virtual horizon configuration menu and calls configuration function
+    """Interactive menu to change virtual horizon configuration.
+
+    Prompts the user for virtual horizon altitude thresholds and updates
+    the configuration file.
 
     Parameters
     ----------
-    config : Configparser
-        the Configparser object with configuration option
+    config : ConfigParser
+        The ConfigParser object with configuration options.
 
     Returns
     -------
-
+    None
+        This function does not return a value.
     """
     horizon = print_change_horizon_menu()
     configuration.virtual_horizon_configuration(config, horizon)
 
 
 def object_ephemeris_menu(config: ConfigParser) -> None:
-    """Prints Object Ephemeris menu and calls scheduling.object_ephemeris
+    """Interactive menu to retrieve and display object ephemeris.
+
+    Prompts the user for an object name and time step, then queries the
+    Minor Planet Center for ephemeris data and displays the results.
 
     Parameters
     ----------
-    config : Configparser
-        the Configparser object with configuration options
+    config : ConfigParser
+        The ConfigParser object with configuration options.
 
     Returns
     -------
+    None
+        This function does not return a value.
 
+    Notes
+    -----
+    Available time step options:
+    - 'm': 1 minute
+    - 'h': 1 hour
+    - 'd': 1 day
+    - 'w': 1 week
+
+    The ephemeris includes 30 data points with information about position,
+    magnitude, altitude, and motion.
     """
     object_name = input(_("Object Name -> "))
     print(
