@@ -158,7 +158,7 @@ def test_virtual_horizon_configuration_writes_values(tmp_home, fresh_config):
     assert "west_altitude = 9" in new_text
 
 
-def test_print_obs_config_outputs_expected(tmp_home, fresh_config, capsys):
+def test_print_obs_config_redacts_sensitive_by_default(tmp_home, fresh_config, capsys):
     write_config_file(
         config_file_path(tmp_home),
         create_minimal_config_text(
@@ -170,7 +170,27 @@ def test_print_obs_config_outputs_expected(tmp_home, fresh_config, capsys):
     cfg.print_obs_config(fresh_config)
 
     stdout = capsys.readouterr().out
-    # Italian labels on purpose
+    assert "Località: City" in stdout
+    assert "Latitudine: ***REDACTED***" in stdout
+    assert "Longitudine: ***REDACTED***" in stdout
+    assert "Altitudine: ***REDACTED***" in stdout
+    assert "Osservatore: John" in stdout
+    assert "Nome Osservatorio: MainObs" in stdout
+    assert "Codice MPC: A12" in stdout
+
+
+def test_print_obs_config_shows_values_when_show_sensitive_true(tmp_home, fresh_config, capsys):
+    write_config_file(
+        config_file_path(tmp_home),
+        create_minimal_config_text(
+            place="City", latitude="45.0", longitude="9.0", altitude="100.0",
+            obs_name="MainObs", observer_name="John", mpc_code="A12"
+        ),
+    )
+
+    cfg.print_obs_config(fresh_config, show_sensitive=True)
+
+    stdout = capsys.readouterr().out
     assert "Località: City" in stdout
     assert "Latitudine: 45.0" in stdout
     assert "Longitudine: 9.0" in stdout

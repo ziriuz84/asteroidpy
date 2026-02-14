@@ -170,7 +170,7 @@ class ConfigurationTests(unittest.TestCase):
         self.assertIn("east_altitude = 8", new_text)
         self.assertIn("west_altitude = 9", new_text)
 
-    def test_print_obs_config_outputs_expected(self):
+    def test_print_obs_config_redacts_sensitive_by_default(self):
         write_config_file(
             config_file_path(self.fake_home),
             create_minimal_config_text(
@@ -184,10 +184,38 @@ class ConfigurationTests(unittest.TestCase):
             ),
         )
 
-        with patch("os.walk", return_value=[("/irrelevant", [], [".asteroidpy"])]) :
+        with patch("os.walk", return_value=[("/irrelevant", [], [".asteroidpy"])]):
             buf = io.StringIO()
             with redirect_stdout(buf):
                 cfg.print_obs_config(self.new_config())
+            stdout = buf.getvalue()
+
+        self.assertIn("Località: City", stdout)
+        self.assertIn("Latitudine: ***REDACTED***", stdout)
+        self.assertIn("Longitudine: ***REDACTED***", stdout)
+        self.assertIn("Altitudine: ***REDACTED***", stdout)
+        self.assertIn("Osservatore: John", stdout)
+        self.assertIn("Nome Osservatorio: MainObs", stdout)
+        self.assertIn("Codice MPC: A12", stdout)
+
+    def test_print_obs_config_shows_values_when_show_sensitive_true(self):
+        write_config_file(
+            config_file_path(self.fake_home),
+            create_minimal_config_text(
+                place="City",
+                latitude="45.0",
+                longitude="9.0",
+                altitude="100.0",
+                obs_name="MainObs",
+                observer_name="John",
+                mpc_code="A12",
+            ),
+        )
+
+        with patch("os.walk", return_value=[("/irrelevant", [], [".asteroidpy"])]):
+            buf = io.StringIO()
+            with redirect_stdout(buf):
+                cfg.print_obs_config(self.new_config(), show_sensitive=True)
             stdout = buf.getvalue()
 
         self.assertIn("Località: City", stdout)
