@@ -608,11 +608,6 @@ def test_neocp_confirmation_handles_missing_ephemeris_data(monkeypatch, fresh_co
 
 def test_get_neocp_ephemeris_parses_response_correctly(monkeypatch, fresh_config, sch):
     """Test the regex parsing functionality in get_neocp_ephemeris"""
-    # Mock the requests.request to return a sample HTML response
-    class MockResponse:
-        def __init__(self, text):
-            self.text = text
-
     sample_html = """
     <html>
     <body>
@@ -632,9 +627,28 @@ def test_get_neocp_ephemeris_parses_response_correctly(monkeypatch, fresh_config
     </html>
     """
 
-    monkeypatch.setattr(sch.requests, "request", lambda method, url, headers=None, data=None: MockResponse(sample_html))
+    class MockResponse:
+        def __init__(self, text):
+            self.text = text
 
-    # Test the function
+    class MockAsyncClient:
+        def __init__(self, text):
+            self._text = text
+
+        async def __aenter__(self):
+            return self
+
+        async def __aexit__(self, *args):
+            pass
+
+        async def post(self, *args, **kwargs):
+            return MockResponse(self._text)
+
+    def make_client(*args, **kwargs):
+        return MockAsyncClient(sample_html)
+
+    monkeypatch.setattr(sch.httpx, "AsyncClient", make_client)
+
     result = asyncio.run(sch.get_neocp_ephemeris(fresh_config, ["TEST123", "TEST456"]))
     
     # Should return a dictionary with parsed data
@@ -649,11 +663,6 @@ def test_get_neocp_ephemeris_parses_response_correctly(monkeypatch, fresh_config
 
 def test_get_neocp_ephemeris_handles_insufficient_data(monkeypatch, fresh_config, sch):
     """Test that insufficient data in response is handled correctly"""
-    class MockResponse:
-        def __init__(self, text):
-            self.text = text
-
-    # HTML with insufficient data (less than 4 elements)
     sample_html = """
     <html>
     <body>
@@ -666,7 +675,27 @@ def test_get_neocp_ephemeris_handles_insufficient_data(monkeypatch, fresh_config
     </html>
     """
 
-    monkeypatch.setattr(sch.requests, "request", lambda method, url, headers=None, data=None: MockResponse(sample_html))
+    class MockResponse:
+        def __init__(self, text):
+            self.text = text
+
+    class MockAsyncClient:
+        def __init__(self, text):
+            self._text = text
+
+        async def __aenter__(self):
+            return self
+
+        async def __aexit__(self, *args):
+            pass
+
+        async def post(self, *args, **kwargs):
+            return MockResponse(self._text)
+
+    def make_client(*args, **kwargs):
+        return MockAsyncClient(sample_html)
+
+    monkeypatch.setattr(sch.httpx, "AsyncClient", make_client)
 
     result = asyncio.run(sch.get_neocp_ephemeris(fresh_config, ["SHORT123"]))
     

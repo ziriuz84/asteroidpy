@@ -803,16 +803,20 @@ async def get_neocp_ephemeris(
         config["Observatory"]["longitude"] if config["Observatory"]["longitude"] else ""
     )
     payload = f"mb=-30&mf=30&dl=-90&du=%2B90&nl=0&nu=100&sort=d&W=j&obj={object_names_str}&Parallax=1&obscode={obs_code}&long={longitude}&lat={latitude}&int=0&start=0&raty=a&mot=m&dmot=p&out=f&sun=x&oalt=20"
-    # response = await httpx_post(
-    #     "https://cgi.minorplanetcenter.net/cgi-bin/confirmeph2.cgi", payload, "text"
-    # )
     url = "https://cgi.minorplanetcenter.net/cgi-bin/confirmeph2.cgi"
-    headers = {"Content-Type": "application/x-www-form-urlencoded"}
-
-    response = requests.request("POST", url, headers=headers, data=payload)
+    try:
+        async with httpx.AsyncClient() as client:
+            r = await client.post(
+                url,
+                headers={"Content-Type": "application/x-www-form-urlencoded"},
+                content=payload,
+            )
+        response_text = r.text
+    except Exception:
+        response_text = ""
 
     pattern = r"<b>([A-Za-z0-9]+)</b>[\s\S]*?<pre>([\s\S]*?)</pre>"
-    matches = re.findall(pattern, response.text)
+    matches = re.findall(pattern, response_text)
 
     result_dict = {}
     for key, value in matches:
