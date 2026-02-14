@@ -481,11 +481,6 @@ def config_menu(config: ConfigParser) -> None:
     - 1: General configuration
     - 2: Observatory configuration
     - 0: Back to main menu
-
-    Warning
-    -------
-    This function uses `eval()` on user input, which is a security risk.
-    Consider replacing with `get_integer()` for safer input handling.
     """
     choice = 99
     while choice != 0:
@@ -496,7 +491,7 @@ def config_menu(config: ConfigParser) -> None:
         print(_("1 - General"))
         print(_("2 - Observatory"))
         print(_("0 - Back to main menu"))
-        choice = eval(input(_("choice -> ")))
+        choice = get_integer(_("choice -> "))
         print("\n\n\n\n\n")
         if choice == 1:
             general_config_menu(config)
