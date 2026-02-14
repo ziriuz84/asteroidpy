@@ -1,8 +1,7 @@
 from configparser import ConfigParser
+import math
 import os
 from typing import Dict, Tuple
-from platform import system
-import math
 from platformdirs import user_config_dir, user_config_path
 from astropy.coordinates import Angle
 from astroquery.mpc import MPC
@@ -97,7 +96,7 @@ def load_config(config: ConfigParser) -> None:
 
     Notes
     -----
-    If the configuration file is unreadable (permissions error) or invalid/empty,
+    If the configuration file is unreadable (permissions error) or invalid or empty,
     the function falls back to initializing with default values to ensure
     required sections exist.
     """
@@ -250,7 +249,7 @@ def get_observatory_coordinates(code: str) -> Tuple[float, float, float, str]:
         A tuple containing:
         - Longitude in decimal degrees
         - Latitude in decimal degrees
-        - Altitude in meters
+        - Altitude in meters (0 if not provided by MPC)
         - Observatory name as a string
 
     Raises
@@ -261,9 +260,19 @@ def get_observatory_coordinates(code: str) -> Tuple[float, float, float, str]:
     Notes
     -----
     The function uses astroquery.mpc.MPC to query the Minor Planet Center
-    database. The coordinates are converted from the MPC's internal format
-    to standard decimal degrees.
+    database. Longitude comes directly; latitude is derived from parallax
+    constants (rho*cos(phi), rho*sin(phi)). Altitude is set to 0 as the
+    MPC list does not include elevation for most observatories.
     """
+    result = MPC.get_observatory_location(code.strip())
+    longitude_angle, cos_phi, sin_phi, name = result
+    longitude_deg = float(longitude_angle.to_value("deg"))
+    latitude_rad = math.atan2(float(sin_phi), float(cos_phi))
+    latitude_deg = math.degrees(latitude_rad)
+    # MPC list does not include altitude; use 0 (sea level) as default
+    altitude = 0.0
+    return (longitude_deg, latitude_deg, altitude, str(name))
+
 
 def change_obs_name(config: ConfigParser, name: str) -> None:
     """Change the observatory name.
@@ -374,7 +383,7 @@ def virtual_horizon_configuration(config: ConfigParser, horizon: Dict[str, str])
     ----------
     config : ConfigParser
         The ConfigParser object with configuration options.
-    horizon : dict of str
+    horizon : dict of str to str
         Dictionary containing altitude thresholds for each cardinal direction.
         Expected keys: 'nord', 'south', 'east', 'west'. Values should be
         strings representing altitude in degrees.
