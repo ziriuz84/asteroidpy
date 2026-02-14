@@ -2,6 +2,15 @@
 
 All notable changes to this project will be documented in this file.
 
+## [1.0.1](https://github.com/ziriuz84/asteroidpy/releases/tag/v1.0.1) (2026-02-14)
+
+### Bug Fixes
+
+- **scheduling:** replace blocking requests with async httpx in get_neocp_ephemeris ([16a174c](https://github.com/ziriuz84/asteroidpy/commit/16a174cbf48a5b24b8d583400b9fdbfb9d44c60e))
+
+### Documentation
+
+- fix README code block spacing and index hyphenation ([365dfc6](https://github.com/ziriuz84/asteroidpy/commit/365dfc6a6c78a971aa3198335a308148980448a2))
 ## [1.0.0](https://github.com/ziriuz84/asteroidpy/releases/tag/v1.0.0) (2026-02-14)
 
 ### Features
