@@ -193,7 +193,6 @@ async def httpx_post(
                 headers={"Content-Type": "application/x-www-form-urlencoded"},
                 data=payload,
             )
-            print(r.headers)
     except Exception:
         if return_type == "json":
             return cast(
@@ -497,7 +496,7 @@ def observing_target_list_scraper(url: str, payload: Dict[str, Any]) -> List[Lis
     url : str
         The URL to scrape for observing target data.
     payload : dict of str to Any
-        Form data to include in the POST request.
+        Query parameters to include in the POST request URL.
 
     Returns
     -------
@@ -812,33 +811,22 @@ async def get_neocp_ephemeris(
 
     response = requests.request("POST", url, headers=headers, data=payload)
 
-    # Definire la regex
     pattern = r"<b>([A-Za-z0-9]+)</b>[\s\S]*?<pre>([\s\S]*?)</pre>"
-
-    # Trovare tutti i valori corrispondenti nella risposta
     matches = re.findall(pattern, response.text)
 
-    # Creare un dizionario dai risultati
     result_dict = {}
     for key, value in matches:
-        # Dividere il secondo gruppo in righe e prendere la seconda riga (indice 2)
         lines = value.strip().split("\n")
         if len(lines) > 2:
-            second_line = lines[2]  # Seconda riga del secondo gruppo
+            second_line = lines[2]
         else:
-            second_line = (
-                lines[0] if lines else ""
-            )  # Fallback alla prima riga se c'è solo una riga
+            second_line = lines[0] if lines else ""
 
-        # Dividere la riga in valori usando regex per gestire uno o più spazi bianchi
-        # Usa \s+ per dividere su uno o più caratteri di spazio bianco
         values_array = re.split(r"\s+", second_line.strip())
 
-        # if values_array elements number is less than 4
         if len(values_array) < 4:
             continue
 
-        # Rimuovi elementi vuoti dalla lista
         values_array = [val for val in values_array if val]
 
         result_dict[key] = values_array
