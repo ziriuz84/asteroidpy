@@ -13,6 +13,15 @@ def setup_gettext(config: ConfigParser) -> None:
 
     Looks up the language from the user's configuration file and installs
     the appropriate translator using the `locales` directory at the project root.
+
+    Parameters
+    ----------
+    config : ConfigParser
+        The ConfigParser object with configuration options (General.lang).
+
+    Returns
+    -------
+    None
     """
     # Ensure configuration is loaded so we read the latest language
     configuration.load_config(config)
@@ -110,17 +119,19 @@ def select_specific_time() -> datetime.datetime:
     """Prompt user to input a specific observation start time.
 
     Interactively collects date and time components (day, month, year, hour,
-    minutes, seconds) from the user and constructs a datetime object in UTC.
+    minutes, seconds) from the user and constructs a naive datetime object.
 
     Returns
     -------
     datetime.datetime
-        A datetime object representing the observation start time in UTC.
+        A naive datetime (no timezone) built from the user-provided components.
+        The user is expected to supply UTC values.
 
     Notes
     -----
-    All time components are collected via user input prompts. The function
-    assumes UTC timezone.
+    All time components are collected via user input prompts. The returned
+    datetime has no timezone info; the interface assumes the user provides
+    UTC time components.
     """
     print(_("Provide me with the observation start time parameters (UTC)"))
     day = get_integer(_("Day -> "))
@@ -811,9 +822,10 @@ def print_change_horizon_menu() -> Dict[str, str]:
 
     Returns
     -------
-    dict of str
+    dict of str to str
         Dictionary with keys 'nord', 'south', 'east', 'west' containing
-        the altitude thresholds as strings.
+        the altitude thresholds as strings. Key 'nord' matches the
+        configuration option for north altitude.
     """
     horizon = {}
     horizon["nord"] = input(_("Nord Altitude -> "))
@@ -838,6 +850,12 @@ def change_horizon(config: ConfigParser) -> None:
     -------
     None
         This function does not return a value.
+
+    Notes
+    -----
+    The virtual horizon defines minimum altitudes per cardinal direction,
+    simulating obstructions (buildings, trees). Objects below these
+    thresholds are not considered visible.
     """
     horizon = print_change_horizon_menu()
     configuration.virtual_horizon_configuration(config, horizon)
