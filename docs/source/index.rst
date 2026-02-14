@@ -9,7 +9,7 @@ Welcome to AsteroidPy's documentation!
 AsteroidPy is a Python tool designed to help astronomers schedule and manage
 asteroid observations and measurements. It integrates with major sources in
 minor planet research to provide accurate ephemeris predictions and NEOcp
-(Near Earth Object Confirmation Page) candidate listings.
+(Near-Earth Object Confirmation Page) candidate listings.
 
 Features
 --------

@@ -30,12 +30,14 @@ AsteroidPy is a simple tool to help astronomers schedule and manage asteroidal o
 #### From source
 
 - Clone the repository:
+
   ```bash
   git clone https://github.com/ziriuz84/asteroidpy
   cd asteroidpy
   ```
 
 - (Optional) Create and activate a virtual environment:
+
   ```bash
   python -m venv env
   source env/bin/activate  # On Windows: env\Scripts\activate
@@ -69,7 +71,7 @@ AsteroidPy supports multiple languages. Change the language from Configuration â
 ## Dependencies
 
 - requests
-- BeautifulSoup4
+- beautifulsoup4
 - astropy
 - astroplan
 - astroquery
