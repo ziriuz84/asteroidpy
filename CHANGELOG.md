@@ -2,6 +2,20 @@
 
 All notable changes to this project will be documented in this file.
 
+## [1.0.3](https://github.com/ziriuz84/asteroidpy/releases/tag/v1.0.3) (2026-05-17)
+
+### Bug Fixes
+
+- **packaging:** declare OS Independent trove classifiers ([5b1ab8b](https://github.com/ziriuz84/asteroidpy/commit/5b1ab8b58e8e40e01115b054ea36ee1e79648879))
+
+### Documentation
+
+- **README:** expand onboarding, FAQ, and contributor guide ([13e3c0b](https://github.com/ziriuz84/asteroidpy/commit/13e3c0b48a8cd413b430cef4ae4ae76857d629e5))
+
+### Chores
+
+- removes package.json to gitignore ([45425e9](https://github.com/ziriuz84/asteroidpy/commit/45425e9744204f74ca5fc6f999d7a22630adca96))
+- adds package.json to gitignore ([72678d4](https://github.com/ziriuz84/asteroidpy/commit/72678d4ff792c31853028ef5e282cce923667547))
 ## [1.0.2](https://github.com/ziriuz84/asteroidpy/releases/tag/v1.0.2) (2026-05-17)
 
 ### Bug Fixes
