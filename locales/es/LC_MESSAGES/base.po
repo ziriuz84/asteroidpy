@@ -6,7 +6,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: AsteroidPY 0.1\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2025-08-11 07:29+0200\n"
+"POT-Creation-Date: 2026-05-17 11:47+0200\n"
 "PO-Revision-Date: 2025-08-13 00:00+0000\n"
 "Last-Translator: \n"
 "Language-Team: Spanish\n"
@@ -16,67 +16,47 @@ msgstr ""
 "Content-Transfer-Encoding: 8bit\n"
 "Plural-Forms: nplurals=2; plural=(n != 1);\n"
 
-#: asteroidpy/interface.py:71
-msgid "Provide me with the observation start time parameters (UTC)"
-msgstr "Proporcióname los parámetros de la hora de inicio de la observación (UTC)"
-
-#: asteroidpy/interface.py:72
-msgid "Day -> "
-msgstr "Día -> "
-
-#: asteroidpy/interface.py:73
-msgid "Month -> "
-msgstr "Mes -> "
-
-#: asteroidpy/interface.py:74
-msgid "Year -> "
-msgstr "Año -> "
-
-#: asteroidpy/interface.py:75
-msgid "Hour -> "
-msgstr "Hora -> "
-
-#: asteroidpy/interface.py:76
-msgid "Minutes -> "
-msgstr "Minutos -> "
-
-#: asteroidpy/interface.py:77
-msgid "Seconds -> "
-msgstr "Segundos -> "
-
-#: asteroidpy/interface.py:85
-msgid "Work in Progress"
-msgstr "Trabajo en curso"
-
-#: asteroidpy/interface.py:101
+#: asteroidpy/interface/_config_menus.py:17
 msgid "Locality -> "
 msgstr "Localidad -> "
 
-#: asteroidpy/interface.py:102
+#: asteroidpy/interface/_config_menus.py:18
 msgid "Latitude -> "
 msgstr "Latitud -> "
 
-#: asteroidpy/interface.py:103
+#: asteroidpy/interface/_config_menus.py:19
 msgid "Longitude -> "
 msgstr "Longitud -> "
 
-#: asteroidpy/interface.py:119
+#: asteroidpy/interface/_config_menus.py:24
 msgid "Altitude -> "
 msgstr "Altitud -> "
 
-#: asteroidpy/interface.py:135
+#: asteroidpy/interface/_config_menus.py:29
 msgid "Observer name -> "
 msgstr "Nombre del observador -> "
 
-#: asteroidpy/interface.py:151
+#: asteroidpy/interface/_config_menus.py:34
 msgid "Observatory name -> "
 msgstr "Nombre del observatorio -> "
 
-#: asteroidpy/interface.py:167
+#: asteroidpy/interface/_config_menus.py:39
 msgid "MPC Code -> "
 msgstr "Código MPC -> "
 
-#: asteroidpy/interface.py:173
+#: asteroidpy/interface/_config_menus.py:41
+msgid "Update coordinates? (y/N) -> "
+msgstr "¿Actualizar las coordenadas? (s/N) -> "
+
+#: asteroidpy/interface/_config_menus.py:52
+msgid ""
+"Could not fetch observatory coordinates from the MPC (check the code and "
+"your network connection)."
+msgstr ""
+"No se pudieron obtener las coordenadas del observatorio desde el MPC "
+"(comprueba el código y la conexión de red)."
+
+#: asteroidpy/interface/_config_menus.py:61
 msgid ""
 "Choose an option\n"
 "    1 - Change coordinates\n"
@@ -96,82 +76,169 @@ msgstr ""
 "    6 - Cambiar el Horizonte Virtual\n"
 "    0 - Volver al menú de configuración"
 
-#: asteroidpy/interface.py:197
+#: asteroidpy/interface/_config_menus.py:76
 msgid "Configuration -> Observatory"
 msgstr "Configuración -> Observatorio"
 
-#: asteroidpy/interface.py:201 asteroidpy/interface.py:258
-#: asteroidpy/interface.py:285 asteroidpy/interface.py:437
-#: asteroidpy/interface.py:472
+#: asteroidpy/interface/_config_menus.py:80
+#: asteroidpy/interface/_config_menus.py:160
+#: asteroidpy/interface/_config_menus.py:176 asteroidpy/interface/_main.py:24
+#: asteroidpy/interface/_schedule_menus.py:201
 msgid "choice -> "
 msgstr "elección -> "
 
-#: asteroidpy/interface.py:230
+#: asteroidpy/interface/_config_menus.py:136
 msgid "Select a language"
 msgstr "Selecciona un idioma"
 
-#: asteroidpy/interface.py:232
+#: asteroidpy/interface/_config_menus.py:141
 msgid "Language -> "
 msgstr "Idioma -> "
 
-#: asteroidpy/interface.py:252
+#: asteroidpy/interface/_config_menus.py:154
 msgid "Configuration -> General"
 msgstr "Configuración -> General"
 
-#: asteroidpy/interface.py:255 asteroidpy/interface.py:281
-#: asteroidpy/interface.py:468
+#: asteroidpy/interface/_config_menus.py:157
+#: asteroidpy/interface/_config_menus.py:172 asteroidpy/interface/_main.py:20
 msgid "Choose a submenu"
 msgstr "Elige un submenú"
 
-#: asteroidpy/interface.py:256
+#: asteroidpy/interface/_config_menus.py:158
 msgid "1 - Language"
 msgstr "1 - Idioma"
 
-#: asteroidpy/interface.py:257
+#: asteroidpy/interface/_config_menus.py:159
 msgid "0 - Back to configuration menu"
 msgstr "0 - Volver al menú de configuración"
 
-#: asteroidpy/interface.py:278
+#: asteroidpy/interface/_config_menus.py:169
 msgid "Configuration"
 msgstr "Configuración"
 
-#: asteroidpy/interface.py:282
+#: asteroidpy/interface/_config_menus.py:173
 msgid "1 - General"
 msgstr "1 - General"
 
-#: asteroidpy/interface.py:283
+#: asteroidpy/interface/_config_menus.py:174
 msgid "2 - Observatory"
 msgstr "2 - Observatorio"
 
-#: asteroidpy/interface.py:284
+#: asteroidpy/interface/_config_menus.py:175
 msgid "0 - Back to main menu"
 msgstr "0 - Volver al menú principal"
 
-#: asteroidpy/interface.py:308
+#: asteroidpy/interface/_config_menus.py:186
+msgid "Nord Altitude -> "
+msgstr "Altitud Norte -> "
+
+#: asteroidpy/interface/_config_menus.py:187
+msgid "South Altitude -> "
+msgstr "Altitud Sur -> "
+
+#: asteroidpy/interface/_config_menus.py:188
+msgid "East Altitude -> "
+msgstr "Altitud Este -> "
+
+#: asteroidpy/interface/_config_menus.py:189
+msgid "West Altitude -> "
+msgstr "Altitud Oeste -> "
+
+#: asteroidpy/interface/_input.py:10
+msgid "End of input (EOF); exiting."
+msgstr "Fin de entrada (EOF); saliendo."
+
+#: asteroidpy/interface/_input.py:19
+msgid "You must enter an integer."
+msgstr "Debe introducir un número entero."
+
+#: asteroidpy/interface/_input.py:27
+msgid "You must enter a number."
+msgstr "Debe introducir un número."
+
+#: asteroidpy/interface/_input.py:36
+#, python-brace-format
+msgid "Enter an integer between {low} and {high}."
+msgstr "Introduzca un entero entre {low} y {high}."
+
+#: asteroidpy/interface/_main.py:17
+msgid "Welcome to AsteroidPY v. 0.1"
+msgstr "Bienvenido a AsteroidPY v. 0.1"
+
+#: asteroidpy/interface/_main.py:21
+msgid "1 - Configuration"
+msgstr "1 - Configuración"
+
+#: asteroidpy/interface/_main.py:22
+msgid "2 - Observation scheduling"
+msgstr "2 - Planificación de observaciones"
+
+#: asteroidpy/interface/_main.py:23
+msgid "0 - Exit"
+msgstr "0 - Salir"
+
+#: asteroidpy/interface/_schedule_menus.py:24
+msgid "Provide me with the observation start time parameters (UTC)"
+msgstr ""
+"Proporcióname los parámetros de la hora de inicio de la observación (UTC)"
+
+#: asteroidpy/interface/_schedule_menus.py:25
+msgid "Day -> "
+msgstr "Día -> "
+
+#: asteroidpy/interface/_schedule_menus.py:26
+msgid "Month -> "
+msgstr "Mes -> "
+
+#: asteroidpy/interface/_schedule_menus.py:27
+msgid "Year -> "
+msgstr "Año -> "
+
+#: asteroidpy/interface/_schedule_menus.py:28
+msgid "Hour -> "
+msgstr "Hora -> "
+
+#: asteroidpy/interface/_schedule_menus.py:29
+msgid "Minutes -> "
+msgstr "Minutos -> "
+
+#: asteroidpy/interface/_schedule_menus.py:30
+msgid "Seconds -> "
+msgstr "Segundos -> "
+
+#: asteroidpy/interface/_schedule_menus.py:39
+msgid ""
+"Could not load a fresh MPC form token from the What's Observable page; using"
+" an embedded fallback. The request might fail."
+msgstr ""
+"No se pudo cargar un token de formulario MPC reciente desde la página What's"
+" Observable; se usa uno integrado de respaldo. La solicitud podría fallar."
+
+#: asteroidpy/interface/_schedule_menus.py:46
 msgid "Do you want to know the asteroids visible right now? [y/N]"
 msgstr "¿Quieres saber los asteroides visibles ahora mismo? [y/N]"
 
-#: asteroidpy/interface.py:313
+#: asteroidpy/interface/_schedule_menus.py:61
 msgid "Duration of observation -> "
 msgstr "Duración de la observación -> "
 
-#: asteroidpy/interface.py:314
+#: asteroidpy/interface/_schedule_menus.py:62
 msgid "Minimal solar elongation -> "
 msgstr "Elongación solar mínima -> "
 
-#: asteroidpy/interface.py:315
+#: asteroidpy/interface/_schedule_menus.py:63
 msgid "Minimal lunar elongation -> "
 msgstr "Elongación lunar mínima -> "
 
-#: asteroidpy/interface.py:316
+#: asteroidpy/interface/_schedule_menus.py:64
 msgid "Minimal altitude-> "
 msgstr "Altitud mínima -> "
 
-#: asteroidpy/interface.py:317
+#: asteroidpy/interface/_schedule_menus.py:65
 msgid "Maximum number of objects -> "
 msgstr "Número máximo de objetos -> "
 
-#: asteroidpy/interface.py:319
+#: asteroidpy/interface/_schedule_menus.py:68
 msgid ""
 "Select type of object\n"
 "1 - Asteroids\n"
@@ -185,27 +252,68 @@ msgstr ""
 "3 - Cometas\n"
 "Elección -> "
 
-#: asteroidpy/interface.py:345 asteroidpy/interface.py:368
+#: asteroidpy/interface/_schedule_menus.py:98
+#: asteroidpy/interface/_schedule_menus.py:110
 msgid "Do you want to view in Browser? (y/N) -> "
 msgstr "¿Quieres ver en el navegador? (y/N) -> "
 
-#: asteroidpy/interface.py:365
+#: asteroidpy/interface/_schedule_menus.py:107
 msgid "Minimum score -> "
 msgstr "Puntuación mínima -> "
 
-#: asteroidpy/interface.py:366
+#: asteroidpy/interface/_schedule_menus.py:108
 msgid "Maximum magnitude -> "
 msgstr "Magnitud máxima -> "
 
-#: asteroidpy/interface.py:367
+#: asteroidpy/interface/_schedule_menus.py:109
 msgid "Minimum altitude -> "
 msgstr "Altitud mínima -> "
 
-#: asteroidpy/interface.py:411
+#: asteroidpy/interface/_schedule_menus.py:123
+#, python-brace-format
+msgid "Civil twilight: {m} – {e}"
+msgstr "Crepúsculo civil: {m} – {e}"
+
+#: asteroidpy/interface/_schedule_menus.py:129
+#, python-brace-format
+msgid "Nautical twilight: {m} – {e}"
+msgstr "Crepúsculo náutico: {m} – {e}"
+
+#: asteroidpy/interface/_schedule_menus.py:135
+#, python-brace-format
+msgid "Astronomical twilight: {m} – {e}"
+msgstr "Crepúsculo astronómico: {m} – {e}"
+
+#: asteroidpy/interface/_schedule_menus.py:143
+#, python-brace-format
+msgid "Sunrise: {t}"
+msgstr "Amanecer: {t}"
+
+#: asteroidpy/interface/_schedule_menus.py:146
+#, python-brace-format
+msgid "Sunset: {t}"
+msgstr "Atardecer: {t}"
+
+#: asteroidpy/interface/_schedule_menus.py:149
+#, python-brace-format
+msgid "Moonrise: {t}"
+msgstr "Salida de la Luna: {t}"
+
+#: asteroidpy/interface/_schedule_menus.py:152
+#, python-brace-format
+msgid "Moonset: {t}"
+msgstr "Puesta de la Luna: {t}"
+
+#: asteroidpy/interface/_schedule_menus.py:155
+#, python-brace-format
+msgid "Moon illumination: {f}"
+msgstr "Iluminación lunar: {f}"
+
+#: asteroidpy/interface/_schedule_menus.py:161
 msgid "Observation scheduling"
 msgstr "Planificación de observaciones"
 
-#: asteroidpy/interface.py:413
+#: asteroidpy/interface/_schedule_menus.py:165
 msgid ""
 "Choose a submenu\n"
 "    1 - Weather forecast\n"
@@ -223,43 +331,11 @@ msgstr ""
 "    5 - Horas del crepúsculo\n"
 "    0 - Volver al menú principal\n"
 
-#: asteroidpy/interface.py:465
-msgid "Welcome to AsteroidPY v. 0.1"
-msgstr "Bienvenido a AsteroidPY v. 0.1"
-
-#: asteroidpy/interface.py:469
-msgid "1 - Configuration"
-msgstr "1 - Configuración"
-
-#: asteroidpy/interface.py:470
-msgid "2 - Observation scheduling"
-msgstr "2 - Planificación de observaciones"
-
-#: asteroidpy/interface.py:471
-msgid "0 - Exit"
-msgstr "0 - Salir"
-
-#: asteroidpy/interface.py:498
-msgid "Nord Altitude -> "
-msgstr "Altitud Norte -> "
-
-#: asteroidpy/interface.py:499
-msgid "South Altitude -> "
-msgstr "Altitud Sur -> "
-
-#: asteroidpy/interface.py:500
-msgid "East Altitude -> "
-msgstr "Altitud Este -> "
-
-#: asteroidpy/interface.py:501
-msgid "West Altitude -> "
-msgstr "Altitud Oeste -> "
-
-#: asteroidpy/interface.py:532
+#: asteroidpy/interface/_schedule_menus.py:177
 msgid "Object Name -> "
 msgstr "Nombre del objeto -> "
 
-#: asteroidpy/interface.py:533
+#: asteroidpy/interface/_schedule_menus.py:180
 msgid ""
 "Stepping\n"
 "    m - 1 minute\n"
@@ -275,6 +351,13 @@ msgstr ""
 "    w - 1 semana\n"
 "    "
 
-#: asteroidpy/interface.py:539
+#: asteroidpy/interface/_schedule_menus.py:189
 msgid "Choice -> "
 msgstr "Elección -> "
+
+#: asteroidpy/interface/_schedule_menus.py:192
+msgid "Invalid choice — enter m, h, d, or w."
+msgstr "Selección no válida — introduce m, h, d o w."
+
+#~ msgid "Work in Progress"
+#~ msgstr "Trabajo en curso"

@@ -1,9 +1,22 @@
 import asyncio
-import io
 from configparser import ConfigParser
 from typing import Any, Dict, List
 
+import httpx
 import pytest
+import requests
+
+
+class FakeRequestsSuccessResponse:
+    """Minimal response object for ``observing_target_list_scraper`` mocks."""
+
+    def __init__(self, content: bytes, status_code: int = 200) -> None:
+        self.content = content
+        self.status_code = status_code
+
+    def raise_for_status(self) -> None:
+        if self.status_code >= 400:
+            raise requests.HTTPError(response=None)
 
 
 @pytest.fixture(scope="module")
@@ -157,10 +170,10 @@ def test_httpx_get_post_exception(monkeypatch, sch):
             return False
 
         async def get(self, url, params=None):
-            raise RuntimeError("boom")
+            raise httpx.RequestError("boom", request=None)
 
-        async def post(self, url, data=None):
-            raise RuntimeError("boom")
+        async def post(self, url, data=None, headers=None, **_kwargs):
+            raise httpx.RequestError("boom", request=None)
 
     monkeypatch.setattr(sch.httpx, "AsyncClient", lambda *a, **k: FailingAsyncClient())
 
@@ -226,11 +239,11 @@ def test_observing_target_list_scraper_parses_table(monkeypatch, sch):
         "</body></html>"
     ).encode("utf-8")
 
-    class DummyResp:
-        def __init__(self, content: bytes):
-            self.content = content
-
-    monkeypatch.setattr(sch.requests, "post", lambda url, params=None: DummyResp(html))
+    monkeypatch.setattr(
+        sch.requests,
+        "post",
+        lambda url, params=None, **kwargs: FakeRequestsSuccessResponse(html),
+    )
 
     data = sch.observing_target_list_scraper("https://mpc", {"k": "v"})
 
@@ -275,22 +288,18 @@ def test_observing_target_list_filters_and_formats(monkeypatch, fresh_config, sc
 
 
 def test_observing_target_list_scraper_no_tables(monkeypatch, sch):
-    class DummyResp:
-        def __init__(self, content: bytes):
-            self.content = content
-
     html = b"<html><body><p>No tables here</p></body></html>"
-    monkeypatch.setattr(sch.requests, "post", lambda url, params=None: DummyResp(html))
+    monkeypatch.setattr(
+        sch.requests,
+        "post",
+        lambda url, params=None, **kwargs: FakeRequestsSuccessResponse(html),
+    )
 
     data = sch.observing_target_list_scraper("https://mpc", {"k": "v"})
     assert data == []
 
 
 def test_observing_target_list_scraper_tables_without_expected_headers(monkeypatch, sch):
-    class DummyResp:
-        def __init__(self, content: bytes):
-            self.content = content
-
     # Two tables, but none has the expected headers; also fewer than 4 tables
     html = (
         "<html><body>"
@@ -298,7 +307,11 @@ def test_observing_target_list_scraper_tables_without_expected_headers(monkeypat
         "<table><tr><th>C</th><th>D</th></tr><tr><td>3</td><td>4</td></tr></table>"
         "</body></html>"
     ).encode("utf-8")
-    monkeypatch.setattr(sch.requests, "post", lambda url, params=None: DummyResp(html))
+    monkeypatch.setattr(
+        sch.requests,
+        "post",
+        lambda url, params=None, **kwargs: FakeRequestsSuccessResponse(html),
+    )
 
     data = sch.observing_target_list_scraper("https://mpc", {"k": "v"})
     assert data == []
@@ -324,6 +337,7 @@ def test_observing_target_list_skips_malformed_rows(monkeypatch, fresh_config, s
 
     table = sch.observing_target_list(fresh_config, {"dummy": "1"})
     assert len(table) == 0
+
 
 def test_neocp_confirmation_returns_table_even_when_filtering_all(monkeypatch, fresh_config, sch):
     # Short-circuit the risky branch by ensuring first condition fails (Score <= min_score)
