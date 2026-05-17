@@ -7,7 +7,9 @@ Usage:
 
 from __future__ import annotations
 
+import shutil
 import subprocess
+import sys
 from pathlib import Path
 
 import polib
@@ -190,6 +192,7 @@ GAP_STRINGS: dict[str, dict[str, str]] = {
 
 def main() -> None:
     locale_dirs = sorted(p for p in LOCALES.iterdir() if p.is_dir() and not p.name.startswith("."))
+    msgfmt_missing_warned = False
     for loc in locale_dirs:
         code = loc.name
         po_path = loc / "LC_MESSAGES" / "base.po"
@@ -214,18 +217,34 @@ def main() -> None:
                 entry.previous_msgid = None
                 entry.previous_msgid_plural = None
                 entry.previous_msgctxt = None
-                flags = []
                 entry.flags = [f for f in entry.flags if f != "fuzzy"]
             changed += 1
 
         if changed:
             po.save(po_path.as_posix())
 
-        subprocess.run(
-            ["msgfmt", "-o", (loc / "LC_MESSAGES" / "base.mo").as_posix(), po_path.as_posix()],
-            check=True,
-            cwd=str(REPO_ROOT),
-        )
+        msgfmt = shutil.which("msgfmt")
+        if not msgfmt:
+            if not msgfmt_missing_warned:
+                print(
+                    "msgfmt not found in PATH; install gettext to compile .mo files "
+                    "(.po files were still updated).",
+                    file=sys.stderr,
+                )
+                msgfmt_missing_warned = True
+            continue
+        mo_path = loc / "LC_MESSAGES" / "base.mo"
+        try:
+            subprocess.run(
+                [msgfmt, "-o", mo_path.as_posix(), po_path.as_posix()],
+                check=True,
+                cwd=str(REPO_ROOT),
+            )
+        except subprocess.CalledProcessError as exc:
+            print(
+                f"msgfmt failed for {po_path} (exit {exc.returncode}).",
+                file=sys.stderr,
+            )
 
 
 if __name__ == "__main__":
