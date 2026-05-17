@@ -19,6 +19,13 @@ classifiers=[
 ]
 license-files=["LICENSE"]
 
+[project.optional-dependencies]
+dev = [
+    "pytest",
+    "ruff",
+    "mypy",
+]
+
 [project.urls]
 Homepage="https://github.com/ziriuz84/asteroidpy"
 Issues="https://github.com/ziriuz84/asteroidpy/issues"

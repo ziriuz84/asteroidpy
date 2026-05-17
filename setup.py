@@ -27,7 +27,6 @@ setup(
         "Operating System :: OS Independent",
         "Programming Language :: Python :: 3",
     ],
-    py_modules=["configuration", "scheduling", "interface"],
     entry_points={
         "console_scripts": ["asteroidpy=asteroidpy:main"],
     },

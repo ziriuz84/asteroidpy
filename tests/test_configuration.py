@@ -1,17 +1,16 @@
 import os
 from configparser import ConfigParser
-import builtins
-import types
-import io
+
+import platformdirs
 import pytest
 
-# Module under test
 import asteroidpy.configuration as cfg
 
 
 @pytest.fixture()
 def tmp_home(monkeypatch, tmp_path):
-    """Provide an isolated fake HOME and the path to the config file."""
+    """Isolated HOME and platformdirs-style config layout under tmp_path."""
+
     fake_home = tmp_path / "home"
     fake_home.mkdir(parents=True, exist_ok=True)
 
@@ -21,6 +20,13 @@ def tmp_home(monkeypatch, tmp_path):
         return str(fake_home) if path == "~" else original_expanduser(path)
 
     monkeypatch.setattr(os.path, "expanduser", fake_expanduser)
+    monkeypatch.setattr(
+        platformdirs,
+        "user_config_dir",
+        lambda app_name, appauthor=False, **_kw: os.path.join(
+            str(fake_home), ".config", app_name
+        ),
+    )
 
     return fake_home
 
@@ -30,22 +36,29 @@ def fresh_config() -> ConfigParser:
     return ConfigParser()
 
 
+def config_file_canonical(home: os.PathLike) -> str:
+    return os.fspath(
+        home / ".config" / cfg.APP_NAME / cfg.CONFIG_FILENAME,
+    )
+
+
+def config_file_legacy(home: os.PathLike) -> str:
+    return os.fspath(home / cfg.CONFIG_FILENAME)
+
+
 def read_config_file(path: os.PathLike) -> str:
     with open(path, "r", encoding="utf-8") as f:
         return f.read()
 
 
 def write_config_file(path: os.PathLike, contents: str) -> None:
-    with open(path, "w", encoding="utf-8") as f:
+    p = os.fspath(path)
+    os.makedirs(os.path.dirname(p), exist_ok=True)
+    with open(p, "w", encoding="utf-8") as f:
         f.write(contents)
 
 
-def config_file_path(home: os.PathLike) -> os.PathLike:
-    return os.fspath(home / ".asteroidpy")
-
-
 def create_minimal_config_text(**overrides) -> str:
-    # Values must be strings for ConfigParser compatibility
     general_lang = overrides.get("lang", "en")
     place = overrides.get("place", "")
     latitude = overrides.get("latitude", "0.0")
@@ -70,7 +83,6 @@ def create_minimal_config_text(**overrides) -> str:
 
 
 def test_save_config_writes_file(tmp_home, fresh_config):
-    # Prepare a config with string values only
     fresh_config["General"] = {"lang": "en"}
     fresh_config["Observatory"] = {
         "place": "",
@@ -84,86 +96,117 @@ def test_save_config_writes_file(tmp_home, fresh_config):
 
     cfg.save_config(fresh_config)
 
-    path = config_file_path(tmp_home)
+    path = config_file_canonical(tmp_home)
     assert os.path.exists(path)
     text = read_config_file(path)
     assert "[General]" in text and "[Observatory]" in text
 
 
 def test_change_language_updates_file(tmp_home, fresh_config):
-    write_config_file(config_file_path(tmp_home), create_minimal_config_text(lang="en"))
+    write_config_file(
+        config_file_canonical(tmp_home), create_minimal_config_text(lang="en")
+    )
     cfg.change_language(fresh_config, "it")
 
-    new_text = read_config_file(config_file_path(tmp_home))
+    new_text = read_config_file(config_file_canonical(tmp_home))
     assert "lang = it" in new_text
 
 
 def test_change_obs_coords_updates_file(tmp_home, fresh_config):
-    write_config_file(config_file_path(tmp_home), create_minimal_config_text(place="Old", latitude="1.0", longitude="2.0"))
+    write_config_file(
+        config_file_canonical(tmp_home),
+        create_minimal_config_text(place="Old", latitude="1.0", longitude="2.0"),
+    )
 
-    cfg.change_obs_coords(fresh_config, place="NewPlace", lat=45.1, long=9.2)
+    cfg.change_obs_coords(fresh_config, place="NewPlace", lat=45.1, longitude=9.2)
 
-    new_text = read_config_file(config_file_path(tmp_home))
+    new_text = read_config_file(config_file_canonical(tmp_home))
     assert "place = NewPlace" in new_text
     assert "latitude = 45.1" in new_text
     assert "longitude = 9.2" in new_text
 
 
 def test_change_obs_altitude_updates_file(tmp_home, fresh_config):
-    write_config_file(config_file_path(tmp_home), create_minimal_config_text(altitude="0.0"))
+    write_config_file(
+        config_file_canonical(tmp_home),
+        create_minimal_config_text(altitude="0.0"),
+    )
 
     cfg.change_obs_altitude(fresh_config, alt=123)
 
-    new_text = read_config_file(config_file_path(tmp_home))
+    new_text = read_config_file(config_file_canonical(tmp_home))
     assert "altitude = 123" in new_text
 
 
 def test_change_mpc_code_updates_file(tmp_home, fresh_config):
-    write_config_file(config_file_path(tmp_home), create_minimal_config_text(mpc_code="XXX"))
+    write_config_file(
+        config_file_canonical(tmp_home),
+        create_minimal_config_text(mpc_code="XXX"),
+    )
 
     cfg.change_mpc_code(fresh_config, code="C10")
 
-    new_text = read_config_file(config_file_path(tmp_home))
+    new_text = read_config_file(config_file_canonical(tmp_home))
     assert "mpc_code = C10" in new_text
 
 
 def test_change_obs_name_updates_file(tmp_home, fresh_config):
-    write_config_file(config_file_path(tmp_home), create_minimal_config_text(obs_name=""))
+    write_config_file(
+        config_file_canonical(tmp_home), create_minimal_config_text(obs_name="")
+    )
 
     cfg.change_obs_name(fresh_config, name="AstroObs")
 
-    new_text = read_config_file(config_file_path(tmp_home))
+    new_text = read_config_file(config_file_canonical(tmp_home))
     assert "obs_name = AstroObs" in new_text
 
 
 def test_change_observer_name_updates_file(tmp_home, fresh_config):
-    write_config_file(config_file_path(tmp_home), create_minimal_config_text(observer_name=""))
+    write_config_file(
+        config_file_canonical(tmp_home),
+        create_minimal_config_text(observer_name=""),
+    )
 
     cfg.change_observer_name(fresh_config, name="Jane Doe")
 
-    new_text = read_config_file(config_file_path(tmp_home))
+    new_text = read_config_file(config_file_canonical(tmp_home))
     assert "observer_name = Jane Doe" in new_text
 
 
 def test_virtual_horizon_configuration_writes_values(tmp_home, fresh_config):
-    write_config_file(config_file_path(tmp_home), create_minimal_config_text())
+    write_config_file(config_file_canonical(tmp_home), create_minimal_config_text())
 
     horizon = {"nord": "10", "south": "12", "east": "8", "west": "9"}
     cfg.virtual_horizon_configuration(fresh_config, horizon)
 
-    new_text = read_config_file(config_file_path(tmp_home))
+    new_text = read_config_file(config_file_canonical(tmp_home))
     assert "nord_altitude = 10" in new_text
     assert "south_altitude = 12" in new_text
     assert "east_altitude = 8" in new_text
     assert "west_altitude = 9" in new_text
 
 
+def test_virtual_horizon_configuration_missing_key_raises(tmp_home, fresh_config):
+    write_config_file(config_file_canonical(tmp_home), create_minimal_config_text())
+
+    with pytest.raises(KeyError, match="nord"):
+        cfg.virtual_horizon_configuration(
+            fresh_config,
+            {"east": "1", "south": "1", "west": "1"},
+        )
+
+
 def test_print_obs_config_redacts_sensitive_by_default(tmp_home, fresh_config, capsys):
     write_config_file(
-        config_file_path(tmp_home),
+        config_file_canonical(tmp_home),
         create_minimal_config_text(
-            place="City", latitude="45.0", longitude="9.0", altitude="100.0",
-            obs_name="MainObs", observer_name="John", mpc_code="A12"
+            place="City",
+            latitude="45.0",
+            longitude="9.0",
+            altitude="100.0",
+            obs_name="MainObs",
+            observer_name="John",
+            mpc_code="A12",
         ),
     )
 
@@ -181,10 +224,15 @@ def test_print_obs_config_redacts_sensitive_by_default(tmp_home, fresh_config, c
 
 def test_print_obs_config_shows_values_when_show_sensitive_true(tmp_home, fresh_config, capsys):
     write_config_file(
-        config_file_path(tmp_home),
+        config_file_canonical(tmp_home),
         create_minimal_config_text(
-            place="City", latitude="45.0", longitude="9.0", altitude="100.0",
-            obs_name="MainObs", observer_name="John", mpc_code="A12"
+            place="City",
+            latitude="45.0",
+            longitude="9.0",
+            altitude="100.0",
+            obs_name="MainObs",
+            observer_name="John",
+            mpc_code="A12",
         ),
     )
 
@@ -200,51 +248,55 @@ def test_print_obs_config_shows_values_when_show_sensitive_true(tmp_home, fresh_
     assert "Codice MPC: A12" in stdout
 
 
-def test_load_config_reads_existing_file(tmp_home, fresh_config, monkeypatch):
-    # Pre-create file
-    cfg_path = config_file_path(tmp_home)
-    write_config_file(cfg_path, create_minimal_config_text(lang="en"))
-
-    # Make os.walk yield an entry that contains .asteroidpy among files
-    def fake_walk(_dir_path):
-        yield ("/irrelevant", [], [".asteroidpy"])  # triggers read + break
-
-    monkeypatch.setattr(os, "walk", fake_walk)
+def test_load_config_reads_existing_file(tmp_home, fresh_config):
+    write_config_file(
+        config_file_canonical(tmp_home),
+        create_minimal_config_text(lang="en"),
+    )
 
     cfg.load_config(fresh_config)
     assert fresh_config.get("General", "lang") == "en"
 
 
+def test_load_config_merges_missing_defaults(tmp_home, fresh_config):
+    write_config_file(
+        config_file_canonical(tmp_home),
+        create_minimal_config_text(),
+    )
+    cfg.load_config(fresh_config)
+    assert fresh_config.get("Observatory", "nord_altitude") == "0"
+
+
+def test_load_config_migrates_legacy_to_canonical(tmp_home, fresh_config):
+    leg = config_file_legacy(tmp_home)
+    write_config_file(leg, create_minimal_config_text(lang="it"))
+
+    canon = config_file_canonical(tmp_home)
+    assert not os.path.exists(canon)
+
+    cfg.load_config(fresh_config)
+
+    assert fresh_config.get("General", "lang") == "it"
+    assert os.path.exists(canon)
+    merged = read_config_file(canon)
+    assert "[General]" in merged and "lang = it" in merged
+
+
 def test_load_config_initializes_when_missing(tmp_home, fresh_config, monkeypatch):
-    # Stub initialize to avoid depending on its internal implementation
     called = {"count": 0}
 
     def fake_initialize(conf: ConfigParser):
         called["count"] += 1
-        conf["General"] = {"lang": "en"}
-        conf["Observatory"] = {
-            "place": "",
-            "latitude": "0.0",
-            "longitude": "0.0",
-            "altitude": "0.0",
-            "obs_name": "",
-            "observer_name": "",
-            "mpc_code": "XXX",
-        }
+        for sec in list(conf.sections()):
+            conf.remove_section(sec)
+        for sec, defaults in cfg.SECTION_DEFAULTS.items():
+            conf[sec] = dict(defaults)
+
         cfg.save_config(conf)
 
     monkeypatch.setattr(cfg, "initialize", fake_initialize)
 
-    # os.walk that never finds the file; ensure at least 3 iterations so initialize is invoked
-    def fake_walk(_dir_path):
-        yield ("/a", ["b"], [])
-        yield ("/a/b", ["c"], [])
-        yield ("/a/b/c", [], [])  # at i==2 this triggers initialize
-
-    monkeypatch.setattr(os, "walk", fake_walk)
-
     cfg.load_config(fresh_config)
 
     assert called["count"] >= 1
-    # And the file should exist now
-    assert os.path.exists(config_file_path(tmp_home))
+    assert os.path.exists(config_file_canonical(tmp_home))

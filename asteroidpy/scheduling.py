@@ -1,11 +1,8 @@
-from configparser import ConfigParser
-import re
-from typing import Dict, Tuple, List, Any, Union, Optional, cast
-import requests
 import asyncio
 import datetime
-import gettext
-from urllib.parse import quote_plus
+import re
+from configparser import ConfigParser
+from typing import Any, Dict, List, Literal, Tuple, Union, cast
 
 import httpx
 import requests
@@ -20,7 +17,83 @@ from bs4 import BeautifulSoup
 
 from asteroidpy import configuration
 
-# Use globally installed gettext from interface.setup_gettext
+SEVENTIMER_API_URL = "https://www.7timer.info/bin/api.pl"
+DEFAULT_REQUEST_TIMEOUT_SEC = 30.0
+
+# MPC whats-up HTML table columns (minimum 8 cells per data row).
+MPC_COL_DESIGNATION = 0
+MPC_COL_MAG = 1
+MPC_COL_TIME = 4
+MPC_COL_RA = 5
+MPC_COL_DEC = 6
+MPC_COL_ALT = 7
+MPC_MIN_COLS = 8
+
+MPC_WHATSUP_INDEX_URL = "https://www.minorplanetcenter.net/whatsup/index"
+
+# Last-resort token if MPC blocks scraping or markup changes (POST may still fail).
+_MPC_WHATSUP_AUTH_TOKEN_FALLBACK = (
+    "W5eBzzw9Clj4tJVzkz0z%2F2EK18jvSS%2BffHxZpAshylg%3D"
+)
+
+_MPC_BROWSER_HEADERS = {
+    "User-Agent": (
+        "Mozilla/5.0 (Windows NT 10.0; Win64; x64) "
+        "AppleWebKit/537.36 (KHTML, like Gecko) "
+        "Chrome/121.0.0.0 Safari/537.36"
+    ),
+    "Accept": "text/html,application/xhtml+xml;q=0.9,*/*;q=0.8",
+}
+
+
+def _scrape_whatsup_authenticity_token() -> str:
+    """Return '' if scraping did not recover a Rails authenticity_token."""
+
+    try:
+        r = requests.get(
+            MPC_WHATSUP_INDEX_URL,
+            headers=_MPC_BROWSER_HEADERS,
+            timeout=DEFAULT_REQUEST_TIMEOUT_SEC,
+        )
+    except requests.RequestException:
+        return ""
+    if r.status_code != 200:
+        return ""
+    soup = BeautifulSoup(r.content, "lxml")
+    inp = soup.find("input", attrs={"name": "authenticity_token"})
+    if inp and inp.get("value"):
+        return str(inp["value"])
+    html = r.text
+    m = re.search(
+        r'name=["\']authenticity_token["\'][^>]*value=["\']([^"\']+)["\']',
+        html,
+        re.IGNORECASE,
+    )
+    if m:
+        return m.group(1)
+    meta = re.search(
+        r'<meta\s+name=["\']csrf-token["\']\s+content=["\']([^"\']+)["\']',
+        html,
+        re.IGNORECASE,
+    )
+    if meta:
+        return meta.group(1)
+    return ""
+
+
+def resolve_whatsup_authenticity_token() -> Tuple[str, bool]:
+    """Return ``(authenticity_token, used_fallback)`` for MPC What's Observable POST."""
+
+    scraped = _scrape_whatsup_authenticity_token()
+    if scraped:
+        return scraped, False
+    return _MPC_WHATSUP_AUTH_TOKEN_FALLBACK, True
+
+
+# MPC confirmeph2 CGI: numeric fields parsed from HTML <pre>; indices from ephemeris line.
+NEOCP_EPHEM_VELOCITY_IDX = 12
+NEOCP_EPHEM_DIRECTION_IDX = 13
+NEOCP_EPHEM_MIN_LEN = NEOCP_EPHEM_DIRECTION_IDX + 1
 
 cloudcover_dict = {
     1: "0%-6%",
@@ -98,8 +171,20 @@ wind10m_speed_dict = {
 }
 
 
+def earth_location_from_config(config: ConfigParser) -> EarthLocation:
+    """Earth location from ``[Observatory]`` latitude, longitude, altitude (m)."""
+
+    return EarthLocation.from_geodetic(
+        lon=float(config["Observatory"]["longitude"]) * u.deg,
+        lat=float(config["Observatory"]["latitude"]) * u.deg,
+        height=float(config["Observatory"]["altitude"]) * u.m,
+    )
+
+
 async def httpx_get(
-    url: str, payload: Dict[str, Any], return_type: str
+    url: str,
+    payload: Dict[str, Any],
+    return_type: Literal["json", "text"],
 ) -> Tuple[Union[Dict[str, Any], List[Dict[str, Any]], str], int]:
     """Perform an asynchronous HTTP GET request.
 
@@ -112,29 +197,25 @@ async def httpx_get(
         The URL to query.
     payload : dict of str to Any
         Dictionary of query parameters to include in the request.
-    return_type : str
-        Expected return type format. Use 'json' for JSON responses,
-        any other value for text responses.
+    return_type : {'json', 'text'}
+        ``'json'`` parses JSON responses; ``'text'`` returns response body text.
 
     Returns
     -------
     tuple
-        A tuple containing the response data and status code. The first
-        element is parsed JSON (dict or list) if return_type is 'json',
-        otherwise the response text as a string. The second element is the
-        HTTP status code (int), or 0 if the request failed.
+        Parsed body and HTTP status code, or ``(empty, 0)`` on transport errors.
 
     Notes
     -----
-    On network errors or timeouts, returns empty data ({}, "", or []) and
-    status code 0. JSON parsing errors result in an empty dict for JSON
-    requests.
+    On transport errors or timeouts, returns empty data ({}, "") and status 0.
+    JSON decoding failures yield ``{}``.
     """
+    timeout = httpx.Timeout(DEFAULT_REQUEST_TIMEOUT_SEC)
     try:
-        async with httpx.AsyncClient() as client:
+        async with httpx.AsyncClient(timeout=timeout) as client:
             r = await client.get(url, params=payload)
-    except Exception:
-        # Network/timeout or unexpected errors: return safe defaults and status 0
+    except httpx.RequestError:
+        # Network/timeouts/unreachable hosts: safe defaults and status 0
         if return_type == "json":
             return cast(
                 Tuple[Union[Dict[str, Any], List[Dict[str, Any]]], int], ({}, 0)
@@ -144,7 +225,7 @@ async def httpx_get(
     if return_type == "json":
         try:
             parsed = r.json()
-        except Exception:
+        except ValueError:
             parsed = {}
         return cast(
             Tuple[Union[Dict[str, Any], List[Dict[str, Any]]], int],
@@ -155,7 +236,9 @@ async def httpx_get(
 
 
 async def httpx_post(
-    url: str, payload: Dict[str, Any], return_type: str
+    url: str,
+    payload: Dict[str, Any],
+    return_type: Literal["json", "text"],
 ) -> Tuple[Union[Dict[str, Any], List[Dict[str, Any]], str], int]:
     """Perform an asynchronous HTTP POST request.
 
@@ -168,32 +251,27 @@ async def httpx_post(
         The URL to query.
     payload : dict of str to Any
         Dictionary of form data to include in the POST request body.
-    return_type : str
-        Expected return type format. Use 'json' for JSON responses,
-        any other value for text responses.
+    return_type : {'json', 'text'}
+        Same semantics as :func:`httpx_get`.
 
     Returns
     -------
     tuple
-        A tuple containing the response data and status code. The first
-        element is parsed JSON (dict or list) if return_type is 'json',
-        otherwise the response text as a string. The second element is the
-        HTTP status code (int), or 0 if the request failed.
+        Parsed body and HTTP status code, or ``(empty, 0)`` on transport errors.
 
     Notes
     -----
-    On network errors or timeouts, returns empty data ({}, "", or []) and
-    status code 0. JSON parsing errors result in an empty dict for JSON
-    requests. The request uses 'application/x-www-form-urlencoded' content type.
+    Uses ``application/x-www-form-urlencoded``.
     """
+    timeout = httpx.Timeout(DEFAULT_REQUEST_TIMEOUT_SEC)
     try:
-        async with httpx.AsyncClient() as client:
+        async with httpx.AsyncClient(timeout=timeout) as client:
             r = await client.post(
                 url,
                 headers={"Content-Type": "application/x-www-form-urlencoded"},
                 data=payload,
             )
-    except Exception:
+    except httpx.RequestError:
         if return_type == "json":
             return cast(
                 Tuple[Union[Dict[str, Any], List[Dict[str, Any]]], int], ({}, 0)
@@ -203,7 +281,7 @@ async def httpx_post(
     if return_type == "json":
         try:
             parsed = r.json()
-        except Exception:
+        except ValueError:
             parsed = {}
         return cast(
             Tuple[Union[Dict[str, Any], List[Dict[str, Any]]], int],
@@ -267,15 +345,29 @@ def weather(config: ConfigParser) -> None:
 
     Notes
     -----
-    The forecast data is retrieved from the 7Timer API using the 'astro'
-    product type. All values are mapped from numeric codes to human-readable
-    strings using predefined dictionaries.
+    The forecast is retrieved via HTTPS from the 7Timer API (``astro`` product).
+    Numeric codes are mapped using the module dictionaries.
+
+    Raises nothing: network and HTTP failures are reported on stdout.
     """
     configuration.load_config(config)
     lat, long = config["Observatory"]["latitude"], config["Observatory"]["longitude"]
     payload = {"lon": long, "lat": lat, "product": "astro", "output": "json"}
-    r = requests.get("http://www.7timer.info/bin/api.pl", params=payload)
-    weather_forecast = r.json()
+    try:
+        r = requests.get(
+            SEVENTIMER_API_URL,
+            params=payload,
+            timeout=DEFAULT_REQUEST_TIMEOUT_SEC,
+        )
+        r.raise_for_status()
+        weather_forecast = r.json()
+    except requests.RequestException as exc:
+        print(f"Weather forecast request failed ({exc}).")
+        return
+    except ValueError:
+        print("Weather forecast response was not valid JSON.")
+        return
+
     table = QTable(
         [[""], [""], [""], [""], [""], [""], [""], [""], [""]],
         names=(
@@ -448,17 +540,13 @@ def is_visible(
     Each sector has its own minimum altitude threshold configured in the
     virtual horizon settings.
     """
-    location = EarthLocation.from_geodetic(
-        lat=float(config["Observatory"]["latitude"]) * u.deg,
-        lon=float(config["Observatory"]["longitude"]) * u.deg,
-        height=float(config["Observatory"]["altitude"]) * u.m,
-    )
+    configuration.load_config(config)
+    location = earth_location_from_config(config)
     if isinstance(coord, list):
         coord = SkyCoord(
             skycoord_format(coord[0], "ra") + " " + skycoord_format(coord[1], "dec")
         )
     coord = coord.transform_to(AltAz(obstime=time, location=location))
-    configuration.load_config(config)
 
     # Extract degrees for clear comparisons
     azimuth_deg: float = coord.az.to(u.deg).value
@@ -510,8 +598,19 @@ def observing_target_list_scraper(url: str, payload: Dict[str, Any]) -> List[Lis
     The function prefers the 4th table on the page (legacy behavior), but
     will also search for tables containing expected headers like 'Designation',
     'Mag', 'Time', 'RA', 'Dec', 'Alt'. Only non-empty data rows are returned.
+
+    Raises nothing: failures return an empty list.
     """
-    r = requests.post(url, params=payload)
+    try:
+        r = requests.post(
+            url,
+            params=payload,
+            timeout=DEFAULT_REQUEST_TIMEOUT_SEC,
+        )
+        r.raise_for_status()
+    except requests.RequestException:
+        return []
+
     soup = BeautifulSoup(r.content, "lxml")
     tables = soup.find_all("table")
 
@@ -588,27 +687,29 @@ def observing_target_list(config: ConfigParser, payload: Dict[str, Any]) -> QTab
         names=("Designation", "Mag", "Time", "RA", "Dec", "Alt"),
         meta={"name": "Observing Target List"},
     )
-    data = observing_target_list_scraper(
-        "https://www.minorplanetcenter.net/whatsup/index", payload
-    )
+    data = observing_target_list_scraper(MPC_WHATSUP_INDEX_URL, payload)
     for d in data:
-        # Require at least 8 fields as used below; skip malformed rows defensively
-        if len(d) < 8:
+        if len(d) < MPC_MIN_COLS:
             continue
         try:
-            observing_time = Time(d[4].replace("T", " ").replace("z", ""))
-        except Exception:
-            # Skip rows with unparseable time values
+            observing_time = Time(
+                d[MPC_COL_TIME].replace("T", " ").replace("z", "")
+            )
+        except (ValueError, TypeError):
             continue
-        if is_visible(config, [d[5], d[6]], observing_time):
+        if is_visible(
+            config,
+            [d[MPC_COL_RA], d[MPC_COL_DEC]],
+            observing_time,
+        ):
             results.add_row(
                 [
-                    d[0],
-                    d[1],
-                    d[4].replace("z", ""),
-                    skycoord_format(d[5], "ra"),
-                    skycoord_format(d[6], "dec"),
-                    d[7],
+                    d[MPC_COL_DESIGNATION],
+                    d[MPC_COL_MAG],
+                    d[MPC_COL_TIME].replace("z", ""),
+                    skycoord_format(d[MPC_COL_RA], "ra"),
+                    skycoord_format(d[MPC_COL_DEC], "dec"),
+                    d[MPC_COL_ALT],
                 ]
             )
     results.remove_row(0)
@@ -659,6 +760,32 @@ def neocp_confirmation(
     visibility. Ephemeris data is retrieved asynchronously for all candidates
     to calculate velocity and direction. Objects with zero velocity are
     excluded from the results.
+
+    This function uses :func:`asyncio.run` internally when no asyncio event loop
+    is already running. From async code, Jupyter, or any context where a loop
+    is active, call :func:`async_neocp_confirmation` with ``await`` instead.
+    """
+    try:
+        asyncio.get_running_loop()
+    except RuntimeError:
+        return asyncio.run(
+            async_neocp_confirmation(config, min_score, max_magnitude, min_altitude)
+        )
+    raise RuntimeError(
+        "neocp_confirmation() cannot be used while an asyncio event loop is running "
+        "(e.g. inside async code or Jupyter). Use "
+        "await async_neocp_confirmation(config, min_score, max_magnitude, min_altitude) "
+        "instead."
+    )
+
+
+async def async_neocp_confirmation(
+    config: ConfigParser, min_score: int, max_magnitude: float, min_altitude: int
+) -> QTable:
+    """Async implementation of NEOcp candidate table generation.
+
+    Use this from code that already runs an asyncio event loop instead of
+    :func:`neocp_confirmation`.
     """
     configuration.load_config(config)
     # r=requests.get('https://www.minorplanetcenter.net/Extended_Files/neocp.json')
@@ -681,34 +808,20 @@ def neocp_confirmation(
         ),
         meta={"name": "NEOcp confirmation"},
     )
-    data_raw, _status = asyncio.run(
-        httpx_get(
-            "https://www.minorplanetcenter.net/Extended_Files/neocp.json", {}, "json"
-        )
-    )
-    # The first element is expected to be a list of dicts
-    if not isinstance(data_raw, list):
+    data_raw, response, fetch_ok = await fetch_neocp_json_and_ephemeris(config)
+    if not fetch_ok:
         table.remove_row(0)
-        return table  # empty table
+        return table
+
     data = data_raw
-    lat = config["Observatory"]["latitude"]
-    long = config["Observatory"]["longitude"]
-    # Normalize altitude threshold once
     try:
         min_altitude_deg = float(min_altitude)
     except (TypeError, ValueError):
         min_altitude_deg = 0.0
 
-    location = EarthLocation.from_geodetic(lon=float(long), lat=float(lat))
+    location = earth_location_from_config(config)
     observing_date = Time(datetime.datetime.now(datetime.UTC))
     altaz = AltAz(location=location, obstime=observing_date)
-
-    neocp_designation_names = []
-    for item in data:
-        neo_designation = item["Temp_Desig"]
-        neocp_designation_names.append(neo_designation)
-    response = asyncio.run(get_neocp_ephemeris(config, neocp_designation_names))
-    # retrieve response values for key XA65oXA and print it on screen
 
     # table already created above
     for item in data:
@@ -728,11 +841,13 @@ def neocp_confirmation(
         ):
             # Safely access ephemeris data with bounds checking
             temp_desig = item["Temp_Desig"]
-            
-            # Check if the object exists in the response and has enough data
-            if temp_desig in response and len(response[temp_desig]) > 13:
-                velocity = float(response[temp_desig][12])
-                direction = float(response[temp_desig][13])
+
+            if (
+                temp_desig in response
+                and len(response[temp_desig]) >= NEOCP_EPHEM_MIN_LEN
+            ):
+                velocity = float(response[temp_desig][NEOCP_EPHEM_VELOCITY_IDX])
+                direction = float(response[temp_desig][NEOCP_EPHEM_DIRECTION_IDX])
             else:
                 # Use default values if ephemeris data is not available
                 velocity = 0.0
@@ -782,7 +897,8 @@ async def get_neocp_ephemeris(
     dict of str to list of str
         Dictionary mapping object temporary designations to lists of
         ephemeris values. Each list contains parsed values from the ephemeris
-        table, including velocity (index 12) and direction (index 13).
+        table, including velocity at index ``NEOCP_EPHEM_VELOCITY_IDX``
+        and direction at ``NEOCP_EPHEM_DIRECTION_IDX``.
 
     Notes
     -----
@@ -804,15 +920,16 @@ async def get_neocp_ephemeris(
     )
     payload = f"mb=-30&mf=30&dl=-90&du=%2B90&nl=0&nu=100&sort=d&W=j&obj={object_names_str}&Parallax=1&obscode={obs_code}&long={longitude}&lat={latitude}&int=0&start=0&raty=a&mot=m&dmot=p&out=f&sun=x&oalt=20"
     url = "https://cgi.minorplanetcenter.net/cgi-bin/confirmeph2.cgi"
+    timeout = httpx.Timeout(DEFAULT_REQUEST_TIMEOUT_SEC)
     try:
-        async with httpx.AsyncClient() as client:
+        async with httpx.AsyncClient(timeout=timeout) as client:
             r = await client.post(
                 url,
                 headers={"Content-Type": "application/x-www-form-urlencoded"},
                 content=payload,
             )
         response_text = r.text
-    except Exception:
+    except httpx.RequestError:
         response_text = ""
 
     pattern = r"<b>([A-Za-z0-9]+)</b>[\s\S]*?<pre>([\s\S]*?)</pre>"
@@ -836,6 +953,27 @@ async def get_neocp_ephemeris(
         result_dict[key] = values_array
 
     return result_dict
+
+
+async def fetch_neocp_json_and_ephemeris(
+    config: ConfigParser,
+) -> Tuple[List[Dict[str, Any]], Dict[str, List[str]], bool]:
+    """Download NEOcp JSON and MPC confirm ephemerides in one event-loop run."""
+
+    data_raw, status = await httpx_get(
+        "https://www.minorplanetcenter.net/Extended_Files/neocp.json",
+        {},
+        "json",
+    )
+    if status != 200 or not isinstance(data_raw, list):
+        return [], {}, False
+
+    designation_names = [item["Temp_Desig"] for item in data_raw]
+    if not designation_names:
+        return data_raw, {}, True
+
+    response = await get_neocp_ephemeris(config, designation_names)
+    return data_raw, response, True
 
 
 def twilight_times(config: ConfigParser) -> Dict[str, Any]:
@@ -870,11 +1008,7 @@ def twilight_times(config: ConfigParser) -> Dict[str, Any]:
     - Astronomical: Sun 18° below horizon
     """
     configuration.load_config(config)
-    location = EarthLocation.from_geodetic(
-        float(config["Observatory"]["longitude"]) * u.deg,
-        float(config["Observatory"]["latitude"]) * u.deg,
-        float(config["Observatory"]["altitude"]) * u.m,
-    )
+    location = earth_location_from_config(config)
     observer = Observer(name=config["Observatory"]["obs_name"], location=location)
     observing_date = Time(datetime.datetime.now(datetime.UTC))
     result = {
@@ -917,11 +1051,7 @@ def sun_moon_ephemeris(config: ConfigParser) -> Dict[str, Any]:
     between 0.0 (new moon) and 1.0 (full moon).
     """
     configuration.load_config(config)
-    location = EarthLocation.from_geodetic(
-        float(config["Observatory"]["longitude"]) * u.deg,
-        float(config["Observatory"]["latitude"]) * u.deg,
-        float(config["Observatory"]["altitude"]) * u.m,
-    )
+    location = earth_location_from_config(config)
     observer = Observer(name=config["Observatory"]["obs_name"], location=location)
     observing_date = Time(datetime.datetime.now(datetime.UTC))
     result = {
@@ -975,11 +1105,7 @@ def object_ephemeris(config: ConfigParser, object_name: str, stepping: str) -> Q
     database. Ephemeris is calculated for the configured observatory location.
     """
     configuration.load_config(config)
-    location = EarthLocation.from_geodetic(
-        float(config["Observatory"]["longitude"]) * u.deg,
-        float(config["Observatory"]["latitude"]) * u.deg,
-        float(config["Observatory"]["altitude"]) * u.m,
-    )
+    location = earth_location_from_config(config)
     step: Union[Quantity, str]
     if stepping == "m":
         step = 1 * u.minute

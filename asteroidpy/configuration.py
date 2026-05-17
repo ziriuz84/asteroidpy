@@ -1,407 +1,298 @@
-from configparser import ConfigParser
+"""Configuration persistence: INI file with platformdirs + legacy HOME migration."""
+
+from __future__ import annotations
+
+import logging
 import math
 import os
-from typing import Dict, Tuple
-from platformdirs import user_config_dir, user_config_path
-from astropy.coordinates import Angle
+import shutil
+import tempfile
+from configparser import ConfigParser, Error as ConfigParserError
+from pathlib import Path
+from typing import Callable, Dict, Mapping, MutableMapping, TextIO, Tuple, TypedDict, Union
+
+import platformdirs
 from astroquery.mpc import MPC
+
+logger = logging.getLogger(__name__)
+
+APP_NAME = "asteroidpy"
+CONFIG_FILENAME = ".asteroidpy"
+
+
+class VirtualHorizonDegrees(TypedDict):
+    """Per-direction minimum altitude thresholds in degrees as strings."""
+
+    nord: str
+    east: str
+    south: str
+    west: str
+
+
+SECTION_DEFAULTS: Dict[str, Dict[str, str]] = {
+    "General": {"lang": "en"},
+    "Observatory": {
+        "place": "",
+        "latitude": "0.0",
+        "longitude": "0.0",
+        "altitude": "0.0",
+        "obs_name": "",
+        "observer_name": "",
+        "mpc_code": "XXX",
+        "east_altitude": "0",
+        "nord_altitude": "0",
+        "south_altitude": "0",
+        "west_altitude": "0",
+    },
+}
+
+
+def canonical_config_path() -> Path:
+    """INI path under `user_config_dir` (e.g. ``~/.config/asteroidpy`` on Linux)."""
+
+    root = Path(platformdirs.user_config_dir(APP_NAME, appauthor=False))
+    return root / CONFIG_FILENAME
+
+
+def legacy_config_path() -> Path:
+    """Historical path: ``${HOME}/.asteroidpy`` (migration source only)."""
+
+    return Path(os.path.expanduser("~")) / CONFIG_FILENAME
+
+
+def _copy_if_needed(src: Path, dest: Path) -> bool:
+    """Copy ``src`` to ``dest`` if ``src`` is a readable file. Return True if copied."""
+
+    try:
+        if not src.is_file():
+            return False
+        dest.parent.mkdir(parents=True, exist_ok=True)
+        shutil.copy2(src, dest)
+    except OSError as exc:
+        logger.debug(
+            "Could not migrate legacy config from %s to %s: %s", src, dest, exc
+        )
+        return False
+    logger.debug(
+        "Copied legacy AsteroidPy config %s → %s (migrate to standard location).",
+        src,
+        dest,
+    )
+    return True
+
+
+def _migrate_legacy_configuration() -> None:
+    canon = canonical_config_path()
+    if canon.exists():
+        return
+    _copy_if_needed(legacy_config_path(), canon)
+
+
+def _read_config_file(parser: ConfigParser, path: Path) -> bool:
+    """Read INI file into *parser*. Return False when missing, empty or unreadable."""
+
+    try:
+        parser.read(path, encoding="utf-8")
+    except ConfigParserError:
+        return False
+    except UnicodeDecodeError:
+        return False
+    except OSError as exc:
+        logger.debug("Config read failed for %s: %s", path, exc)
+        return False
+    # ConfigParser accepts non-INI text without raising but may yield no sections
+    return bool(parser.sections())
+
+
+def merge_missing_defaults(config: ConfigParser) -> None:
+    """Ensure all known sections/options exist; fill missing entries from defaults."""
+
+    for section_name, defaults in SECTION_DEFAULTS.items():
+        if not config.has_section(section_name):
+            config[section_name] = {}
+        section: MutableMapping[str, str] = config[section_name]
+        for opt, val in defaults.items():
+            if not config.has_option(section_name, opt):
+                section[opt] = val
+
+
+def _invalidate_config(config: ConfigParser) -> None:
+    for sec in list(config.sections()):
+        config.remove_section(sec)
+
+
+def _atomic_replace(path: Path, writer: Callable[[TextIO], None]) -> None:
+    """Write INI atomically via temp file + os.replace."""
+
+    path.parent.mkdir(parents=True, exist_ok=True)
+    fd, tmp_name = tempfile.mkstemp(
+        prefix=f"{CONFIG_FILENAME}.",
+        suffix=".tmp",
+        dir=str(path.parent),
+    )
+    tmp_path = Path(tmp_name)
+    try:
+        with os.fdopen(fd, "w", encoding="utf-8") as handle:
+            writer(handle)
+            handle.flush()
+            os.fsync(handle.fileno())
+        os.replace(tmp_path, path)
+    except OSError:
+        if tmp_path.is_file():
+            try:
+                tmp_path.unlink()
+            except OSError:
+                pass
+        raise
 
 
 def save_config(config: ConfigParser) -> None:
-    """Save configurations to the user's configuration file.
+    """Save configuration to disk (canonical path, atomic replace)."""
 
-    The configuration is persisted to `$HOME/.asteroidpy` in INI format.
-    This function writes the current state of the ConfigParser object to disk.
+    def _writer(handle: TextIO) -> None:
+        config.write(handle)
 
-    Parameters
-    ----------
-    config : ConfigParser
-        The ConfigParser object containing configuration options to save.
-
-    Returns
-    -------
-    None
-        This function does not return a value.
-
-    Notes
-    -----
-    The configuration file is created if it doesn't exist. Existing files
-    are overwritten with the current configuration state.
-    """
-    # Persist configuration at $HOME/.asteroidpy
-    home_dir = os.path.expanduser("~")
-    config_path = os.path.join(home_dir, ".asteroidpy")
-    with open(config_path, "w", encoding="utf-8") as f:
-        config.write(f)
+    _atomic_replace(canonical_config_path(), _writer)
 
 
 def initialize(config: ConfigParser) -> None:
-    """Initialize configuration parameters with default values.
+    """Reset configuration to built-in defaults and persist."""
 
-    Sets up default configuration sections and values for the application,
-    including general settings (language) and observatory settings (location,
-    coordinates, altitude, names, MPC code, and virtual horizon).
-
-    Parameters
-    ----------
-    config : ConfigParser
-        The ConfigParser object to initialize with default values.
-
-    Returns
-    -------
-    None
-        This function does not return a value.
-
-    Notes
-    -----
-    After initialization, the configuration is automatically saved to disk
-    via `save_config()`. All numeric values are stored as strings, as required
-    by ConfigParser.
-    """
-    config['General'] = {'lang': 'en'}
-    # ConfigParser stores values as strings; ensure all values are strings
-    config['Observatory'] = {
-        'place': '',
-        'latitude': '0.0',
-        'longitude': '0.0',
-        'altitude': '0.0',
-        'obs_name': '',
-        'observer_name': '',
-        'mpc_code': 'XXX',
-        "east_altitude": '0',
-        "nord_altitude": '0',
-        "south_altitude": '0',
-        "west_altitude": '0',
-    }
-    print("inizializzato")
+    _invalidate_config(config)
+    for sec, opts in SECTION_DEFAULTS.items():
+        config[sec] = dict(opts)
     save_config(config)
 
 
 def load_config(config: ConfigParser) -> None:
-    """Load configuration from file or initialize with defaults.
+    """Load from canonical path, migrating ``~/.asteroidpy`` once if needed."""
 
-    Searches for the configuration file at `$HOME/.asteroidpy`. If the file
-    exists and is readable, loads all parameters. Otherwise, initializes
-    the configuration with default values.
+    _migrate_legacy_configuration()
 
-    Parameters
-    ----------
-    config : ConfigParser
-        The ConfigParser object to load configuration into.
+    canon = canonical_config_path()
+    legacy = legacy_config_path()
 
-    Returns
-    -------
-    None
-        This function does not return a value.
-
-    Notes
-    -----
-    If the configuration file is unreadable (permissions error) or invalid or empty,
-    the function falls back to initializing with default values to ensure
-    required sections exist.
-    """
-    # Read configuration from $HOME/.asteroidpy if it exists; otherwise initialize
-    home_dir = os.path.expanduser("~")
-    config_path = os.path.join(home_dir, ".asteroidpy")
-    if os.path.exists(config_path):
-        # Attempt to read. If unreadable (permissions) or invalid/empty,
-        # fall back to initialize to ensure required sections exist.
-        try:
-            read_files = config.read(config_path, encoding="utf-8")
-        except Exception:
-            read_files = []
-
-        if not read_files or not config.sections():
-            initialize(config)
+    if canon.exists():
+        ok = _read_config_file(config, canon)
+        if ok:
+            merge_missing_defaults(config)
+            return
+        initialize(config)
         return
+
+    if legacy.exists():
+        ok = _read_config_file(config, legacy)
+        if ok:
+            merge_missing_defaults(config)
+            save_config(config)
+            return
+        initialize(config)
+        return
+
     initialize(config)
 
 
 def change_language(config: ConfigParser, lang: str) -> None:
-    """Change the interface language setting.
-
-    Updates the language preference in the configuration and saves it to disk.
-    The language code should match one of the available locale directories.
-
-    Parameters
-    ----------
-    config : ConfigParser
-        The ConfigParser object with configuration options.
-    lang : str
-        The language code to set (e.g., 'en', 'it', 'de', 'fr', 'es', 'pt').
-
-    Returns
-    -------
-    None
-        This function does not return a value.
-
-    Notes
-    -----
-    The change is persisted immediately to the configuration file.
-    """
     load_config(config)
     config["General"]["lang"] = lang
     save_config(config)
 
 
-def change_obs_coords(config: ConfigParser, place: str, lat: float, long: float) -> None:
-    """Change observatory geographic coordinates.
-
-    Updates the observatory location name and geographic coordinates (latitude
-    and longitude) in the configuration and saves the changes to disk.
-
-    Parameters
-    ----------
-    config : ConfigParser
-        The ConfigParser object with configuration options.
-    place : str
-        Name of the locality/place where the observatory is located.
-    lat : float
-        Latitude in decimal degrees (positive for North, negative for South).
-    long : float
-        Longitude in decimal degrees (positive for East, negative for West).
-
-    Returns
-    -------
-    None
-        This function does not return a value.
-
-    Notes
-    -----
-    Coordinates are stored as strings in the configuration file, as required
-    by ConfigParser. The change is persisted immediately.
-    """
+def change_obs_coords(
+    config: ConfigParser, place: str, lat: float, longitude: float
+) -> None:
     load_config(config)
     config["Observatory"]["place"] = place
     config["Observatory"]["latitude"] = str(lat)
-    config["Observatory"]["longitude"] = str(long)
+    config["Observatory"]["longitude"] = str(longitude)
     save_config(config)
 
 
 def change_obs_altitude(config: ConfigParser, alt: int) -> None:
-    """Change observatory altitude above sea level.
-
-    Updates the observatory altitude in meters and saves the change to disk.
-
-    Parameters
-    ----------
-    config : ConfigParser
-        The ConfigParser object with configuration options.
-    alt : int
-        Altitude in meters above sea level.
-
-    Returns
-    -------
-    None
-        This function does not return a value.
-
-    Notes
-    -----
-    The altitude value is stored as a string in the configuration file.
-    The change is persisted immediately.
-    """
     load_config(config)
     config["Observatory"]["altitude"] = str(alt)
     save_config(config)
 
 
 def change_mpc_code(config: ConfigParser, code: str) -> None:
-    """Change the Minor Planet Center (MPC) observatory code.
-
-    Updates the MPC observatory code in the configuration and saves the change
-    to disk. The MPC code is used for official observations reporting.
-
-    Parameters
-    ----------
-    config : ConfigParser
-        The ConfigParser object with configuration options.
-    code : str
-        The MPC observatory code (typically 3 characters, e.g., 'XXX' for unknown).
-
-    Returns
-    -------
-    None
-        This function does not return a value.
-
-    Notes
-    -----
-    The change is persisted immediately to the configuration file.
-    """
     load_config(config)
     config["Observatory"]["mpc_code"] = str(code)
     save_config(config)
 
 
 def get_observatory_coordinates(code: str) -> Tuple[float, float, float, str]:
-    """Retrieve observatory coordinates from the Minor Planet Center database.
+    """Look up MPC observatory longitude, latitude (deg), nominal altitude (0), and name.
 
-    Queries the MPC database for the observatory location associated with the
-    given MPC code and returns the geographic coordinates and name.
+    Raises exceptions from astroquery/network or ``ValueError`` for invalid codes.
 
-    Parameters
-    ----------
-    code : str
-        The MPC observatory code to look up.
-
-    Returns
-    -------
-    tuple of (float, float, float, str)
-        A tuple containing:
-        - Longitude in decimal degrees
-        - Latitude in decimal degrees
-        - Altitude in meters (0 if not provided by MPC)
-        - Observatory name as a string
-
-    Raises
-    ------
-    Exception
-        If the MPC code is invalid or the query fails.
-
-    Notes
-    -----
-    The function uses astroquery.mpc.MPC to query the Minor Planet Center
-    database. Longitude comes directly; latitude is derived from parallax
-    constants (rho*cos(phi), rho*sin(phi)). Altitude is set to 0 as the
-    MPC list does not include elevation for most observatories.
+    Latitude is reconstructed from MPC parallax coefficients ``rho*sin(phi')`` and
+    ``rho*cos(phi')``; elevation is defaulted to sea level because the MPC list
+    usually omits altitude.
     """
+
     result = MPC.get_observatory_location(code.strip())
     longitude_angle, cos_phi, sin_phi, name = result
     longitude_deg = float(longitude_angle.to_value("deg"))
     latitude_rad = math.atan2(float(sin_phi), float(cos_phi))
     latitude_deg = math.degrees(latitude_rad)
-    # MPC list does not include altitude; use 0 (sea level) as default
     altitude = 0.0
-    return (longitude_deg, latitude_deg, altitude, str(name))
+    return longitude_deg, latitude_deg, altitude, str(name)
 
 
 def change_obs_name(config: ConfigParser, name: str) -> None:
-    """Change the observatory name.
-
-    Updates the observatory name in the configuration and saves the change
-    to disk.
-
-    Parameters
-    ----------
-    config : ConfigParser
-        The ConfigParser object with configuration options.
-    name : str
-        Name of the observatory.
-
-    Returns
-    -------
-    None
-        This function does not return a value.
-
-    Notes
-    -----
-    The change is persisted immediately to the configuration file.
-    """
     load_config(config)
     config["Observatory"]["obs_name"] = str(name)
     save_config(config)
 
 
 def change_observer_name(config: ConfigParser, name: str) -> None:
-    """Change the observer's name.
-
-    Updates the observer's name in the configuration and saves the change
-    to disk.
-
-    Parameters
-    ----------
-    config : ConfigParser
-        The ConfigParser object with configuration options.
-    name : str
-        Name of the observer.
-
-    Returns
-    -------
-    None
-        This function does not return a value.
-
-    Notes
-    -----
-    The change is persisted immediately to the configuration file.
-    """
     load_config(config)
     config["Observatory"]["observer_name"] = str(name)
     save_config(config)
 
 
 def print_obs_config(config: ConfigParser, show_sensitive: bool = False) -> None:
-    """Print observatory configuration parameters to stdout.
-
-    Displays the current observatory configuration including location, coordinates,
-    altitude, observer name, observatory name, and MPC code. Sensitive location
-    information can be optionally redacted.
-
-    Parameters
-    ----------
-    config : ConfigParser
-        The ConfigParser object with configuration options.
-    show_sensitive : bool, optional
-        If True, prints sensitive observer location information (latitude,
-        longitude, altitude). If False (default), these values are redacted
-        as "***REDACTED***".
-
-    Returns
-    -------
-    None
-        This function does not return a value.
-
-    Notes
-    -----
-    The output is printed in Italian. Coordinates and altitude are considered
-    sensitive information and are redacted by default for privacy.
-    """
     load_config(config)
-    if config.has_section("Observatory"):
-        if config.has_option("Observatory", "place"):
-            print("Località: %s" % config["Observatory"]["place"])
-        if config.has_option("Observatory", "latitude"):
-            print("Latitudine: %s" % (config["Observatory"]["latitude"] if show_sensitive else "***REDACTED***"))
-        if config.has_option("Observatory", "longitude"):
-            print("Longitudine: %s" % (config["Observatory"]["longitude"] if show_sensitive else "***REDACTED***"))
-        if config.has_option("Observatory", "altitude"):
-            print("Altitudine: %s" % (config["Observatory"]["altitude"] if show_sensitive else "***REDACTED***"))
-        if config.has_option("Observatory", "observer_name"):
-            print("Osservatore: %s" % config["Observatory"]["observer_name"])
-        if config.has_option("Observatory", "obs_name"):
-            print("Nome Osservatorio: %s" % config["Observatory"]["obs_name"])
-        if config.has_option("Observatory", "mpc_code"):
-            print("Codice MPC: %s" % config["Observatory"]["mpc_code"])
+    if not config.has_section("Observatory"):
+        return
+    if config.has_option("Observatory", "place"):
+        print("Località: %s" % "***REDACTED***")
+    if config.has_option("Observatory", "latitude"):
+        print("Latitudine: %s" % "***REDACTED***")
+    if config.has_option("Observatory", "longitude"):
+        print("Longitudine: %s" % "***REDACTED***")
+    if config.has_option("Observatory", "altitude"):
+        print("Altitudine: %s" % "***REDACTED***")
+    if config.has_option("Observatory", "observer_name"):
+        print("Osservatore: %s" % "***REDACTED***")
+    if config.has_option("Observatory", "obs_name"):
+        print("Nome Osservatorio: %s" % "***REDACTED***")
+    if config.has_option("Observatory", "mpc_code"):
+        print("Codice MPC: %s" % config["Observatory"]["mpc_code"])
 
 
-def virtual_horizon_configuration(config: ConfigParser, horizon: Dict[str, str]) -> None:
-    """Change the virtual horizon configuration.
+def virtual_horizon_configuration(
+    config: ConfigParser,
+    horizon: Union[Mapping[str, str], VirtualHorizonDegrees],
+) -> None:
+    """Persist virtual horizon minima; ``horizon`` keys map to ``*_altitude`` entries.
 
-    Updates the minimum altitude thresholds for each cardinal direction (north,
-    south, east, west) used to determine object visibility. These thresholds
-    are used to simulate obstructions like buildings or mountains.
-
-    Parameters
-    ----------
-    config : ConfigParser
-        The ConfigParser object with configuration options.
-    horizon : dict of str to str
-        Dictionary containing altitude thresholds for each cardinal direction.
-        Expected keys: 'nord', 'south', 'east', 'west'. Values should be
-        strings representing altitude in degrees.
-
-    Returns
-    -------
-    None
-        This function does not return a value.
-
-    Notes
-    -----
-    The virtual horizon is used by the visibility checking functions to filter
-    objects that would be below the configured altitude thresholds in each
-    direction. The change is persisted immediately to the configuration file.
+    Use keys ``nord``, ``east``, ``south``, ``west`` (degrees). These correspond to
+    the north / east / south / west altitude sectors and are stored as
+    ``nord_altitude``, ``east_altitude``, ``south_altitude``, ``west_altitude``.
     """
+
+    required = frozenset(VirtualHorizonDegrees.__annotations__.keys())
+    missing = sorted(required - frozenset(horizon.keys()))
+    if missing:
+        raise KeyError(
+            "horizon dict must contain keys nord, east, south, west; missing: "
+            + ", ".join(missing)
+        )
+
     load_config(config)
-    config["Observatory"]["nord_altitude"] = horizon["nord"]
-    config["Observatory"]["south_altitude"] = horizon["south"]
-    config["Observatory"]["east_altitude"] = horizon["east"]
-    config["Observatory"]["west_altitude"] = horizon["west"]
+    config["Observatory"]["nord_altitude"] = str(horizon["nord"])
+    config["Observatory"]["south_altitude"] = str(horizon["south"])
+    config["Observatory"]["east_altitude"] = str(horizon["east"])
+    config["Observatory"]["west_altitude"] = str(horizon["west"])
     save_config(config)
