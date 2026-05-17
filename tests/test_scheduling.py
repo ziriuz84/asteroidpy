@@ -408,7 +408,11 @@ def test_neocp_confirmation_includes_valid_object(monkeypatch, fresh_config, sch
     monkeypatch.setattr(sch, "get_neocp_ephemeris", fake_get_neocp_ephemeris)
     monkeypatch.setattr(sch, "is_visible", lambda c, coord, t: True)
 
-    tbl = sch.neocp_confirmation(fresh_config, min_score=50, max_magnitude=19.0, min_altitude=0)
+    # Altitude depends on current UTC; allow slightly below-horizon so the row is included
+    # regardless of time-of-day.
+    tbl = sch.neocp_confirmation(
+        fresh_config, min_score=50, max_magnitude=19.0, min_altitude=-30
+    )
 
     assert len(tbl) == 1
     row = tbl[0]
@@ -418,6 +422,117 @@ def test_neocp_confirmation_includes_valid_object(monkeypatch, fresh_config, sch
     assert int(row["NObs"]) == 4
     assert float(row["Velocity \"/min"]) == 1.5
     assert float(row["Direction"]) == 45.0
+
+
+def test_neocp_confirmation_raises_when_event_loop_running(
+    monkeypatch, fresh_config, sch
+):
+    sample = [
+        {
+            "Temp_Desig": "X12345",
+            "R.A.": "10.0",
+            "Decl.": "30.0",
+            "Score": 85,
+            "V": "18.5",
+            "NObs": "4",
+            "Arc": "0.5",
+            "Not_Seen_dys": "0.0",
+        }
+    ]
+
+    async def fake_httpx_get(url, payload, return_type):
+        return [sample, 200]
+
+    async def fake_get_neocp_ephemeris(config, object_names):
+        return {
+            "X12345": [
+                "",
+                "",
+                "",
+                "0.0",
+                "0.0",
+                "0.0",
+                "0.0",
+                "0.0",
+                "0.0",
+                "0.0",
+                "0.0",
+                "0.0",
+                "1.5",
+                "45.0",
+            ]
+        }
+
+    monkeypatch.setattr(sch, "httpx_get", fake_httpx_get)
+    monkeypatch.setattr(sch, "get_neocp_ephemeris", fake_get_neocp_ephemeris)
+    monkeypatch.setattr(sch, "is_visible", lambda c, coord, t: True)
+
+    async def call_sync_from_async():
+        sch.neocp_confirmation(
+            fresh_config, min_score=50, max_magnitude=19.0, min_altitude=0
+        )
+
+    with pytest.raises(RuntimeError, match="async_neocp_confirmation"):
+        asyncio.run(call_sync_from_async())
+
+
+def test_async_neocp_confirmation_matches_sync_wrapper(
+    monkeypatch, fresh_config, sch
+):
+    sample = [
+        {
+            "Temp_Desig": "X12345",
+            "R.A.": "10.0",
+            "Decl.": "30.0",
+            "Score": 85,
+            "V": "18.5",
+            "NObs": "4",
+            "Arc": "0.5",
+            "Not_Seen_dys": "0.0",
+        }
+    ]
+
+    async def fake_httpx_get(url, payload, return_type):
+        return [sample, 200]
+
+    async def fake_get_neocp_ephemeris(config, object_names):
+        return {
+            "X12345": [
+                "",
+                "",
+                "",
+                "0.0",
+                "0.0",
+                "0.0",
+                "0.0",
+                "0.0",
+                "0.0",
+                "0.0",
+                "0.0",
+                "0.0",
+                "1.5",
+                "45.0",
+            ]
+        }
+
+    monkeypatch.setattr(sch, "httpx_get", fake_httpx_get)
+    monkeypatch.setattr(sch, "get_neocp_ephemeris", fake_get_neocp_ephemeris)
+    monkeypatch.setattr(sch, "is_visible", lambda c, coord, t: True)
+
+    sync_tbl = sch.neocp_confirmation(
+        fresh_config, min_score=50, max_magnitude=19.0, min_altitude=-30
+    )
+    async_tbl = asyncio.run(
+        sch.async_neocp_confirmation(
+            fresh_config, min_score=50, max_magnitude=19.0, min_altitude=-30
+        )
+    )
+
+    assert len(sync_tbl) == len(async_tbl) == 1
+    assert sync_tbl[0]["Temp_Desig"] == async_tbl[0]["Temp_Desig"]
+    assert float(sync_tbl[0]["Velocity \"/min"]) == float(
+        async_tbl[0]["Velocity \"/min"]
+    )
 
 
 def test_twilight_times(monkeypatch, fresh_config, sch):

@@ -760,6 +760,32 @@ def neocp_confirmation(
     visibility. Ephemeris data is retrieved asynchronously for all candidates
     to calculate velocity and direction. Objects with zero velocity are
     excluded from the results.
+
+    This function uses :func:`asyncio.run` internally when no asyncio event loop
+    is already running. From async code, Jupyter, or any context where a loop
+    is active, call :func:`async_neocp_confirmation` with ``await`` instead.
+    """
+    try:
+        asyncio.get_running_loop()
+    except RuntimeError:
+        return asyncio.run(
+            async_neocp_confirmation(config, min_score, max_magnitude, min_altitude)
+        )
+    raise RuntimeError(
+        "neocp_confirmation() cannot be used while an asyncio event loop is running "
+        "(e.g. inside async code or Jupyter). Use "
+        "await async_neocp_confirmation(config, min_score, max_magnitude, min_altitude) "
+        "instead."
+    )
+
+
+async def async_neocp_confirmation(
+    config: ConfigParser, min_score: int, max_magnitude: float, min_altitude: int
+) -> QTable:
+    """Async implementation of NEOcp candidate table generation.
+
+    Use this from code that already runs an asyncio event loop instead of
+    :func:`neocp_confirmation`.
     """
     configuration.load_config(config)
     # r=requests.get('https://www.minorplanetcenter.net/Extended_Files/neocp.json')
@@ -782,9 +808,7 @@ def neocp_confirmation(
         ),
         meta={"name": "NEOcp confirmation"},
     )
-    data_raw, response, fetch_ok = asyncio.run(
-        fetch_neocp_json_and_ephemeris(config)
-    )
+    data_raw, response, fetch_ok = await fetch_neocp_json_and_ephemeris(config)
     if not fetch_ok:
         table.remove_row(0)
         return table
