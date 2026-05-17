@@ -1,54 +1,86 @@
 # AsteroidPy
 
-A simple tool to manage Asteroid observations and measurements
-
-![GitHub](https://img.shields.io/github/license/ziriuz84/asteroidpy)
+[![GitHub](https://img.shields.io/github/license/ziriuz84/asteroidpy)](https://github.com/ziriuz84/asteroidpy)
 [![Contributor Covenant](https://img.shields.io/badge/Contributor%20Covenant-2.1-4baaaa.svg)](CODE_OF_CONDUCT.md)
+[![contributions welcome](https://img.shields.io/badge/contributions-welcome-brightgreen.svg?style=flat)](https://github.com/ziriuz84/asteroidpy/issues)
 
-## Description
+AsteroidPy is a command-line tool for astronomers to schedule and manage asteroid observations. It integrates with the Minor Planet Center and other astronomical data sources to provide ephemerides, NEO confirmation candidates, weather forecasts, and observing aids—all from an interactive terminal interface.
 
-AsteroidPy is a simple tool to help astronomers schedule and manage asteroidal observations and measurements. It uses the main sources in minor planets research to provide accurate predictions of ephemerides and NEOcp candidates.
+---
+
+## Table of Contents
+
+- [Features](#features)
+- [Requirements](#requirements)
+- [Installation](#installation)
+- [Quick Start](#quick-start)
+- [Configuration](#configuration)
+- [FAQ](#faq)
+- [Data Sources](#data-sources)
+- [For Contributors](#for-contributors)
+  - [Project architecture](#project-architecture)
+  - [How to add a translation](#how-to-add-a-translation)
+  - [Release process](#release-process)
+- [Release History](#release-history)
+- [License](#license)
+
+---
 
 ## Features
 
-- Weather forecast
-- Observation scheduling
-- NEOcp candidates listing
-- Object ephemeris
-- Twilight, Sun and Moon times
-- Virtual horizon simulation
+| Feature | Description |
+|--------|-------------|
+| **Weather forecast** | Astronomical weather (cloud cover, seeing, transparency) up to 72 hours via 7Timer |
+| **Observation scheduling** | Plan sessions with target lists and visibility windows |
+| **NEOcp candidates** | List and filter Near-Earth Object candidates from the MPC Confirmation Page |
+| **Object ephemeris** | Retrieve detailed ephemeris data for any minor body |
+| **Twilight & Sun/Moon** | Civil, nautical, and astronomical twilight; rise/set times |
+| **Virtual horizon** | Simulate horizon obstructions for visibility calculations |
 
-## Getting Started
+---
 
-### Requirements
+## Requirements
 
-- Python 3.8 or later
-- pip
+- **Python** 3.9 or later
+- **pip** (or another Python package manager)
 
-### Installation
+AsteroidPy runs on **Linux**, **macOS**, and **Windows**.
 
-#### From source
+---
 
-- Clone the repository:
+## Installation
 
-  ```bash
-  git clone https://github.com/ziriuz84/asteroidpy
-  cd asteroidpy
-  ```
+### From source
 
-- (Optional) Create and activate a virtual environment:
+1. Clone the repository:
 
-  ```bash
-  python -m venv env
-  source env/bin/activate  # On Windows: env\Scripts\activate
-  ```
+   ```bash
+   git clone https://github.com/ziriuz84/asteroidpy.git
+   cd asteroidpy
+   ```
 
-- Install AsteroidPy:
-  ```bash
-  pip install .
-  ```
+2. *(Recommended)* Create and activate a virtual environment:
 
-### Execution
+   ```bash
+   python -m venv .venv
+   source .venv/bin/activate   # On Windows: .venv\Scripts\activate
+   ```
+
+3. Install in editable mode:
+
+   ```bash
+   pip install -e .
+   ```
+
+   Or in normal mode:
+
+   ```bash
+   pip install .
+   ```
+
+---
+
+## Quick Start
 
 Run the application:
 
@@ -56,53 +88,183 @@ Run the application:
 asteroidpy
 ```
 
-### Configuration
+On first launch, AsteroidPy creates a config directory at `~/.asteroidpy` with default settings. Use the **Configuration** menu to set:
 
-Configuration is stored in `~/.asteroidpy`. On first run, the application creates it with defaults. Use the configuration menu to set:
+- **Observatory**: coordinates, altitude, MPC code
+- **Virtual horizon**: minimum altitude per cardinal direction
+- **General**: interface language
 
-- Observatory location (coordinates, altitude, MPC code)
-- Virtual horizon (minimum altitude per cardinal direction)
-- Interface language
+---
 
-### Internationalization
+## Configuration
 
-AsteroidPy supports multiple languages. Change the language from Configuration → General in the main menu. Available locales include English, Italiano, Deutsch, Français, Español, and Português (depending on installed translation files).
+Configuration is stored in `~/.asteroidpy`. Use the in-app **Configuration → General** menu to change:
 
-## Dependencies
+| Option | Description |
+|--------|-------------|
+| **Observatory** | Latitude, longitude, altitude, MPC observatory code |
+| **Virtual horizon** | Minimum altitude (in degrees) per cardinal direction for visibility |
+| **Language** | Interface language (English, Italiano, Deutsch, Français, Español, Português) |
 
-- requests
-- beautifulsoup4
-- astropy
-- astroplan
-- astroquery
-- httpx
-- lxml
-- platformdirs
+---
 
-## Data sources
+## FAQ
 
-- [7Timer](https://7timer.info) — weather forecasts
-- [Minor Planet Center](https://www.minorplanetcenter.net/) — ephemerides and NEOcp data
+**Where do I find my MPC observatory code?**  
+The [Minor Planet Center](https://www.minorplanetcenter.net/iau/lists/ObsCodes.html) publishes the list of observatory codes. If your site is not listed, use `XXX` or another temporary code until you register it with the MPC.
 
-## Release history
+**Why do ephemerides differ from Stellarium or other tools?**  
+Small differences can arise from different orbital elements, epoch dates, or time handling. AsteroidPy uses MPC data directly; ensure your observatory coordinates and time (UTC vs local) match across tools.
+
+**The application fails to start or shows errors.**  
+Check that all dependencies are installed (`pip install .`), that `~/.asteroidpy` is writable, and that you have internet access (required for weather and ephemeris queries). If the config file is corrupted, you can remove `~/.asteroidpy` and let the app recreate it on next run.
+
+**Which languages are supported?**  
+English (default), Italiano, Deutsch, Français, Español, Português. Change the language in **Configuration → General**; only locales with compiled `.mo` files are shown.
+
+---
+
+## Data Sources
+
+AsteroidPy relies on:
+
+- **[7Timer](https://7timer.info)** — meteorological forecasts (cloud cover, seeing, transparency)
+- **[Minor Planet Center (MPC)](https://www.minorplanetcenter.net/)** — ephemerides and NEO Confirmation Page data
+
+---
+
+## For Contributors
+
+Thank you for considering contributing to AsteroidPy. Please read the [Code of Conduct](CODE_OF_CONDUCT.md) before participating.
+
+### Types of contributions we welcome
+
+- **Code**: bug fixes, new features, refactoring
+- **QA**: bug reports with repro steps and environment details
+- **Documentation**: improvements to this README, docstrings, or Sphinx docs
+- **Community**: presenting the project, organizing local meetups
+
+### Development setup
+
+1. Clone the repository and install in editable mode (see [Installation](#installation)).
+
+2. Install development dependencies (optional, for tests and linting):
+
+   ```bash
+   pip install pytest ruff mypy black isort
+   ```
+
+3. Run the test suite:
+
+   ```bash
+   pytest -q
+   ```
+
+   Run a single test:
+
+   ```bash
+   pytest tests/test_scheduling.py::test_name -q
+   ```
+
+4. Lint and type-check:
+
+   ```bash
+   ruff check .
+   mypy .
+   ```
+
+5. Build the package:
+
+   ```bash
+   python -m build
+   ```
+
+### Code style
+
+- **Imports**: standard library → third-party → local; explicit imports only
+- **Formatting**: Black for style; isort for import order
+- **Types**: type hints on public APIs; snake_case for functions/variables; CamelCase for classes
+- **Errors**: avoid bare `except`; raise or propagate clear exceptions; validate inputs early
+- **Tests**: small, isolated tests; prefer parameterized tests where sensible
+
+### Getting involved
+
+- Browse [open issues](https://github.com/ziriuz84/asteroidpy/issues) and comment or pick one to work on
+- Open issues for bugs or feature ideas—the more detail, the better
+- Pull requests are welcome; please ensure tests pass and style is consistent
+
+### Project architecture
+
+```
+asteroidpy/
+├── __init__.py      # Entry point; loads config, launches interface
+├── interface.py     # CLI menus, user I/O, gettext setup
+├── scheduling.py    # Ephemerides, weather, NEOcp, twilight
+├── configuration.py # Observatory config, horizon, language
+└── locales/         # gettext translations (en, it, de, fr, es, pt)
+```
+
+- **`interface`** — Main entry for the interactive UI. Loads config, sets up gettext, and delegates to `scheduling` for ephemeris/weather/NEOcp and to `configuration` for settings.
+- **`scheduling`** — Astronomy logic: MPC queries, 7Timer weather, twilight, Sun/Moon ephemeris. Uses `configuration.load_config()` to read observatory data.
+- **`configuration`** — Persists and loads settings in `~/.asteroidpy`; handles observatory coordinates, virtual horizon, and language. Used by both `interface` and `scheduling`.
+
+### How to add a translation
+
+AsteroidPy uses [GNU gettext](https://www.gnu.org/software/gettext/) with a single catalog `base`. Translations live under `locales/<lang>/LC_MESSAGES/`.
+
+1. Create a new locale directory:
+   ```bash
+   mkdir -p locales/nl/LC_MESSAGES
+   ```
+
+2. Copy and adapt an existing `.po` file, or create one from the template:
+   ```bash
+   cp locales/it/LC_MESSAGES/base.po locales/nl/LC_MESSAGES/base.po
+   ```
+   Edit `locales/nl/LC_MESSAGES/base.po`, set `Language: nl`, and translate all `msgstr` entries.
+
+3. Compile the `.po` file into a `.mo` file (required for the language to appear in the menu):
+   ```bash
+   msgfmt -o locales/nl/LC_MESSAGES/base.mo locales/nl/LC_MESSAGES/base.po
+   ```
+   The `msgfmt` command comes with the gettext package (`gettext` on most Linux distros).
+
+4. The new language will appear in **Configuration → General** after restart.
+
+To add or update translatable strings for all locales, update `locales/base.pot` (e.g. with `xgettext` or `pybabel`), then merge into each `.po` with `msgmerge`, translate, and recompile with `msgfmt`.
+
+### Release process
+
+1. Update the version in `pyproject.toml` and `setup.py`.
+2. Add the corresponding entry to `CHANGELOG.md` under a new `[X.Y.Z]` heading with date and link to the tag.
+3. Run tests and build:
+   ```bash
+   pytest -q
+   python -m build
+   ```
+4. Commit the version bump and changelog, then create and push a tag:
+   ```bash
+   git tag vX.Y.Z -m "Release vX.Y.Z"
+   git push origin main --tags
+   ```
+   (Use `git tag -s` for a signed tag if you have GPG configured.)
+5. Create a release on GitHub from the new tag and attach the built artifacts (e.g. from `dist/`).
+
+---
+
+## Release History
 
 See [CHANGELOG.md](CHANGELOG.md).
 
-## Contributing
-
-[![contributions welcome](https://img.shields.io/badge/contributions-welcome-brightgreen.svg?style=flat)](https://github.com/ziriuz84/asteroidpy/issues)
-
-Thank you for considering contributing to AsteroidPy!
-
-Please first note we have a code of conduct; please follow it in all your interactions with the project.
-
-We welcome any type of contribution, not only code. You can help with:
-
-- **QA**: File bug reports; the more details you can give, the better (e.g. screenshots with the console open)
-- **Community**: Presenting the project at meetups, organizing a dedicated meetup for the local community
-- **Code**: Take a look at the [open issues](https://github.com/ziriuz84/asteroidpy/issues). Even if you can't write the code yourself, you can comment on them—showing that you care about a given issue helps us triage them.
+---
 
 ## TODO
 
-- NEOcp alert integration
-- Observation registration
+- [ ] NEOcp alert integration
+- [ ] Observation registration
+
+---
+
+## License
+
+AsteroidPy is licensed under the [GPL-3.0](LICENSE) license.
