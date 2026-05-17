@@ -271,9 +271,23 @@ def print_obs_config(config: ConfigParser, show_sensitive: bool = False) -> None
     if config.has_option("Observatory", "altitude"):
         print("Altitudine: %s" % "***REDACTED***")
     if config.has_option("Observatory", "observer_name"):
-        print("Osservatore: %s" % config["Observatory"]["observer_name"])
+        print(
+            "Osservatore: %s"
+            % (
+                config["Observatory"]["observer_name"]
+                if show_sensitive
+                else "***REDACTED***"
+            )
+        )
     if config.has_option("Observatory", "obs_name"):
-        print("Nome Osservatorio: %s" % config["Observatory"]["obs_name"])
+        print(
+            "Nome Osservatorio: %s"
+            % (
+                config["Observatory"]["obs_name"]
+                if show_sensitive
+                else "***REDACTED***"
+            )
+        )
     if config.has_option("Observatory", "mpc_code"):
         print("Codice MPC: %s" % config["Observatory"]["mpc_code"])
 
