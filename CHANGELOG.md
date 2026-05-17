@@ -2,6 +2,11 @@
 
 All notable changes to this project will be documented in this file.
 
+## [1.0.4](https://github.com/ziriuz84/asteroidpy/releases/tag/v1.0.4) (2026-05-17)
+
+### Chores
+
+- **shipmark:** add Shipmark release and changelog config ([9e79d71](https://github.com/ziriuz84/asteroidpy/commit/9e79d71a61e2b09caed6a80c6fc78b20ef369ccf))
 ## [1.0.3](https://github.com/ziriuz84/asteroidpy/releases/tag/v1.0.3) (2026-05-17)
 
 ### Bug Fixes
