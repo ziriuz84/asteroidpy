@@ -2,6 +2,11 @@
 
 All notable changes to this project will be documented in this file.
 
+## [1.1.0](https://github.com/ziriuz84/asteroidpy/releases/tag/v1.1.0) (2026-05-17)
+
+### Code Refactoring
+
+- modularize CLI package and canonical configuration paths ([764f204](https://github.com/ziriuz84/asteroidpy/commit/764f204be7d12835c18b90512fb76d55fe32286a))
 ## [1.0.7](https://github.com/ziriuz84/asteroidpy/releases/tag/v1.0.7) (2026-05-17)
 
 ### Chores
