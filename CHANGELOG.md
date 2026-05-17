@@ -2,6 +2,24 @@
 
 All notable changes to this project will be documented in this file.
 
+## [1.1.2](https://github.com/ziriuz84/asteroidpy/releases/tag/v1.1.2) (2026-05-17)
+
+### Bug Fixes
+
+- **scripts:** skip msgfmt when absent and continue on compile failure ([ad5ca53](https://github.com/ziriuz84/asteroidpy/commit/ad5ca53bb9278018df56cfbc3d1a93373ffc71bb))
+- **interface:** retry manual observation time input on invalid datetime ([20c8573](https://github.com/ziriuz84/asteroidpy/commit/20c8573a90273d51c5a6f341c6ec85d0d40c5e60))
+- **scheduling:** add async NEOcp helper and reject nested asyncio.run ([c3c1b85](https://github.com/ziriuz84/asteroidpy/commit/c3c1b85dd62b33a5ea871048a169ffeca9dddb7f))
+
+### Chores
+
+- **release:** 1.1.1 ([4ae9164](https://github.com/ziriuz84/asteroidpy/commit/4ae916454f7dc4f59e3c44b6b7363011c39a87b1))
+## [1.1.1](https://github.com/ziriuz84/asteroidpy/releases/tag/v1.1.1) (2026-05-17)
+
+### Bug Fixes
+
+- **scripts:** skip msgfmt when absent and continue on compile failure ([ad5ca53](https://github.com/ziriuz84/asteroidpy/commit/ad5ca53bb9278018df56cfbc3d1a93373ffc71bb))
+- **interface:** retry manual observation time input on invalid datetime ([20c8573](https://github.com/ziriuz84/asteroidpy/commit/20c8573a90273d51c5a6f341c6ec85d0d40c5e60))
+- **scheduling:** add async NEOcp helper and reject nested asyncio.run ([c3c1b85](https://github.com/ziriuz84/asteroidpy/commit/c3c1b85dd62b33a5ea871048a169ffeca9dddb7f))
 ## [1.1.0](https://github.com/ziriuz84/asteroidpy/releases/tag/v1.1.0) (2026-05-17)
 
 ### Code Refactoring
