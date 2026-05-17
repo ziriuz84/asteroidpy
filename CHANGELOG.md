@@ -11,6 +11,10 @@ All notable changes to this project will be documented in this file.
 ### Documentation
 
 - **README:** expand onboarding, FAQ, and contributor guide ([13e3c0b](https://github.com/ziriuz84/asteroidpy/commit/13e3c0b48a8cd413b430cef4ae4ae76857d629e5))
+
+### Chores
+
+- adds package.json to gitignore ([72678d4](https://github.com/ziriuz84/asteroidpy/commit/72678d4ff792c31853028ef5e282cce923667547))
 ## [1.0.1](https://github.com/ziriuz84/asteroidpy/releases/tag/v1.0.1) (2026-05-17)
 
 ### Bug Fixes
