@@ -152,8 +152,8 @@ msgstr ""
 msgid "Enter an integer between {low} and {high}."
 msgstr ""
 
-#: asteroidpy/interface/_main.py:17
-msgid "Welcome to AsteroidPY v. 0.1"
+#: asteroidpy/interface/_main.py:19
+msgid "Welcome to AsteroidPY"
 msgstr ""
 
 #: asteroidpy/interface/_main.py:21

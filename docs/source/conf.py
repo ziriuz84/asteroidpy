@@ -50,9 +50,9 @@ copyright = '2022, Sirio Negri'
 author = 'Sirio Negri'
 
 # The short X.Y version
-version = '0.1'
+version = '1.1'
 # The full version, including alpha/beta/rc tags
-release = '0.1'
+release = '1.1.3'
 
 
 # -- General configuration ---------------------------------------------------

@@ -235,7 +235,7 @@ To add or update translatable strings for all locales, update `locales/base.pot`
 
 ### Release process
 
-1. Update the version in `pyproject.toml` and `setup.py`.
+1. Update `asteroidpy/version.py` (`__version__`, used by setuptools and the UI); keep `setup.py` in sync if you still rely on it.
 2. Add the corresponding entry to `CHANGELOG.md` under a new `[X.Y.Z]` heading with date and link to the tag.
 3. Run tests and build:
    ```bash

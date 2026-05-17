@@ -1,6 +1,6 @@
 {
   "name": "asteroidpy",
-  "version": "1.1.2",
+  "version": "1.1.3",
   "description": "[![GitHub](https://img.shields.io/github/license/ziriuz84/asteroidpy)](https://github.com/ziriuz84/asteroidpy) [![Contributor Covenant](https://img.shields.io/badge/Contributor%20Covenant-2.1-4baaaa.svg)](CODE_OF_CONDUCT.md) [![contributions welcome](https://img.shields.io/badge/contributions-welcome-brightgreen.svg?style=flat)](https://github.com/ziriuz84/asteroidpy/issues)",
   "homepage": "https://github.com/ziriuz84/asteroidpy#readme",
   "bugs": {

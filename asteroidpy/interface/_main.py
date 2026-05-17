@@ -4,6 +4,8 @@ from __future__ import annotations
 
 from configparser import ConfigParser
 
+from asteroidpy.version import __version__
+
 from ._config_menus import config_menu
 from ._i18n import setup_gettext
 from ._input import prompt_int_in_range
@@ -14,7 +16,7 @@ from ._schedule_menus import scheduling_menu
 def main_menu(config: ConfigParser) -> None:
     choice = -1
     while choice != 0:
-        print(translate("Welcome to AsteroidPY v. 0.1"))
+        print(f"{translate('Welcome to AsteroidPY')} v. {__version__}")
         print("==============================")
         print("\n")
         print(translate("Choose a submenu"))

@@ -161,9 +161,9 @@ msgstr "Tem de introduzir um número."
 msgid "Enter an integer between {low} and {high}."
 msgstr "Introduza um inteiro entre {low} e {high}."
 
-#: asteroidpy/interface/_main.py:17
-msgid "Welcome to AsteroidPY v. 0.1"
-msgstr "Bem-vindo ao AsteroidPY v. 0.1"
+#: asteroidpy/interface/_main.py:19
+msgid "Welcome to AsteroidPY"
+msgstr "Bem-vindo ao AsteroidPY"
 
 #: asteroidpy/interface/_main.py:21
 msgid "1 - Configuration"
