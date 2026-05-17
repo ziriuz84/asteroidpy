@@ -256,7 +256,14 @@ def print_obs_config(config: ConfigParser, show_sensitive: bool = False) -> None
     if not config.has_section("Observatory"):
         return
     if config.has_option("Observatory", "place"):
-        print("Località: %s" % config["Observatory"]["place"])
+        print(
+            "Località: %s"
+            % (
+                config["Observatory"]["place"]
+                if show_sensitive
+                else "***REDACTED***"
+            )
+        )
     if config.has_option("Observatory", "latitude"):
         print(
             "Latitudine: %s"
