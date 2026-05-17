@@ -265,32 +265,11 @@ def print_obs_config(config: ConfigParser, show_sensitive: bool = False) -> None
             )
         )
     if config.has_option("Observatory", "latitude"):
-        print(
-            "Latitudine: %s"
-            % (
-                config["Observatory"]["latitude"]
-                if show_sensitive
-                else "***REDACTED***"
-            )
-        )
+        print("Latitudine: %s" % "***REDACTED***")
     if config.has_option("Observatory", "longitude"):
-        print(
-            "Longitudine: %s"
-            % (
-                config["Observatory"]["longitude"]
-                if show_sensitive
-                else "***REDACTED***"
-            )
-        )
+        print("Longitudine: %s" % "***REDACTED***")
     if config.has_option("Observatory", "altitude"):
-        print(
-            "Altitudine: %s"
-            % (
-                config["Observatory"]["altitude"]
-                if show_sensitive
-                else "***REDACTED***"
-            )
-        )
+        print("Altitudine: %s" % "***REDACTED***")
     if config.has_option("Observatory", "observer_name"):
         print("Osservatore: %s" % config["Observatory"]["observer_name"])
     if config.has_option("Observatory", "obs_name"):
