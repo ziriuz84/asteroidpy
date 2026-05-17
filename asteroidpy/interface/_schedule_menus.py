@@ -22,13 +22,22 @@ def local_coordinates(config: ConfigParser) -> List[str]:
 
 def select_specific_time() -> datetime.datetime:
     print(translate("Provide me with the observation start time parameters (UTC)"))
-    day = get_integer(translate("Day -> "))
-    month = get_integer(translate("Month -> "))
-    year = get_integer(translate("Year -> "))
-    hour = get_integer(translate("Hour -> "))
-    minutes = get_integer(translate("Minutes -> "))
-    seconds = get_integer(translate("Seconds -> "))
-    return datetime.datetime(year, month, day, hour, minutes, seconds)
+    while True:
+        day = get_integer(translate("Day -> "))
+        month = get_integer(translate("Month -> "))
+        year = get_integer(translate("Year -> "))
+        hour = get_integer(translate("Hour -> "))
+        minutes = get_integer(translate("Minutes -> "))
+        seconds = get_integer(translate("Seconds -> "))
+        try:
+            return datetime.datetime(year, month, day, hour, minutes, seconds)
+        except ValueError:
+            print(
+                translate(
+                    "Invalid date or time (check day/month ranges and hour 0–23); "
+                    "please try again."
+                )
+            )
 
 
 def observing_target_list_menu(config: ConfigParser) -> None:
