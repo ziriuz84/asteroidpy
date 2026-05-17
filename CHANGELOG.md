@@ -2,15 +2,24 @@
 
 All notable changes to this project will be documented in this file.
 
-## [1.0.1](https://github.com/ziriuz84/asteroidpy/releases/tag/v1.0.1) (2026-02-14)
+## [1.0.2](https://github.com/ziriuz84/asteroidpy/releases/tag/v1.0.2) (2026-05-17)
 
 ### Bug Fixes
 
-- **scheduling:** replace blocking requests with async httpx in get_neocp_ephemeris ([16a174c](https://github.com/ziriuz84/asteroidpy/commit/16a174cbf48a5b24b8d583400b9fdbfb9d44c60e))
+- **packaging:** declare OS Independent trove classifiers ([5b1ab8b](https://github.com/ziriuz84/asteroidpy/commit/5b1ab8b58e8e40e01115b054ea36ee1e79648879))
 
 ### Documentation
 
-- fix README code block spacing and index hyphenation ([365dfc6](https://github.com/ziriuz84/asteroidpy/commit/365dfc6a6c78a971aa3198335a308148980448a2))
+- **README:** expand onboarding, FAQ, and contributor guide ([13e3c0b](https://github.com/ziriuz84/asteroidpy/commit/13e3c0b48a8cd413b430cef4ae4ae76857d629e5))
+## [1.0.1](https://github.com/ziriuz84/asteroidpy/releases/tag/v1.0.1) (2026-05-17)
+
+### Bug Fixes
+
+- **packaging:** declare OS Independent trove classifiers ([5b1ab8b](https://github.com/ziriuz84/asteroidpy/commit/5b1ab8b58e8e40e01115b054ea36ee1e79648879))
+
+### Documentation
+
+- **README:** expand onboarding, FAQ, and contributor guide ([13e3c0b](https://github.com/ziriuz84/asteroidpy/commit/13e3c0b48a8cd413b430cef4ae4ae76857d629e5))
 ## [1.0.0](https://github.com/ziriuz84/asteroidpy/releases/tag/v1.0.0) (2026-02-14)
 
 ### Features
