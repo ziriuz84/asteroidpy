@@ -13,7 +13,6 @@ pipeline {
     }
 
     environment {
-        PYTHON_VERSION = '3.11'
         VENV_DIR = '.venv'
     }
 
@@ -52,11 +51,13 @@ pipeline {
                 script {
                     echo "Setting up Python environment..."
                     sh '''
+                        set -eu
                         python3 --version
                         python3 -m venv ${VENV_DIR}
                         . ${VENV_DIR}/bin/activate
                         pip install --upgrade pip setuptools wheel
                         pip install build twine pytest pytest-cov mypy ruff black isort
+                        pip install -e .
                         echo "✓ Environment ready"
                     '''
                 }
@@ -73,13 +74,16 @@ pipeline {
                 script {
                     echo "Running code quality checks..."
                     sh '''
+                        set -eu
                         . ${VENV_DIR}/bin/activate
                         echo "Checking with ruff..."
-                        ruff check asteroidpy/ tests/ || true
+                        ruff check asteroidpy/ tests/
                         echo "Checking types with mypy..."
-                        mypy asteroidpy/ || true
+                        mypy asteroidpy/
+                        echo "Checking import order with isort..."
+                        isort --check asteroidpy/ tests/
                         echo "Checking format with black..."
-                        black --check asteroidpy/ tests/ || true
+                        black --check asteroidpy/ tests/
                     '''
                 }
             }
@@ -90,8 +94,9 @@ pipeline {
                 script {
                     echo "Running test suite..."
                     sh '''
+                        set -eu
                         . ${VENV_DIR}/bin/activate
-                        pytest tests/ -v --tb=short --cov=asteroidpy --cov-report=xml || true
+                        pytest tests/ -v --tb=short --cov=asteroidpy --cov-report=xml --junitxml=test-results.xml
                         if [ -f coverage.xml ]; then
                             echo "✓ Coverage report generated"
                         fi
@@ -100,8 +105,7 @@ pipeline {
             }
             post {
                 always {
-                    // Raccogli risultati test se disponibili
-                    junit 'test-results.xml' || true
+                    junit testResults: 'test-results.xml'
                 }
             }
         }
@@ -111,6 +115,7 @@ pipeline {
                 script {
                     echo "Building distribution packages..."
                     sh '''
+                        set -eu
                         . ${VENV_DIR}/bin/activate
                         rm -rf dist/ build/ *.egg-info
                         python -m build
@@ -126,6 +131,7 @@ pipeline {
                 script {
                     echo "Validating package metadata..."
                     sh '''
+                        set -eu
                         . ${VENV_DIR}/bin/activate
                         twine check dist/* --strict
                     '''
@@ -138,6 +144,7 @@ pipeline {
                 script {
                     echo "Testing package installation..."
                     sh '''
+                        set -eu
                         . ${VENV_DIR}/bin/activate
                         python -m venv test-install
                         . test-install/bin/activate
@@ -162,18 +169,19 @@ pipeline {
                     withCredentials([
                         string(credentialsId: 'PYPI_API_TOKEN', variable: 'PYPI_TOKEN')
                     ]) {
-                        sh '''
+                        sh '''#!/usr/bin/env bash
+                            set -euo pipefail
                             . ${VENV_DIR}/bin/activate
-                            
+
                             # Verifica versione
                             VERSION=$(grep -E '^__version__' asteroidpy/version.py | grep -oE '[0-9]+\\.[0-9]+\\.[0-9]+' | head -1)
                             TAG="${RELEASE_VERSION#v}"  # Rimuovi il 'v' dal tag
                             
                             if [ "$VERSION" != "$TAG" ]; then
-                                echo "⚠️ WARNING: Version mismatch!"
+                                echo "ERROR: Version mismatch — upload blocked."
                                 echo "  asteroidpy/version.py: $VERSION"
                                 echo "  Git tag: $TAG"
-                                echo "  Proceeding anyway..."
+                                exit 1
                             fi
                             
                             # Upload
