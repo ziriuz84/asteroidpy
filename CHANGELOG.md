@@ -12,24 +12,11 @@
 ---
 
 
-## [1.1.4] - 2026-05-17
+## [1.1.4](https://github.com/ziriuz84/asteroidpy/releases/tag/v1.1.4) (2026-05-18)
 
-### Added
-- 
+### Chores
 
-### Changed
-- 
-
-### Fixed
-- 
-
----
-
-
-# Changelog
-
-All notable changes to this project will be documented in this file.
-
+- bump __version__ to 1.1.5 ([fe67bc8](https://github.com/ziriuz84/asteroidpy/commit/fe67bc804efa13543d4daa9baa772951bc539445))
 ## [1.1.3](https://github.com/ziriuz84/asteroidpy/releases/tag/v1.1.3) (2026-05-17)
 
 ### Chores
