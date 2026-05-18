@@ -10,6 +10,17 @@ description="A tool for asteroid observation scheduling and analysis"
 readme="README.md"
 requires-python=">=3.9"
 license="GPL-3.0"
+dependencies=[
+    "requests",
+    "beautifulsoup4",
+    "configparser",
+    "astropy",
+    "httpx",
+    "astroplan",
+    "lxml",
+    "astroquery",
+    "platformdirs",
+]
 classifiers=[
 "Development Status :: 5 - Production/Stable",
 "Intended Audience :: Science/Research",
@@ -32,3 +43,9 @@ dev = [
 [project.urls]
 Homepage="https://github.com/ziriuz84/asteroidpy"
 Issues="https://github.com/ziriuz84/asteroidpy/issues"
+
+[tool.black]
+target-version = ["py39"]
+
+[tool.isort]
+profile = "black"
