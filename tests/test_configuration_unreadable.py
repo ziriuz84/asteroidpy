@@ -3,7 +3,6 @@ import stat
 from configparser import ConfigParser
 
 import platformdirs
-import pytest
 
 import asteroidpy.configuration as cfg
 

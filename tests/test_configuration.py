@@ -222,7 +222,9 @@ def test_print_obs_config_redacts_sensitive_by_default(tmp_home, fresh_config, c
     assert "Codice MPC: A12" in stdout
 
 
-def test_print_obs_config_shows_values_when_show_sensitive_true(tmp_home, fresh_config, capsys):
+def test_print_obs_config_shows_values_when_show_sensitive_true(
+    tmp_home, fresh_config, capsys
+):
     write_config_file(
         config_file_canonical(tmp_home),
         create_minimal_config_text(

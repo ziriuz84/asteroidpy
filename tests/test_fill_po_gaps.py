@@ -31,7 +31,7 @@ def test_fill_po_gaps_fills_missing_and_clears_fuzzy(
 
     po_path = en_dir / "base.po"
     po_path.write_text(
-        '\n'.join(
+        "\n".join(
             [
                 'msgid ""',
                 'msgstr ""',
@@ -83,13 +83,15 @@ def test_fill_po_gaps_fills_missing_and_clears_fuzzy(
     assert cwd == str(tmp_path)
 
 
-def test_fill_po_gaps_skips_msgfmt_when_not_installed(monkeypatch, tmp_path, fill_po_gaps):
+def test_fill_po_gaps_skips_msgfmt_when_not_installed(
+    monkeypatch, tmp_path, fill_po_gaps
+):
     locales_dir = tmp_path / "locales"
     en_dir = locales_dir / "en" / "LC_MESSAGES"
     en_dir.mkdir(parents=True)
     po_path = en_dir / "base.po"
     po_path.write_text(
-        '\n'.join(
+        "\n".join(
             [
                 'msgid ""',
                 'msgstr ""',

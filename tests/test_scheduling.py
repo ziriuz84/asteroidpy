@@ -189,6 +189,7 @@ def test_httpx_get_post_exception(monkeypatch, sch):
     text, status = asyncio.run(sch.httpx_post("https://example.com", {}, "text"))
     assert status == 0 and text == ""
 
+
 def test_is_visible_quadrants_and_boundaries(fresh_config, monkeypatch, sch):
     # Build a minimal object that mimics astropy's transform_to result
     class FakeAltAz:
@@ -207,22 +208,48 @@ def test_is_visible_quadrants_and_boundaries(fresh_config, monkeypatch, sch):
             return FakeAltAz(self._az, self._alt)
 
     # East (45-135)
-    assert bool(sch.is_visible(fresh_config, FakeCoord(90.0, 30.0), sch.Time.now())) is True
+    assert (
+        bool(sch.is_visible(fresh_config, FakeCoord(90.0, 30.0), sch.Time.now()))
+        is True
+    )
     # South (135-225)
-    assert bool(sch.is_visible(fresh_config, FakeCoord(180.0, 30.0), sch.Time.now())) is True
+    assert (
+        bool(sch.is_visible(fresh_config, FakeCoord(180.0, 30.0), sch.Time.now()))
+        is True
+    )
     # West (225-315)
-    assert bool(sch.is_visible(fresh_config, FakeCoord(270.0, 30.0), sch.Time.now())) is True
+    assert (
+        bool(sch.is_visible(fresh_config, FakeCoord(270.0, 30.0), sch.Time.now()))
+        is True
+    )
     # North (wrap-around 315-360 or 0-45) now handled inclusively
-    assert bool(sch.is_visible(fresh_config, FakeCoord(0.0, 30.0), sch.Time.now())) is True
+    assert (
+        bool(sch.is_visible(fresh_config, FakeCoord(0.0, 30.0), sch.Time.now())) is True
+    )
 
     # Boundary azimuths should be visible when altitude equals threshold (10 deg)
-    assert bool(sch.is_visible(fresh_config, FakeCoord(45.0, 10.0), sch.Time.now())) is True  # East boundary
-    assert bool(sch.is_visible(fresh_config, FakeCoord(135.0, 10.0), sch.Time.now())) is True  # South boundary
-    assert bool(sch.is_visible(fresh_config, FakeCoord(225.0, 10.0), sch.Time.now())) is True  # West boundary
-    assert bool(sch.is_visible(fresh_config, FakeCoord(315.0, 10.0), sch.Time.now())) is True  # North boundary
+    assert (
+        bool(sch.is_visible(fresh_config, FakeCoord(45.0, 10.0), sch.Time.now()))
+        is True
+    )  # East boundary
+    assert (
+        bool(sch.is_visible(fresh_config, FakeCoord(135.0, 10.0), sch.Time.now()))
+        is True
+    )  # South boundary
+    assert (
+        bool(sch.is_visible(fresh_config, FakeCoord(225.0, 10.0), sch.Time.now()))
+        is True
+    )  # West boundary
+    assert (
+        bool(sch.is_visible(fresh_config, FakeCoord(315.0, 10.0), sch.Time.now()))
+        is True
+    )  # North boundary
 
     # Below threshold altitude should be not visible even in correct sector
-    assert bool(sch.is_visible(fresh_config, FakeCoord(90.0, 9.9), sch.Time.now())) is False
+    assert (
+        bool(sch.is_visible(fresh_config, FakeCoord(90.0, 9.9), sch.Time.now()))
+        is False
+    )
 
 
 def test_observing_target_list_scraper_parses_table(monkeypatch, sch):
@@ -299,7 +326,9 @@ def test_observing_target_list_scraper_no_tables(monkeypatch, sch):
     assert data == []
 
 
-def test_observing_target_list_scraper_tables_without_expected_headers(monkeypatch, sch):
+def test_observing_target_list_scraper_tables_without_expected_headers(
+    monkeypatch, sch
+):
     # Two tables, but none has the expected headers; also fewer than 4 tables
     html = (
         "<html><body>"
@@ -339,7 +368,9 @@ def test_observing_target_list_skips_malformed_rows(monkeypatch, fresh_config, s
     assert len(table) == 0
 
 
-def test_neocp_confirmation_returns_table_even_when_filtering_all(monkeypatch, fresh_config, sch):
+def test_neocp_confirmation_returns_table_even_when_filtering_all(
+    monkeypatch, fresh_config, sch
+):
     # Short-circuit the risky branch by ensuring first condition fails (Score <= min_score)
     sample = [
         {
@@ -358,13 +389,32 @@ def test_neocp_confirmation_returns_table_even_when_filtering_all(monkeypatch, f
         return [sample, 200]
 
     async def fake_get_neocp_ephemeris(config, object_names):
-        return {"P10abcd": ["", "", "", "0.0", "0.0", "0.0", "0.0", "0.0", "0.0", "0.0", "0.0", "0.0", "0.0", "0.0"]}
+        return {
+            "P10abcd": [
+                "",
+                "",
+                "",
+                "0.0",
+                "0.0",
+                "0.0",
+                "0.0",
+                "0.0",
+                "0.0",
+                "0.0",
+                "0.0",
+                "0.0",
+                "0.0",
+                "0.0",
+            ]
+        }
 
     monkeypatch.setattr(sch, "httpx_get", fake_httpx_get)
     monkeypatch.setattr(sch, "get_neocp_ephemeris", fake_get_neocp_ephemeris)
     monkeypatch.setattr(sch, "is_visible", lambda c, coord, t: True)
 
-    tbl = sch.neocp_confirmation(fresh_config, min_score=100, max_magnitude=20, min_altitude=20)
+    tbl = sch.neocp_confirmation(
+        fresh_config, min_score=100, max_magnitude=20, min_altitude=20
+    )
     # Should return a QTable with the right columns and zero rows
     assert list(tbl.colnames) == [
         "Temp_Desig",
@@ -373,7 +423,7 @@ def test_neocp_confirmation_returns_table_even_when_filtering_all(monkeypatch, f
         "Decl",
         "Alt",
         "V",
-        "Velocity \"/min",
+        'Velocity "/min',
         "Direction",
         "NObs",
         "Arc",
@@ -401,7 +451,24 @@ def test_neocp_confirmation_includes_valid_object(monkeypatch, fresh_config, sch
         return [sample, 200]
 
     async def fake_get_neocp_ephemeris(config, object_names):
-        return {"X12345": ["", "", "", "0.0", "0.0", "0.0", "0.0", "0.0", "0.0", "0.0", "0.0", "0.0", "1.5", "45.0"]}
+        return {
+            "X12345": [
+                "",
+                "",
+                "",
+                "0.0",
+                "0.0",
+                "0.0",
+                "0.0",
+                "0.0",
+                "0.0",
+                "0.0",
+                "0.0",
+                "0.0",
+                "1.5",
+                "45.0",
+            ]
+        }
 
     # Ensure visibility gate passes deterministically
     monkeypatch.setattr(sch, "httpx_get", fake_httpx_get)
@@ -420,7 +487,7 @@ def test_neocp_confirmation_includes_valid_object(monkeypatch, fresh_config, sch
     assert int(row["Score"]) == 85
     assert float(row["V"]) == 18.5
     assert int(row["NObs"]) == 4
-    assert float(row["Velocity \"/min"]) == 1.5
+    assert float(row['Velocity "/min']) == 1.5
     assert float(row["Direction"]) == 45.0
 
 
@@ -476,9 +543,7 @@ def test_neocp_confirmation_raises_when_event_loop_running(
         asyncio.run(call_sync_from_async())
 
 
-def test_async_neocp_confirmation_matches_sync_wrapper(
-    monkeypatch, fresh_config, sch
-):
+def test_async_neocp_confirmation_matches_sync_wrapper(monkeypatch, fresh_config, sch):
     sample = [
         {
             "Temp_Desig": "X12345",
@@ -530,9 +595,7 @@ def test_async_neocp_confirmation_matches_sync_wrapper(
 
     assert len(sync_tbl) == len(async_tbl) == 1
     assert sync_tbl[0]["Temp_Desig"] == async_tbl[0]["Temp_Desig"]
-    assert float(sync_tbl[0]["Velocity \"/min"]) == float(
-        async_tbl[0]["Velocity \"/min"]
-    )
+    assert float(sync_tbl[0]['Velocity "/min']) == float(async_tbl[0]['Velocity "/min'])
 
 
 def test_twilight_times(monkeypatch, fresh_config, sch):
@@ -642,7 +705,9 @@ def test_object_ephemeris_monkeypatched_mpc(monkeypatch, fresh_config, sch):
     assert len(t) == 2
 
 
-def test_object_ephemeris_invalid_stepping_defaults_to_hour(monkeypatch, fresh_config, sch):
+def test_object_ephemeris_invalid_stepping_defaults_to_hour(
+    monkeypatch, fresh_config, sch
+):
     calls: Dict[str, Any] = {}
 
     def fake_get_ephemeris(name: str, location: Any, step: Any, number: int):
@@ -691,19 +756,40 @@ def test_neocp_confirmation_skips_zero_velocity_objects(monkeypatch, fresh_confi
 
     async def fake_get_neocp_ephemeris(config, object_names):
         # Return zero velocity which should cause the object to be skipped
-        return {"ZERO123": ["", "", "", "0.0", "0.0", "0.0", "0.0", "0.0", "0.0", "0.0", "0.0", "0.0", "0.0", "0.0"]}
+        return {
+            "ZERO123": [
+                "",
+                "",
+                "",
+                "0.0",
+                "0.0",
+                "0.0",
+                "0.0",
+                "0.0",
+                "0.0",
+                "0.0",
+                "0.0",
+                "0.0",
+                "0.0",
+                "0.0",
+            ]
+        }
 
     monkeypatch.setattr(sch, "httpx_get", fake_httpx_get)
     monkeypatch.setattr(sch, "get_neocp_ephemeris", fake_get_neocp_ephemeris)
     monkeypatch.setattr(sch, "is_visible", lambda c, coord, t: True)
 
-    tbl = sch.neocp_confirmation(fresh_config, min_score=50, max_magnitude=19.0, min_altitude=0)
-    
+    tbl = sch.neocp_confirmation(
+        fresh_config, min_score=50, max_magnitude=19.0, min_altitude=0
+    )
+
     # Should return empty table because zero velocity objects are skipped
     assert len(tbl) == 0
 
 
-def test_neocp_confirmation_handles_missing_ephemeris_data(monkeypatch, fresh_config, sch):
+def test_neocp_confirmation_handles_missing_ephemeris_data(
+    monkeypatch, fresh_config, sch
+):
     """Test that missing ephemeris data is handled gracefully"""
     sample = [
         {
@@ -729,8 +815,10 @@ def test_neocp_confirmation_handles_missing_ephemeris_data(monkeypatch, fresh_co
     monkeypatch.setattr(sch, "get_neocp_ephemeris", fake_get_neocp_ephemeris)
     monkeypatch.setattr(sch, "is_visible", lambda c, coord, t: True)
 
-    tbl = sch.neocp_confirmation(fresh_config, min_score=50, max_magnitude=19.0, min_altitude=0)
-    
+    tbl = sch.neocp_confirmation(
+        fresh_config, min_score=50, max_magnitude=19.0, min_altitude=0
+    )
+
     # Should return empty table because missing ephemeris data results in zero velocity
     assert len(tbl) == 0
 
@@ -779,12 +867,12 @@ def test_get_neocp_ephemeris_parses_response_correctly(monkeypatch, fresh_config
     monkeypatch.setattr(sch.httpx, "AsyncClient", make_client)
 
     result = asyncio.run(sch.get_neocp_ephemeris(fresh_config, ["TEST123", "TEST456"]))
-    
+
     # Should return a dictionary with parsed data
     assert isinstance(result, dict)
     assert "TEST123" in result
     assert "TEST456" in result
-    
+
     # Check that the data arrays have the expected structure
     assert len(result["TEST123"]) >= 14  # Should have at least 14 elements
     assert len(result["TEST456"]) >= 14
@@ -827,6 +915,6 @@ def test_get_neocp_ephemeris_handles_insufficient_data(monkeypatch, fresh_config
     monkeypatch.setattr(sch.httpx, "AsyncClient", make_client)
 
     result = asyncio.run(sch.get_neocp_ephemeris(fresh_config, ["SHORT123"]))
-    
+
     # Should return empty dict because insufficient data is skipped
     assert result == {}

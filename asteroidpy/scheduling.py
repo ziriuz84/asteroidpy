@@ -11,8 +11,8 @@ from astropy import units as u
 from astropy.coordinates import AltAz, EarthLocation, SkyCoord
 from astropy.table import QTable
 from astropy.time import Time
-from astroquery.mpc import MPC
 from astropy.units import Quantity
+from astroquery.mpc import MPC
 from bs4 import BeautifulSoup
 
 from asteroidpy import configuration
@@ -32,9 +32,7 @@ MPC_MIN_COLS = 8
 MPC_WHATSUP_INDEX_URL = "https://www.minorplanetcenter.net/whatsup/index"
 
 # Last-resort token if MPC blocks scraping or markup changes (POST may still fail).
-_MPC_WHATSUP_AUTH_TOKEN_FALLBACK = (
-    "W5eBzzw9Clj4tJVzkz0z%2F2EK18jvSS%2BffHxZpAshylg%3D"
-)
+_MPC_WHATSUP_AUTH_TOKEN_FALLBACK = "W5eBzzw9Clj4tJVzkz0z%2F2EK18jvSS%2BffHxZpAshylg%3D"
 
 _MPC_BROWSER_HEADERS = {
     "User-Agent": (
@@ -692,9 +690,7 @@ def observing_target_list(config: ConfigParser, payload: Dict[str, Any]) -> QTab
         if len(d) < MPC_MIN_COLS:
             continue
         try:
-            observing_time = Time(
-                d[MPC_COL_TIME].replace("T", " ").replace("z", "")
-            )
+            observing_time = Time(d[MPC_COL_TIME].replace("T", " ").replace("z", ""))
         except (ValueError, TypeError):
             continue
         if is_visible(
@@ -800,7 +796,7 @@ async def async_neocp_confirmation(
             "Decl",
             "Alt",
             "V",
-            "Velocity \"/min",
+            'Velocity "/min',
             "Direction",
             "NObs",
             "Arc",

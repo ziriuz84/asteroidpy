@@ -117,7 +117,9 @@ def neocp_confirmation_menu(config: ConfigParser) -> None:
     max_magnitude = get_float(translate("Maximum magnitude -> "))
     min_altitude = get_integer(translate("Minimum altitude -> "))
     browser_view = prompt_line(translate("Do you want to view in Browser? (y/N) -> "))
-    neocp = scheduling.neocp_confirmation(config, min_score, max_magnitude, min_altitude)
+    neocp = scheduling.neocp_confirmation(
+        config, min_score, max_magnitude, min_altitude
+    )
     if browser_view.strip().lower() in {"y", "yes"}:
         neocp.show_in_browser(jsviewer=True)
     else:
@@ -148,52 +150,34 @@ def twilight_sun_moon_menu(config: ConfigParser) -> None:
     )
     print("\n")
     ephemeris = scheduling.sun_moon_ephemeris(config)
-    print(
-        translate("Sunrise: {t}").format(t=ephemeris["Sunrise"].strftime(tfmt))
-    )
-    print(
-        translate("Sunset: {t}").format(t=ephemeris["Sunset"].strftime(tfmt))
-    )
-    print(
-        translate("Moonrise: {t}").format(t=ephemeris["Moonrise"].strftime(tfmt))
-    )
-    print(
-        translate("Moonset: {t}").format(t=ephemeris["Moonset"].strftime(tfmt))
-    )
-    print(
-        translate("Moon illumination: {f}").format(f=ephemeris["MoonIll"])
-    )
+    print(translate("Sunrise: {t}").format(t=ephemeris["Sunrise"].strftime(tfmt)))
+    print(translate("Sunset: {t}").format(t=ephemeris["Sunset"].strftime(tfmt)))
+    print(translate("Moonrise: {t}").format(t=ephemeris["Moonrise"].strftime(tfmt)))
+    print(translate("Moonset: {t}").format(t=ephemeris["Moonset"].strftime(tfmt)))
+    print(translate("Moon illumination: {f}").format(f=ephemeris["MoonIll"]))
     print("\n\n\n\n")
 
 
 def print_scheduling_menu() -> None:
     print(translate("Observation scheduling"))
     print("==============================\n")
-    print(
-        translate(
-            """Choose a submenu
+    print(translate("""Choose a submenu
     1 - Weather forecast
     2 - Observing target List
     3 - NEOcp list
     4 - Object Ephemeris
     5 - Twilight Times
-    0 - Back to main menu\n"""
-        )
-    )
+    0 - Back to main menu\n"""))
 
 
 def object_ephemeris_menu(config: ConfigParser) -> None:
     object_name = prompt_line(translate("Object Name -> "))
-    print(
-        translate(
-            """Stepping
+    print(translate("""Stepping
     m - 1 minute
     h - 1 hour
     d - 1 day
     w - 1 week
-    """
-        )
-    )
+    """))
     while True:
         step = prompt_line(translate("Choice -> ")).strip().lower()
         if step in {"m", "h", "d", "w"}:

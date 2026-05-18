@@ -16,6 +16,7 @@ and other astronomical data sources to provide:
 The application provides an interactive command-line interface with support
 for multiple languages and comprehensive observatory configuration options.
 """
+
 import configparser
 import cProfile
 import pstats
@@ -26,6 +27,7 @@ import asteroidpy.interface as interface
 PROFILE = False
 
 config: ConfigParser = configparser.ConfigParser()
+
 
 def main() -> None:
     """Main entry point for the AsteroidPy application.

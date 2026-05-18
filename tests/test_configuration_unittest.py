@@ -1,3 +1,4 @@
+import importlib.util
 import io
 import os
 import tempfile
@@ -6,7 +7,6 @@ from configparser import ConfigParser
 from contextlib import redirect_stdout
 from unittest.mock import patch
 
-import importlib.util
 import platformdirs
 
 _ROOT = os.path.dirname(os.path.dirname(__file__))
@@ -110,7 +110,9 @@ class ConfigurationTests(unittest.TestCase):
         self.assertIn("[Observatory]", text)
 
     def test_change_language_updates_file(self):
-        write_config_file(config_canonical(self.fake_home), create_minimal_config_text(lang="en"))
+        write_config_file(
+            config_canonical(self.fake_home), create_minimal_config_text(lang="en")
+        )
         cfg.change_language(self.new_config(), "it")
         new_text = read_config_file(config_canonical(self.fake_home))
         self.assertIn("lang = it", new_text)
@@ -120,7 +122,9 @@ class ConfigurationTests(unittest.TestCase):
             config_canonical(self.fake_home),
             create_minimal_config_text(place="Old", latitude="1.0", longitude="2.0"),
         )
-        cfg.change_obs_coords(self.new_config(), place="NewPlace", lat=45.1, longitude=9.2)
+        cfg.change_obs_coords(
+            self.new_config(), place="NewPlace", lat=45.1, longitude=9.2
+        )
         new_text = read_config_file(config_canonical(self.fake_home))
         self.assertIn("place = NewPlace", new_text)
         self.assertIn("latitude = 45.1", new_text)
@@ -143,7 +147,9 @@ class ConfigurationTests(unittest.TestCase):
         self.assertIn("mpc_code = C10", new_text)
 
     def test_change_obs_name_updates_file(self):
-        write_config_file(config_canonical(self.fake_home), create_minimal_config_text(obs_name=""))
+        write_config_file(
+            config_canonical(self.fake_home), create_minimal_config_text(obs_name="")
+        )
         cfg.change_obs_name(self.new_config(), name="AstroObs")
         new_text = read_config_file(config_canonical(self.fake_home))
         self.assertIn("obs_name = AstroObs", new_text)
@@ -158,7 +164,9 @@ class ConfigurationTests(unittest.TestCase):
         self.assertIn("observer_name = Jane Doe", new_text)
 
     def test_virtual_horizon_configuration_writes_values(self):
-        write_config_file(config_canonical(self.fake_home), create_minimal_config_text())
+        write_config_file(
+            config_canonical(self.fake_home), create_minimal_config_text()
+        )
         horizon = {"nord": "10", "south": "12", "east": "8", "west": "9"}
         cfg.virtual_horizon_configuration(self.new_config(), horizon)
         new_text = read_config_file(config_canonical(self.fake_home))
@@ -222,7 +230,9 @@ class ConfigurationTests(unittest.TestCase):
         self.assertIn("Codice MPC: A12", stdout)
 
     def test_load_config_reads_existing_file(self):
-        write_config_file(config_canonical(self.fake_home), create_minimal_config_text(lang="en"))
+        write_config_file(
+            config_canonical(self.fake_home), create_minimal_config_text(lang="en")
+        )
         conf = self.new_config()
         cfg.load_config(conf)
         self.assertEqual(conf.get("General", "lang"), "en")
@@ -247,7 +257,9 @@ class ConfigurationTests(unittest.TestCase):
         self.assertTrue(os.path.exists(config_canonical(self.fake_home)))
 
     def test_migrates_legacy_config_file(self):
-        write_config_file(config_legacy(self.fake_home), create_minimal_config_text(lang="it"))
+        write_config_file(
+            config_legacy(self.fake_home), create_minimal_config_text(lang="it")
+        )
         canon = config_canonical(self.fake_home)
         self.assertFalse(os.path.exists(canon))
         conf = self.new_config()

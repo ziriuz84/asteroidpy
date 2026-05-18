@@ -56,18 +56,14 @@ def change_mpc_code_menu(config: ConfigParser) -> None:
 
 
 def print_observatory_config_menu() -> None:
-    print(
-        translate(
-            """Choose an option
+    print(translate("""Choose an option
     1 - Change coordinates
     2 - Change altitude
     3 - Change the name of the observer
     4 - Change the name of the observatory
     5 - Change the MPC code
     6 - Change Virtual Horizon
-    0 - Back to configuration menu"""
-        )
-    )
+    0 - Back to configuration menu"""))
 
 
 def observatory_config_menu(config: ConfigParser) -> None:
@@ -137,9 +133,7 @@ def change_language(config: ConfigParser) -> None:
     for index, code in enumerate(available_langs, start=1):
         print(f"{index} - {native_names.get(code, code)}")
 
-    choice = prompt_int_in_range(
-        translate("Language -> "), 1, len(available_langs)
-    )
+    choice = prompt_int_in_range(translate("Language -> "), 1, len(available_langs))
 
     lang = available_langs[choice - 1]
     configuration.change_language(config, lang)
