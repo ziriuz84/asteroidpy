@@ -7,9 +7,19 @@ import math
 import os
 import shutil
 import tempfile
-from configparser import ConfigParser, Error as ConfigParserError
+from configparser import ConfigParser
+from configparser import Error as ConfigParserError
 from pathlib import Path
-from typing import Callable, Dict, Mapping, MutableMapping, TextIO, Tuple, TypedDict, Union
+from typing import (
+    Callable,
+    Dict,
+    Mapping,
+    MutableMapping,
+    TextIO,
+    Tuple,
+    TypedDict,
+    Union,
+)
 
 import platformdirs
 from astroquery.mpc import MPC
@@ -255,20 +265,24 @@ def print_obs_config(config: ConfigParser, show_sensitive: bool = False) -> None
     load_config(config)
     if not config.has_section("Observatory"):
         return
-    if config.has_option("Observatory", "place"):
-        print("Località: %s" % "***REDACTED***")
-    if config.has_option("Observatory", "latitude"):
-        print("Latitudine: %s" % "***REDACTED***")
-    if config.has_option("Observatory", "longitude"):
-        print("Longitudine: %s" % "***REDACTED***")
-    if config.has_option("Observatory", "altitude"):
-        print("Altitudine: %s" % "***REDACTED***")
-    if config.has_option("Observatory", "observer_name"):
-        print("Osservatore: %s" % "***REDACTED***")
-    if config.has_option("Observatory", "obs_name"):
-        print("Nome Osservatorio: %s" % "***REDACTED***")
-    if config.has_option("Observatory", "mpc_code"):
-        print("Codice MPC: %s" % config["Observatory"]["mpc_code"])
+    obs = config["Observatory"]
+
+    def _print_field(option: str, label: str, *, redact_when_private: bool) -> None:
+        if not config.has_option("Observatory", option):
+            return
+        value = obs[option]
+        if show_sensitive or not redact_when_private:
+            print("%s: %s" % (label, value))
+        else:
+            print("%s: %s" % (label, "***REDACTED***"))
+
+    _print_field("place", "Località", redact_when_private=False)
+    _print_field("latitude", "Latitudine", redact_when_private=True)
+    _print_field("longitude", "Longitudine", redact_when_private=True)
+    _print_field("altitude", "Altitudine", redact_when_private=True)
+    _print_field("observer_name", "Osservatore", redact_when_private=False)
+    _print_field("obs_name", "Nome Osservatorio", redact_when_private=False)
+    _print_field("mpc_code", "Codice MPC", redact_when_private=False)
 
 
 def virtual_horizon_configuration(
