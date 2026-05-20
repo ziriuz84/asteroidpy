@@ -11,6 +11,7 @@ from ._i18n import setup_gettext
 from ._input import prompt_int_in_range
 from ._intl import translate
 from ._schedule_menus import scheduling_menu
+from ._tui_app import run_textual_interface
 
 
 def main_menu(config: ConfigParser) -> None:
@@ -33,4 +34,4 @@ def main_menu(config: ConfigParser) -> None:
 
 def interface(config: ConfigParser) -> None:
     setup_gettext(config)
-    main_menu(config)
+    run_textual_interface(config)

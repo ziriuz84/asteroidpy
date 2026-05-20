@@ -322,32 +322,13 @@ def weather_time(time_init: str, deltaT: int) -> str:
     return time.strftime("%d/%m %H:%M")
 
 
-def weather(config: ConfigParser) -> None:
-    """Display weather forecast for the observatory location.
+def weather_forecast_report(config: ConfigParser) -> str:
+    """Fetch and format the 7Timer astronomical forecast as plain text.
 
-    Retrieves astronomical weather forecast data from 7Timer API for up to
-    72 hours and displays it in a formatted table. Includes cloud cover,
-    seeing conditions, transparency, atmospheric instability, temperature,
-    relative humidity, wind conditions, and precipitation.
-
-    Parameters
-    ----------
-    config : ConfigParser
-        The ConfigParser object with configuration options, including
-        observatory latitude and longitude.
-
-    Returns
-    -------
-    None
-        This function does not return a value.
-
-    Notes
-    -----
-    The forecast is retrieved via HTTPS from the 7Timer API (``astro`` product).
-    Numeric codes are mapped using the module dictionaries.
-
-    Raises nothing: network and HTTP failures are reported on stdout.
+    Returns user-visible error messages when the HTTP request fails or the body
+    is not JSON; otherwise returns :func:`str` of the formatted Astropy table.
     """
+
     configuration.load_config(config)
     lat, long = config["Observatory"]["latitude"], config["Observatory"]["longitude"]
     payload = {"lon": long, "lat": lat, "product": "astro", "output": "json"}
@@ -360,11 +341,9 @@ def weather(config: ConfigParser) -> None:
         r.raise_for_status()
         weather_forecast = r.json()
     except requests.RequestException as exc:
-        print(f"Weather forecast request failed ({exc}).")
-        return
+        return f"Weather forecast request failed ({exc})."
     except ValueError:
-        print("Weather forecast response was not valid JSON.")
-        return
+        return "Weather forecast response was not valid JSON."
 
     table = QTable(
         [[""], [""], [""], [""], [""], [""], [""], [""], [""]],
@@ -420,7 +399,37 @@ def weather(config: ConfigParser) -> None:
             ]
         )
     table.remove_row(0)
-    print(table)
+    return str(table)
+
+
+def weather(config: ConfigParser) -> None:
+    """Display weather forecast for the observatory location.
+
+    Retrieves astronomical weather forecast data from 7Timer API for up to
+    72 hours and displays it in a formatted table. Includes cloud cover,
+    seeing conditions, transparency, atmospheric instability, temperature,
+    relative humidity, wind conditions, and precipitation.
+
+    Parameters
+    ----------
+    config : ConfigParser
+        The ConfigParser object with configuration options, including
+        observatory latitude and longitude.
+
+    Returns
+    -------
+    None
+        This function does not return a value.
+
+    Notes
+    -----
+    The forecast is retrieved via HTTPS from the 7Timer API (``astro`` product).
+    Numeric codes are mapped using the module dictionaries.
+
+    Raises nothing: network and HTTP failures are reported on stdout.
+    """
+
+    print(weather_forecast_report(config))
     print("\n\n\n\n")
 
 

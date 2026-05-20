@@ -13,8 +13,8 @@ and other astronomical data sources to provide:
 - Twilight and Sun/Moon ephemeris
 - Virtual horizon visibility calculations
 
-The application provides an interactive command-line interface with support
-for multiple languages and comprehensive observatory configuration options.
+The application provides an interactive terminal UI (Textual) with support for
+multiple languages and comprehensive observatory configuration options.
 """
 
 import configparser

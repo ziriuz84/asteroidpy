@@ -4,7 +4,7 @@
 [![Contributor Covenant](https://img.shields.io/badge/Contributor%20Covenant-2.1-4baaaa.svg)](CODE_OF_CONDUCT.md)
 [![contributions welcome](https://img.shields.io/badge/contributions-welcome-brightgreen.svg?style=flat)](https://github.com/ziriuz84/asteroidpy/issues)
 
-AsteroidPy is a command-line tool for astronomers to schedule and manage asteroid observations. It integrates with the Minor Planet Center and other astronomical data sources to provide ephemerides, NEO confirmation candidates, weather forecasts, and observing aids—all from an interactive terminal interface.
+AsteroidPy is a command-line tool for astronomers to schedule and manage asteroid observations. It integrates with the Minor Planet Center and other astronomical data sources to provide ephemerides, NEO confirmation candidates, weather forecasts, and observing aids—all from an interactive terminal UI built with [Textual](https://textual.textualize.io/).
 
 ---
 
@@ -197,14 +197,14 @@ Thank you for considering contributing to AsteroidPy. Please read the [Code of C
 
 ```
 asteroidpy/
-├── __init__.py      # Entry point; loads config, launches interface
-├── interface.py     # CLI menus, user I/O, gettext setup
-├── scheduling.py    # Ephemerides, weather, NEOcp, twilight
-├── configuration.py # Observatory config, horizon, language
-└── locales/         # gettext translations (en, it, de, fr, es, pt)
+├── __init__.py       # Entry point; loads config, launches interface
+├── interface/        # Textual TUI, gettext setup (legacy menu helpers retained)
+├── scheduling.py     # Ephemerides, weather, NEOcp, twilight
+├── configuration.py  # Observatory config, horizon, language
+└── locales/          # gettext translations (en, it, de, fr, es, pt)
 ```
 
-- **`interface`** — Main entry for the interactive UI. Loads config, sets up gettext, and delegates to `scheduling` for ephemeris/weather/NEOcp and to `configuration` for settings.
+- **`interface`** — Main entry for the interactive UI (Textual screens). Loads config, sets up gettext, and delegates to `scheduling` for ephemeris/weather/NEOcp and to `configuration` for settings.
 - **`scheduling`** — Astronomy logic: MPC queries, 7Timer weather, twilight, Sun/Moon ephemeris. Uses `configuration.load_config()` to read observatory data.
 - **`configuration`** — Persists and loads settings in `~/.asteroidpy`; handles observatory coordinates, virtual horizon, and language. Used by both `interface` and `scheduling`.
 
