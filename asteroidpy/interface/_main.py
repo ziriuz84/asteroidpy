@@ -33,5 +33,6 @@ def main_menu(config: ConfigParser) -> None:
 
 
 def interface(config: ConfigParser) -> None:
+    """Start gettext from ``config``, then open the interactive Textual TUI."""
     setup_gettext(config)
     run_textual_interface(config)

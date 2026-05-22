@@ -1,4 +1,8 @@
-"""Textual screens replacing legacy ``print`` / ``input`` menus."""
+"""Textual screens replacing legacy ``print`` / ``input`` menus.
+
+Associated widget layout rules are loaded from ``style.tcss`` by the Textual root
+application in ``_tui_app``.
+"""
 
 from __future__ import annotations
 
@@ -36,10 +40,15 @@ from textual.widgets import (
 
 
 def _app_config(screen: Screen) -> ConfigParser:
+    """Return the mutable :class:`~configparser.ConfigParser` held on ``screen.app``.
+
+    Expects ``AsteroidApp`` (or compatible) with ``.config``.
+    """
     return cast(ConfigParser, getattr(screen.app, "config"))
 
 
 def _refresh_main_menu_after_locale(screen: Screen) -> None:
+    """Drop nested screens after a locale change so labels pick up gettext."""
     app = screen.app
     while len(app.screen_stack) > 1:
         app.pop_screen()
@@ -47,6 +56,7 @@ def _refresh_main_menu_after_locale(screen: Screen) -> None:
 
 
 def _observatory_summary(config: ConfigParser) -> str:
+    """Capture ``configuration.print_obs_config`` stdout as plain text."""
     buf = io.StringIO()
     with redirect_stdout(buf):
         configuration.print_obs_config(config)
@@ -54,6 +64,11 @@ def _observatory_summary(config: ConfigParser) -> str:
 
 
 def _collect_language_codes() -> List[str]:
+    """List locale directory names having a compiled ``base.mo``.
+
+    Warns once per locale that only ships ``base.po``.
+    Ensures ``en`` appears when no ``locales`` tree exists or it is unavailable.
+    """
     locale_dir = os.path.abspath(
         os.path.join(os.path.dirname(__file__), "..", "..", "locales")
     )
@@ -88,6 +103,8 @@ def _collect_language_codes() -> List[str]:
 
 
 class MainMenuScreen(Screen):
+    """Top-level menu: configuration, scheduling, or exit."""
+
     BINDINGS = [Binding("ctrl+q", "quit", "Quit")]
 
     def compose(self) -> Any:
@@ -117,6 +134,8 @@ class MainMenuScreen(Screen):
 
 
 class ConfigRootScreen(Screen):
+    """Configuration branch: general options or observatory details."""
+
     BINDINGS = [Binding("escape", "back", "Back")]
 
     def compose(self) -> Any:
@@ -143,6 +162,8 @@ class ConfigRootScreen(Screen):
 
 
 class GeneralConfigScreen(Screen):
+    """General settings submenu (currently language selection)."""
+
     BINDINGS = [Binding("escape", "back", "Back")]
 
     def compose(self) -> Any:
@@ -166,6 +187,8 @@ class GeneralConfigScreen(Screen):
 
 
 class LanguageScreen(Screen):
+    """Pick UI language from installed gettext catalogs and refresh gettext."""
+
     BINDINGS = [Binding("escape", "back", "Back")]
 
     def compose(self) -> Any:
@@ -213,6 +236,8 @@ class LanguageScreen(Screen):
 
 
 class ObservatoryScreen(Screen):
+    """Read-only observatory summary plus shortcuts to editable fields."""
+
     BINDINGS = [Binding("escape", "back", "Back")]
 
     def compose(self) -> Any:
@@ -253,6 +278,8 @@ class ObservatoryScreen(Screen):
 
 
 class ObservatoryCoordsScreen(Screen):
+    """Edit locality name and latitude/longitude in the config."""
+
     BINDINGS = [Binding("escape", "back", "Back")]
 
     def compose(self) -> Any:
@@ -303,6 +330,8 @@ class ObservatoryCoordsScreen(Screen):
 
 
 class ObservatoryAltitudeScreen(Screen):
+    """Set observatory altitude (meters) as an integer."""
+
     BINDINGS = [Binding("escape", "back", "Back")]
 
     def compose(self) -> Any:
@@ -341,6 +370,8 @@ class ObservatoryAltitudeScreen(Screen):
 
 
 class ObservatoryObserverScreen(Screen):
+    """Change the observer name stored in configuration."""
+
     BINDINGS = [Binding("escape", "back", "Back")]
 
     def compose(self) -> Any:
@@ -375,6 +406,8 @@ class ObservatoryObserverScreen(Screen):
 
 
 class ObservatoryObservatoryNameScreen(Screen):
+    """Rename the observatory/site string in configuration."""
+
     BINDINGS = [Binding("escape", "back", "Back")]
 
     def compose(self) -> Any:
@@ -409,6 +442,8 @@ class ObservatoryObservatoryNameScreen(Screen):
 
 
 class ObservatoryMpcScreen(Screen):
+    """Assign MPC observatory code; optionally pull coords/name from MPC data."""
+
     BINDINGS = [Binding("escape", "back", "Back")]
 
     def compose(self) -> Any:
@@ -462,6 +497,8 @@ class ObservatoryMpcScreen(Screen):
 
 
 class ObservatoryHorizonScreen(Screen):
+    """Configure cardinal virtual-horizon strings (north/south/east/west)."""
+
     BINDINGS = [Binding("escape", "back", "Back")]
 
     def compose(self) -> Any:
@@ -516,6 +553,8 @@ class ObservatoryHorizonScreen(Screen):
 
 
 class SchedulingRootScreen(Screen):
+    """Hub for forecasting, MPC lists, ephemerides, twilight computations."""
+
     BINDINGS = [Binding("escape", "back", "Back")]
 
     def compose(self) -> Any:
@@ -551,6 +590,8 @@ class SchedulingRootScreen(Screen):
 
 
 class WeatherScreen(Screen):
+    """Runs ``weather_forecast_report`` off the UI thread into a Rich log."""
+
     BINDINGS = [Binding("escape", "back", "Back")]
 
     def compose(self) -> Any:
@@ -574,6 +615,7 @@ class WeatherScreen(Screen):
             await self._do_fetch()
 
     async def _do_fetch(self) -> None:
+        """Load forecast text asynchronously so the worker cannot block repaint."""
         log = self.query_one("#log", RichLog)
         btn = self.query_one("#run", Button)
         log.clear()
@@ -589,6 +631,8 @@ class WeatherScreen(Screen):
 
 
 class ObservingTargetListScreen(Screen):
+    """What's Observable-style form with scrollable fields and MPC POST payload."""
+
     BINDINGS = [Binding("escape", "back", "Back")]
 
     def compose(self) -> Any:
@@ -678,6 +722,7 @@ class ObservingTargetListScreen(Screen):
             await self._do_run()
 
     async def _do_run(self) -> None:
+        """Resolve token/coords, POST to MPC, optionally open browser results."""
         cfg = _app_config(self)
         btn = self.query_one("#run", Button)
         btn.disabled = True
@@ -769,6 +814,7 @@ class ObservingTargetListScreen(Screen):
 
 
 def _local_coordinates(config: ConfigParser) -> List[str]:
+    """Return latitude/longitude strings from the observatory section (after reload)."""
     configuration.load_config(config)
     latitude = config["Observatory"]["latitude"]
     longitude = config["Observatory"]["longitude"]
@@ -776,6 +822,7 @@ def _local_coordinates(config: ConfigParser) -> List[str]:
 
 
 def _parse_datetime_inputs(screen: ObservingTargetListScreen) -> datetime.datetime:
+    """UTC start time parsed from `#day`..`#second` widgets (raises ``ValueError``)."""
     day = int(screen.query_one("#day", Input).value.strip())
     month = int(screen.query_one("#month", Input).value.strip())
     year = int(screen.query_one("#year", Input).value.strip())
@@ -786,11 +833,12 @@ def _parse_datetime_inputs(screen: ObservingTargetListScreen) -> datetime.dateti
 
 
 class ResultLogScreen(Screen):
-    """Shows long text output with a single dismiss control."""
+    """Modal-ish screen dumping long plaintext into a scrollable Rich log."""
 
     BINDINGS = [Binding("escape", "close", "Close")]
 
     def __init__(self, body: str) -> None:
+        """``body`` fills the embedded log immediately after mount."""
         super().__init__()
         self._body = body
 
@@ -815,6 +863,8 @@ class ResultLogScreen(Screen):
 
 
 class NeocpScreen(Screen):
+    """Filter NEOcp confirmation prospects; render table or JS viewer."""
+
     BINDINGS = [Binding("escape", "back", "Back")]
 
     def compose(self) -> Any:
@@ -858,6 +908,7 @@ class NeocpScreen(Screen):
             await self._do_run()
 
     async def _do_run(self) -> None:
+        """Validate numeric filters, fetch async MPC table, show result overlay."""
         btn = self.query_one("#run", Button)
         btn.disabled = True
         try:
@@ -890,6 +941,8 @@ class NeocpScreen(Screen):
 
 
 class EphemerisScreen(Screen):
+    """Planetarium-style stepping ephemeris for a named solar-system object."""
+
     BINDINGS = [Binding("escape", "back", "Back")]
 
     def compose(self) -> Any:
@@ -940,6 +993,7 @@ class EphemerisScreen(Screen):
             await self._do_run()
 
     async def _do_run(self) -> None:
+        """Run blocking ephemeris and push the textual table overlay."""
         btn = self.query_one("#run", Button)
         btn.disabled = True
         try:
@@ -963,6 +1017,8 @@ class EphemerisScreen(Screen):
 
 
 class TwilightScreen(Screen):
+    """Compute twilight windows plus sun/moon rise/set summary for tonight."""
+
     BINDINGS = [Binding("escape", "back", "Back")]
 
     def compose(self) -> Any:
@@ -986,6 +1042,7 @@ class TwilightScreen(Screen):
             await self._do_run()
 
     async def _do_run(self) -> None:
+        """Gather twilight and ephemerides in one background call, print lines."""
         log = self.query_one("#log", RichLog)
         btn = self.query_one("#run", Button)
         log.clear()
@@ -993,6 +1050,8 @@ class TwilightScreen(Screen):
         try:
 
             def _twilight_bundle(cfg: ConfigParser) -> Tuple[Any, Any]:
+                """Pair twilight and sun/moon results for ``asyncio.to_thread``."""
+
                 return scheduling.twilight_times(cfg), scheduling.sun_moon_ephemeris(cfg)
 
             result_times, ephemeris = await asyncio.to_thread(

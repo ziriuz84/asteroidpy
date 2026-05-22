@@ -1,0 +1,41 @@
+/* AsteroidPY Textual stylesheet (bundled beside _tui_app.py).
+ *
+ * Screen: center #panel vertically and horizontally for menu-style flows.
+ * #panel: main card — width cap, bordered surface matching app accent.
+ * RichLog: fixed height on flat screens (e.g. weather); ScrollableContainer
+ *   descendant uses 1fr so long output grows inside the scroll area.
+ * Horizontal.input-row: label column + stretching Input for form grids.
+ */
+
+    Screen {
+        align: center middle;
+    }
+    #panel {
+        width: 88%;
+        max-width: 120;
+        height: auto;
+        max-height: 90%;
+        border: heavy $accent;
+        padding: 1 2;
+        background: $surface;
+    }
+    RichLog {
+        height: 22;
+        border: solid $accent;
+        margin-top: 1;
+    }
+    ScrollableContainer RichLog {
+        height: 1fr;
+        min-height: 12;
+    }
+    Horizontal.input-row {
+        height: auto;
+        margin-bottom: 0;
+    }
+    Horizontal.input-row Label {
+        width: 28;
+        content-align: left middle;
+    }
+    Horizontal.input-row Input {
+        width: 1fr;
+    }

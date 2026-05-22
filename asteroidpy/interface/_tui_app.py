@@ -1,4 +1,9 @@
-"""Textual TUI entry point for AsteroidPY."""
+"""Launch the Textual-based full-screen terminal UI for AsteroidPY.
+
+Loads layout and widget rules from ``style.tcss`` (same package directory).
+The parsed :class:`~configparser.ConfigParser` lives on ``app.config`` so
+screens can reuse the caller's mutable configuration across the stack.
+"""
 
 from __future__ import annotations
 
@@ -10,54 +15,27 @@ from ._tui_screens import MainMenuScreen
 
 
 class AsteroidApp(App[None]):
-    """Root Textual application holding shared ``ConfigParser`` state."""
+    """Root Textual app carrying the shared observatory/program configuration."""
 
+    #: Path to stylesheet next to this module (see ``CSS_PATH`` in Textual's ``App``).
+    CSS_PATH = "style.tcss"
+
+    #: Window / terminal title shown by the environment when supported.
     TITLE = "AsteroidPY"
 
+    #: Quit from any nested screen unless a child binds the same chord differently.
     BINDINGS = [("ctrl+q", "quit", "Quit")]
 
-    CSS = """
-    Screen {
-        align: center middle;
-    }
-    #panel {
-        width: 88%;
-        max-width: 120;
-        height: auto;
-        max-height: 90%;
-        border: heavy $accent;
-        padding: 1 2;
-        background: $surface;
-    }
-    RichLog {
-        height: 22;
-        border: solid $accent;
-        margin-top: 1;
-    }
-    ScrollableContainer RichLog {
-        height: 1fr;
-        min-height: 12;
-    }
-    Horizontal.input-row {
-        height: auto;
-        margin-bottom: 1;
-    }
-    Horizontal.input-row Label {
-        width: 28;
-        content-align: left middle;
-    }
-    Horizontal.input-row Input {
-        width: 1fr;
-    }
-    """
-
     def __init__(self, config: ConfigParser) -> None:
+        """Attach the CLI-loaded config bundle for downstream screens."""
         super().__init__()
         self.config = config
 
     def on_mount(self) -> None:
+        """Seed the navigation stack at the translated main menu."""
         self.push_screen(MainMenuScreen())
 
 
 def run_textual_interface(config: ConfigParser) -> None:
+    """Block until the user exits; ``config`` is read/written by menu actions."""
     AsteroidApp(config).run()
