@@ -40,6 +40,9 @@ dev = [
     "ruff",
     "mypy",
 ]
+docs = [
+    "sphinx>=7",
+]
 
 [project.urls]
 Homepage="https://github.com/ziriuz84/asteroidpy"

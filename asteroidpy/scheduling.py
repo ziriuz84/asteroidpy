@@ -193,10 +193,10 @@ async def httpx_get(
     ----------
     url : str
         The URL to query.
-    payload : dict of str to Any
-        Dictionary of query parameters to include in the request.
-    return_type : {'json', 'text'}
-        ``'json'`` parses JSON responses; ``'text'`` returns response body text.
+    payload : Dict[str, Any]
+        Query parameters forwarded to HTTPX.
+    return_type : str
+        Either ``"json"`` (parse JSON body) or ``"text"`` (return raw response text).
 
     Returns
     -------
@@ -247,10 +247,10 @@ async def httpx_post(
     ----------
     url : str
         The URL to query.
-    payload : dict of str to Any
-        Dictionary of form data to include in the POST request body.
-    return_type : {'json', 'text'}
-        Same semantics as :func:`httpx_get`.
+    payload : Dict[str, Any]
+        Form fields forwarded in the POST body.
+    return_type : str
+        Either ``"json"`` or ``"text"`` (same semantics as :func:`httpx_get`).
 
     Returns
     -------
@@ -326,7 +326,7 @@ def weather_forecast_report(config: ConfigParser) -> str:
     """Fetch and format the 7Timer astronomical forecast as plain text.
 
     Returns user-visible error messages when the HTTP request fails or the body
-    is not JSON; otherwise returns :func:`str` of the formatted Astropy table.
+    is not JSON; otherwise returns the plaintext rendering of the formatted table.
     """
 
     configuration.load_config(config)
@@ -524,9 +524,9 @@ def is_visible(
     config : ConfigParser
         The ConfigParser object with configuration options, including
         observatory location and virtual horizon settings.
-    coord : SkyCoord or list of str
-        Celestial coordinates to check. Can be a SkyCoord object or a list
-        of two strings [RA, Dec] that will be converted to SkyCoord.
+    coord : Union[SkyCoord, List[str]]
+        Celestial coordinates. When a list is given it must contain two RA/Dec
+        strings convertible via :func:`skycoord_format`.
     time : Time
         Observation time (astropy Time object).
 
@@ -590,12 +590,12 @@ def observing_target_list_scraper(url: str, payload: Dict[str, Any]) -> List[Lis
     ----------
     url : str
         The URL to scrape for observing target data.
-    payload : dict of str to Any
+    payload : Dict[str, Any]
         Query parameters to include in the POST request URL.
 
     Returns
     -------
-    list of list of str
+    List[List[str]]
         A list of rows, where each row is a list of strings representing
         the cell values from the target table. Returns an empty list if
         no suitable table is found.
@@ -662,7 +662,7 @@ def observing_target_list(config: ConfigParser, payload: Dict[str, Any]) -> QTab
     config : ConfigParser
         The ConfigParser object with configuration options, including
         observatory location and virtual horizon settings.
-    payload : dict of str to Any
+    payload : Dict[str, Any]
         Dictionary of query parameters including:
         - latitude, longitude: Observatory coordinates
         - year, month, day, hour, minute: Observation start time
@@ -894,12 +894,12 @@ async def get_neocp_ephemeris(
     config : ConfigParser
         The ConfigParser object with configuration options, including
         observatory location and MPC code.
-    object_names : list of str
-        List of temporary designations for NEOcp objects to query.
+    object_names : List[str]
+        Temporary designations for NEOcp objects to query.
 
     Returns
     -------
-    dict of str to list of str
+    Dict[str, List[str]]
         Dictionary mapping object temporary designations to lists of
         ephemeris values. Each list contains parsed values from the ephemeris
         table, including velocity at index ``NEOCP_EPHEM_VELOCITY_IDX``
@@ -995,7 +995,7 @@ def twilight_times(config: ConfigParser) -> Dict[str, Any]:
 
     Returns
     -------
-    dict of str to Time
+    Dict[str, Time]
         Dictionary containing twilight times with keys:
         - 'CivilM': Morning civil twilight (astropy Time)
         - 'CivilE': Evening civil twilight (astropy Time)
@@ -1041,7 +1041,7 @@ def sun_moon_ephemeris(config: ConfigParser) -> Dict[str, Any]:
 
     Returns
     -------
-    dict of str to Time or float
+    Dict[str, Union[Time, float]]
         Dictionary containing ephemeris data with keys:
         - 'Sunrise': Next sunrise time (astropy Time)
         - 'Sunset': Next sunset time (astropy Time)

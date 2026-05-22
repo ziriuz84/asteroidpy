@@ -5,7 +5,7 @@ AsteroidPy is organized into several modules, each handling a specific aspect
 of the application:
 
 * :mod:`asteroidpy.configuration`: Configuration management and observatory settings
-* :mod:`asteroidpy.interface`: User interface and menu system
+* :mod:`asteroidpy.interface`: gettext setup, legacy ``print``/``input`` helpers, Textual screens
 * :mod:`asteroidpy.scheduling`: Observation scheduling and ephemeris calculations
 
 Submodules
@@ -34,8 +34,16 @@ Key Functions
 asteroidpy.interface module
 -----------------------------
 
-The interface module provides the interactive command-line user interface,
-including menus, input validation, and user interaction functions.
+The ``interface`` package boots GNU gettext from the persisted config and
+launches :func:`~asteroidpy.interface.interface`, which runs the Textual
+full-screen terminal UI. Legacy ``print``/``input`` helpers remain for scripting
+or tooling.
+
+Layout (private submodules; import only if you extend the UI):
+
+* ``_tui_app`` — root Textual ``App`` subclass and ``style.tcss`` path
+* ``_tui_screens`` — ``Screen`` definitions for menus, forms, and result views
+* ``style.tcss`` — layout rules for centered panels, logs, and labelled inputs
 
 .. automodule:: asteroidpy.interface
     :members:
@@ -46,11 +54,13 @@ including menus, input validation, and user interaction functions.
 Key Functions
 ~~~~~~~~~~~~~
 
-* :func:`interface`: Main interface entry point
-* :func:`main_menu`: Main application menu loop
-* :func:`config_menu`: Configuration menu
-* :func:`scheduling_menu`: Observation scheduling menu
-* :func:`setup_gettext`: Initialize internationalization
+* :func:`~asteroidpy.interface.interface`: Spin up gettext and start the Textual application
+* :func:`~asteroidpy.interface.main_menu`: Legacy text loop (not invoked by ``interface()`` today)
+* :func:`~asteroidpy.interface.setup_gettext`: Prime gettext from the active config
+
+Configuration and scheduling legacy menus live in ``interface._config_menus`` and
+``interface._schedule_menus``; import them explicitly if you embed those flows
+outside the default entry point.
 
 asteroidpy.scheduling module
 -----------------------------
@@ -67,13 +77,16 @@ weather forecasts, and visibility calculations.
 Key Functions
 ~~~~~~~~~~~~~
 
-* :func:`observing_target_list`: Generate list of visible objects from MPC
-* :func:`neocp_confirmation`: Get NEOcp candidate list
-* :func:`object_ephemeris`: Retrieve ephemeris for a specific object
-* :func:`twilight_times`: Calculate twilight times
-* :func:`sun_moon_ephemeris`: Get Sun and Moon ephemeris
-* :func:`weather`: Display weather forecast
-* :func:`is_visible`: Check if object is above virtual horizon
+* :func:`observing_target_list`: Build a ``QTable`` from the MPC POST payload
+* :func:`neocp_confirmation`: Blocking NEOcp candidate table
+* :func:`async_neocp_confirmation`: ``asyncio``-friendly NEOcp fetch for Textual
+* :func:`object_ephemeris`: Ephemeris table for a named object
+* :func:`twilight_times`: Civil/nautical/astronomical twilight datetimes
+* :func:`sun_moon_ephemeris`: Sun/Moon rise/set + illumination dict
+* :func:`weather_forecast_report`: Plain-text 7Timer report (used by the TUI)
+* :func:`weather`: Legacy helper that prints the forecast to stdout
+* :func:`resolve_whatsup_authenticity_token`: Scrape (and cache) form tokens for What's Observable
+* :func:`is_visible`: Virtual-horizon visibility check
 
 Module contents
 ---------------
