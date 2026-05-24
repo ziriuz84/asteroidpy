@@ -1,4 +1,10 @@
-"""Interactive command-line UI (menus, i18n, input helpers)."""
+"""User-facing UI package: Textual terminal app, gettext, and legacy text menus.
+
+The exported function ``interface`` loads gettext from the active config and
+starts the Textual application (``asteroidpy.interface._tui_app``). ``main_menu``
+plus the procedural helpers in ``_config_menus`` and ``_schedule_menus`` keep the
+older ``print``/prompt workflows for tooling that imports them explicitly.
+"""
 
 from __future__ import annotations
 

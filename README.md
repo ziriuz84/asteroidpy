@@ -4,7 +4,7 @@
 [![Contributor Covenant](https://img.shields.io/badge/Contributor%20Covenant-2.1-4baaaa.svg)](CODE_OF_CONDUCT.md)
 [![contributions welcome](https://img.shields.io/badge/contributions-welcome-brightgreen.svg?style=flat)](https://github.com/ziriuz84/asteroidpy/issues)
 
-AsteroidPy is a command-line tool for astronomers to schedule and manage asteroid observations. It integrates with the Minor Planet Center and other astronomical data sources to provide ephemerides, NEO confirmation candidates, weather forecasts, and observing aids—all from an interactive terminal interface.
+AsteroidPy is a command-line tool for astronomers to schedule and manage asteroid observations. It integrates with the Minor Planet Center and other astronomical data sources to provide ephemerides, NEO confirmation candidates, weather forecasts, and observing aids—all from an interactive terminal UI built with [Textual](https://textual.textualize.io/).
 
 ---
 
@@ -120,7 +120,7 @@ Small differences can arise from different orbital elements, epoch dates, or tim
 Check that all dependencies are installed (`pip install .`), that `~/.asteroidpy` is writable, and that you have internet access (required for weather and ephemeris queries). If the config file is corrupted, you can remove `~/.asteroidpy` and let the app recreate it on next run.
 
 **Which languages are supported?**  
-English (default), Italiano, Deutsch, Français, Español, Português. Change the language in **Configuration → General**; only locales with compiled `.mo` files are shown.
+English (default), Italiano, Deutsch, Français, Español, Português. Change the language in **Configuration → General** → **Language**. Only locales with compiled `.mo` files are listed as selectable; if a folder under `locales/` has only a `base.po`, the UI may show a notice when opening the language screen—compile with `msgfmt` so the locale appears as a proper option.
 
 ---
 
@@ -197,14 +197,14 @@ Thank you for considering contributing to AsteroidPy. Please read the [Code of C
 
 ```
 asteroidpy/
-├── __init__.py      # Entry point; loads config, launches interface
-├── interface.py     # CLI menus, user I/O, gettext setup
-├── scheduling.py    # Ephemerides, weather, NEOcp, twilight
-├── configuration.py # Observatory config, horizon, language
-└── locales/         # gettext translations (en, it, de, fr, es, pt)
+├── __init__.py       # Entry point; loads config, launches interface
+├── interface/        # Textual TUI, gettext setup (legacy menu helpers retained)
+├── scheduling.py     # Ephemerides, weather, NEOcp, twilight
+├── configuration.py  # Observatory config, horizon, language
+└── locales/          # gettext translations (en, it, de, fr, es, pt)
 ```
 
-- **`interface`** — Main entry for the interactive UI. Loads config, sets up gettext, and delegates to `scheduling` for ephemeris/weather/NEOcp and to `configuration` for settings.
+- **`interface`** — Main entry for the interactive UI (Textual screens). Loads config, sets up gettext, and delegates to `scheduling` for ephemeris/weather/NEOcp and to `configuration` for settings.
 - **`scheduling`** — Astronomy logic: MPC queries, 7Timer weather, twilight, Sun/Moon ephemeris. Uses `configuration.load_config()` to read observatory data.
 - **`configuration`** — Persists and loads settings in `~/.asteroidpy`; handles observatory coordinates, virtual horizon, and language. Used by both `interface` and `scheduling`.
 
@@ -228,6 +228,7 @@ AsteroidPy uses [GNU gettext](https://www.gnu.org/software/gettext/) with a sing
    msgfmt -o locales/nl/LC_MESSAGES/base.mo locales/nl/LC_MESSAGES/base.po
    ```
    The `msgfmt` command comes with the gettext package (`gettext` on most Linux distros).
+   Until the `.mo` exists, text from that `.po` is not used by gettext; the interactive UI may notify you once per incomplete locale under **General** → **Language**.
 
 4. The new language will appear in **Configuration → General** after restart.
 

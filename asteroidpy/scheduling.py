@@ -88,6 +88,54 @@ def resolve_whatsup_authenticity_token() -> Tuple[str, bool]:
     return _MPC_WHATSUP_AUTH_TOKEN_FALLBACK, True
 
 
+# MPC observing-target calendar times, e.g. ``2026 5 24.559 (13:25 UT)``, optional ``UTC``.
+_MPC_WHATSUP_CALENDAR_TIME_RE = re.compile(
+    r"^\s*(?P<y>\d{4})\s+(?P<mo>\d{1,2})\s+(?P<dy>\d+(?:\.\d*)?)(\s|$)"
+)
+_MPC_WHATSUP_UT_PAREN_TIME_RE = re.compile(
+    r"\(\s*(?P<h>\d{1,2})\s*:\s*(?P<m>\d{1,2})\s+(?:UTC|UT)\s*\)",
+    re.IGNORECASE,
+)
+
+
+def mpc_whatsup_table_cell_to_time(timestr: str) -> Time:
+    """Parse an MPC observing-target-table time cell into UTC :class:`~astropy.time.Time`.
+
+    Newer MPC HTML cells look like::
+
+        ``2026 5 24.559 (13:25 UT)``
+
+    Prefer the UT clock time in parentheses for ephemerides. Older tables used iso-like strings.
+    """
+
+    stripped = timestr.strip()
+    if not stripped:
+        raise ValueError("empty MPC whats-up table time cell")
+
+    cal_match = _MPC_WHATSUP_CALENDAR_TIME_RE.match(stripped)
+    paren_match = _MPC_WHATSUP_UT_PAREN_TIME_RE.search(stripped)
+    if cal_match is not None and paren_match is not None:
+        year = int(cal_match.group("y"))
+        month = int(cal_match.group("mo"))
+        day_field = float(cal_match.group("dy"))
+        day = int(day_field // 1)
+        hour = int(paren_match.group("h"))
+        minute = int(paren_match.group("m"))
+        return Time(
+            datetime.datetime(
+                year,
+                month,
+                day,
+                hour,
+                minute,
+                tzinfo=datetime.timezone.utc,
+            )
+        )
+
+    normalized = stripped.replace("T", " ").replace("z", "").replace("Z", "").strip()
+    return Time(normalized)
+
+
 # MPC confirmeph2 CGI: numeric fields parsed from HTML <pre>; indices from ephemeris line.
 NEOCP_EPHEM_VELOCITY_IDX = 12
 NEOCP_EPHEM_DIRECTION_IDX = 13
@@ -193,10 +241,10 @@ async def httpx_get(
     ----------
     url : str
         The URL to query.
-    payload : dict of str to Any
-        Dictionary of query parameters to include in the request.
-    return_type : {'json', 'text'}
-        ``'json'`` parses JSON responses; ``'text'`` returns response body text.
+    payload : Dict[str, Any]
+        Query parameters forwarded to HTTPX.
+    return_type : str
+        Either ``"json"`` (parse JSON body) or ``"text"`` (return raw response text).
 
     Returns
     -------
@@ -247,10 +295,10 @@ async def httpx_post(
     ----------
     url : str
         The URL to query.
-    payload : dict of str to Any
-        Dictionary of form data to include in the POST request body.
-    return_type : {'json', 'text'}
-        Same semantics as :func:`httpx_get`.
+    payload : Dict[str, Any]
+        Form fields forwarded in the POST body.
+    return_type : str
+        Either ``"json"`` or ``"text"`` (same semantics as :func:`httpx_get`).
 
     Returns
     -------
@@ -322,32 +370,13 @@ def weather_time(time_init: str, deltaT: int) -> str:
     return time.strftime("%d/%m %H:%M")
 
 
-def weather(config: ConfigParser) -> None:
-    """Display weather forecast for the observatory location.
+def weather_forecast_report(config: ConfigParser) -> str:
+    """Fetch and format the 7Timer astronomical forecast as plain text.
 
-    Retrieves astronomical weather forecast data from 7Timer API for up to
-    72 hours and displays it in a formatted table. Includes cloud cover,
-    seeing conditions, transparency, atmospheric instability, temperature,
-    relative humidity, wind conditions, and precipitation.
-
-    Parameters
-    ----------
-    config : ConfigParser
-        The ConfigParser object with configuration options, including
-        observatory latitude and longitude.
-
-    Returns
-    -------
-    None
-        This function does not return a value.
-
-    Notes
-    -----
-    The forecast is retrieved via HTTPS from the 7Timer API (``astro`` product).
-    Numeric codes are mapped using the module dictionaries.
-
-    Raises nothing: network and HTTP failures are reported on stdout.
+    Returns user-visible error messages when the HTTP request fails or the body
+    is not JSON; otherwise returns the plaintext rendering of the formatted table.
     """
+
     configuration.load_config(config)
     lat, long = config["Observatory"]["latitude"], config["Observatory"]["longitude"]
     payload = {"lon": long, "lat": lat, "product": "astro", "output": "json"}
@@ -360,11 +389,9 @@ def weather(config: ConfigParser) -> None:
         r.raise_for_status()
         weather_forecast = r.json()
     except requests.RequestException as exc:
-        print(f"Weather forecast request failed ({exc}).")
-        return
+        return f"Weather forecast request failed ({exc})."
     except ValueError:
-        print("Weather forecast response was not valid JSON.")
-        return
+        return "Weather forecast response was not valid JSON."
 
     table = QTable(
         [[""], [""], [""], [""], [""], [""], [""], [""], [""]],
@@ -420,7 +447,37 @@ def weather(config: ConfigParser) -> None:
             ]
         )
     table.remove_row(0)
-    print(table)
+    return str(table)
+
+
+def weather(config: ConfigParser) -> None:
+    """Display weather forecast for the observatory location.
+
+    Retrieves astronomical weather forecast data from 7Timer API for up to
+    72 hours and displays it in a formatted table. Includes cloud cover,
+    seeing conditions, transparency, atmospheric instability, temperature,
+    relative humidity, wind conditions, and precipitation.
+
+    Parameters
+    ----------
+    config : ConfigParser
+        The ConfigParser object with configuration options, including
+        observatory latitude and longitude.
+
+    Returns
+    -------
+    None
+        This function does not return a value.
+
+    Notes
+    -----
+    The forecast is retrieved via HTTPS from the 7Timer API (``astro`` product).
+    Numeric codes are mapped using the module dictionaries.
+
+    Raises nothing: network and HTTP failures are reported on stdout.
+    """
+
+    print(weather_forecast_report(config))
     print("\n\n\n\n")
 
 
@@ -515,9 +572,9 @@ def is_visible(
     config : ConfigParser
         The ConfigParser object with configuration options, including
         observatory location and virtual horizon settings.
-    coord : SkyCoord or list of str
-        Celestial coordinates to check. Can be a SkyCoord object or a list
-        of two strings [RA, Dec] that will be converted to SkyCoord.
+    coord : Union[SkyCoord, List[str]]
+        Celestial coordinates. When a list is given it must contain two RA/Dec
+        strings convertible via :func:`skycoord_format`.
     time : Time
         Observation time (astropy Time object).
 
@@ -573,20 +630,20 @@ def is_visible(
 def observing_target_list_scraper(url: str, payload: Dict[str, Any]) -> List[List[str]]:
     """Scrape observing target list data from a web page.
 
-    Performs a POST request to the specified URL and extracts table data
-    containing observing target information. The function looks for a table
-    with specific headers related to asteroid observations.
+    Performs an ``application/x-www-form-urlencoded`` POST (same as the MPC
+    What's Observable HTML form), then extracts observing-target table rows.
 
     Parameters
     ----------
     url : str
-        The URL to scrape for observing target data.
-    payload : dict of str to Any
-        Query parameters to include in the POST request URL.
+        The URL to POST to (typically :data:`MPC_WHATSUP_INDEX_URL`).
+    payload : Dict[str, Any]
+        Form fields for the MPC query (latitude/longitude, time window, filters,
+        ``authenticity_token``, etc.). Values are serialized like a browser form.
 
     Returns
     -------
-    list of list of str
+    List[List[str]]
         A list of rows, where each row is a list of strings representing
         the cell values from the target table. Returns an empty list if
         no suitable table is found.
@@ -594,15 +651,24 @@ def observing_target_list_scraper(url: str, payload: Dict[str, Any]) -> List[Lis
     Notes
     -----
     The function prefers the 4th table on the page (legacy behavior), but
-    will also search for tables containing expected headers like 'Designation',
-    'Mag', 'Time', 'RA', 'Dec', 'Alt'. Only non-empty data rows are returned.
+    will also search for tables containing expected headers. MPC currently
+    uses either the classic columns (… Time / RA / Dec / Alt) or the extended
+    layout with solar/lunar elongation and Begin/Max epochs (indices 4–7 still
+    map to Begin time / Beg RA / Dec / Alt for visibility filtering). Only
+    non-empty data rows are returned.
 
     Raises nothing: failures return an empty list.
     """
+    # MPC Rails form expects a POST body, not query-string parameters.
+    body: Dict[str, Any] = dict(payload)
+    if body.get("utf8") == "%E2%9C%93":
+        body["utf8"] = "\u2713"
+
     try:
         r = requests.post(
             url,
-            params=payload,
+            data=body,
+            headers=_MPC_BROWSER_HEADERS,
             timeout=DEFAULT_REQUEST_TIMEOUT_SEC,
         )
         r.raise_for_status()
@@ -612,16 +678,32 @@ def observing_target_list_scraper(url: str, payload: Dict[str, Any]) -> List[Lis
     soup = BeautifulSoup(r.content, "lxml")
     tables = soup.find_all("table")
 
+    _classic_headers = {"Designation", "Mag", "Time", "RA", "Dec", "Alt"}
+    _beg_headers = {
+        "Designation",
+        "Mag",
+        "Begin Time",
+        "Beg RA",
+        "Beg Dec",
+        "Beg Alt",
+    }
+
+    def _table_matches_results(headers: set[str]) -> bool:
+        return _classic_headers.issubset(headers) or _beg_headers.issubset(headers)
+
     # Prefer the 4th table if present (legacy behavior), otherwise try to detect by headers
     target_table = None
     if len(tables) >= 4:
-        target_table = tables[3]
-    else:
+        fourth = tables[3]
+        header_cells = [th.get_text(strip=True) for th in fourth.find_all("th")]
+        header_set = {h for h in header_cells if h}
+        if _table_matches_results(header_set):
+            target_table = fourth
+    if target_table is None:
         for candidate in tables:
             header_cells = [th.get_text(strip=True) for th in candidate.find_all("th")]
-            header_set = set(h for h in header_cells if h)
-            expected_headers = {"Designation", "Mag", "Time", "RA", "Dec", "Alt"}
-            if expected_headers.issubset(header_set):
+            header_set = {h for h in header_cells if h}
+            if _table_matches_results(header_set):
                 target_table = candidate
                 break
 
@@ -653,8 +735,8 @@ def observing_target_list(config: ConfigParser, payload: Dict[str, Any]) -> QTab
     config : ConfigParser
         The ConfigParser object with configuration options, including
         observatory location and virtual horizon settings.
-    payload : dict of str to Any
-        Dictionary of query parameters including:
+    payload : Dict[str, Any]
+        Dictionary of POST form fields including:
         - latitude, longitude: Observatory coordinates
         - year, month, day, hour, minute: Observation start time
         - duration: Observation duration
@@ -690,7 +772,7 @@ def observing_target_list(config: ConfigParser, payload: Dict[str, Any]) -> QTab
         if len(d) < MPC_MIN_COLS:
             continue
         try:
-            observing_time = Time(d[MPC_COL_TIME].replace("T", " ").replace("z", ""))
+            observing_time = mpc_whatsup_table_cell_to_time(d[MPC_COL_TIME])
         except (ValueError, TypeError):
             continue
         if is_visible(
@@ -885,12 +967,12 @@ async def get_neocp_ephemeris(
     config : ConfigParser
         The ConfigParser object with configuration options, including
         observatory location and MPC code.
-    object_names : list of str
-        List of temporary designations for NEOcp objects to query.
+    object_names : List[str]
+        Temporary designations for NEOcp objects to query.
 
     Returns
     -------
-    dict of str to list of str
+    Dict[str, List[str]]
         Dictionary mapping object temporary designations to lists of
         ephemeris values. Each list contains parsed values from the ephemeris
         table, including velocity at index ``NEOCP_EPHEM_VELOCITY_IDX``
@@ -986,7 +1068,7 @@ def twilight_times(config: ConfigParser) -> Dict[str, Any]:
 
     Returns
     -------
-    dict of str to Time
+    Dict[str, Time]
         Dictionary containing twilight times with keys:
         - 'CivilM': Morning civil twilight (astropy Time)
         - 'CivilE': Evening civil twilight (astropy Time)
@@ -1032,7 +1114,7 @@ def sun_moon_ephemeris(config: ConfigParser) -> Dict[str, Any]:
 
     Returns
     -------
-    dict of str to Time or float
+    Dict[str, Union[Time, float]]
         Dictionary containing ephemeris data with keys:
         - 'Sunrise': Next sunrise time (astropy Time)
         - 'Sunset': Next sunset time (astropy Time)

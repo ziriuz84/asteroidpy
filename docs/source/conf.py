@@ -17,7 +17,14 @@
 # sys.path.insert(0, os.path.abspath('.'))
 import os
 import sys
-sys.path.insert(0, os.path.abspath(os.path.join('..', '..')))
+_root = os.path.abspath(os.path.join(os.path.dirname(__file__), '..', '..'))
+sys.path.insert(0, _root)
+
+# Version tracks asteroidpy.version (single release source)
+try:
+    from asteroidpy.version import __version__ as _pkg_version  # noqa: E402  (after sys.path)
+except ImportError:  # building docs without the package installed
+    _pkg_version = 'unknown'
 
 # Add type hints support
 autodoc_typehints = 'description'
@@ -39,6 +46,7 @@ autodoc_mock_imports = [
     'httpx',
     'requests',
     'lxml',
+    'textual',
 ]
 
 
@@ -46,13 +54,13 @@ autodoc_mock_imports = [
 # -- Project information -----------------------------------------------------
 
 project = 'AsteroidPy'
-copyright = '2022, Sirio Negri'
+copyright = '2022–2026, Sirio Negri'
 author = 'Sirio Negri'
 
-# The short X.Y version
-version = '1.1'
-# The full version, including alpha/beta/rc tags
-release = '1.1.3'
+# The short X.Y(.Z…) version mirrors the packaged release string.
+_release = _pkg_version.split('+', maxsplit=1)[0].strip()
+version = _release
+release = _release
 
 
 # -- General configuration ---------------------------------------------------
@@ -184,7 +192,8 @@ man_pages = [
 #  dir menu entry, description, category)
 texinfo_documents = [
     (master_doc, 'AsteroidPy', 'AsteroidPy Documentation',
-     author, 'AsteroidPy', 'One line description of project.',
+     author, 'AsteroidPy',
+     'Scheduling and MPC-related tools with a terminal user interface.',
      'Miscellaneous'),
 ]
 
@@ -210,6 +219,26 @@ epub_exclude_files = ['search.html']
 # -- Extension configuration -------------------------------------------------
 
 # -- Options for intersphinx extension ---------------------------------------
+
+# Third-party/runtime types appear in Napoleon sections but deps are mocked for autodoc.
+nitpick_ignore = [
+    ('py:class', 'ConfigParser'),
+    ('py:class', 'SkyCoord'),
+    ('py:class', 'Time'),
+    ('py:class', 'QTable'),
+    ('py:func', 'str'),
+    ('py:class', 'str to Any'),
+    ('py:class', 'str to list of str'),
+    ('py:class', 'str to Time'),
+    ('py:class', 'str to Time or float'),
+    ('py:class', 'json'),
+    ('py:class', 'text'),
+    ('py:class', 'SkyCoord or list'),
+    ('py:class', 'Dict'),
+    ('py:class', 'List'),
+    ('py:class', 'Union'),
+    ('py:class', 'Any'),
+]
 
 # Example configuration for intersphinx: refer to the Python standard library.
 intersphinx_mapping = {

@@ -7,6 +7,7 @@ Purpose: guidance for agentic edits in asteroidpy.
 - `pytest -q` to run the test suite.
 - `pytest <path>::<test_name> -q` for a single test.
 - `ruff check .` (or `flake8`) for linting; `mypy` for type checks.
+- HTML API docs: install Sphinx with `pip install -e ".[docs]"`, then `(cd docs && make html)`, output under `docs/build/html/`.
 
 **Code Style**
 - **Imports**: standard library first, then third‑party, then local; explicit imports only.
