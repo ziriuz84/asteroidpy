@@ -62,7 +62,7 @@ Options:
 
 Files modified:
   - asteroidpy/version.py (__version__)
-  - setup.py (version)
+  - setup.py (version, if present)
   - CHANGELOG.md (new entry)
 
 Requirements:
@@ -223,10 +223,10 @@ create_commit() {
     
     if [ "$dry_run" = "true" ]; then
         echo "Would run:"
-        echo "  git add pyproject.toml setup.py CHANGELOG.md"
+        echo "  git add asteroidpy/version.py setup.py CHANGELOG.md"
         echo "  git commit -m 'chore: release v$version'"
     else
-        git add pyproject.toml setup.py CHANGELOG.md
+        git add asteroidpy/version.py setup.py CHANGELOG.md
         git commit -m "chore: release v$version"
         success "Commit created"
     fi
@@ -347,6 +347,21 @@ main() {
     update_version "$new_version" "$dry_run"
     update_changelog "$new_version" "$dry_run"
     create_commit "$new_version" "$dry_run"
+
+    # Coerenza con Jenkins: il tag deve puntare al commit che contiene __version__
+    if [ "$dry_run" != "true" ]; then
+        if ! git show --pretty="" --name-only HEAD | grep -qx 'asteroidpy/version.py'; then
+            error "Release commit missing asteroidpy/version.py — refusing to tag (fix release.sh)"
+        fi
+        committed_ver=$(
+            git show "HEAD:asteroidpy/version.py" | grep -E '^__version__' |
+                grep -oE '[0-9]+\.[0-9]+\.[0-9]+' | head -1
+        )
+        if [ "$committed_ver" != "$new_version" ]; then
+            error "Committed __version__ ($committed_ver) != release target ($new_version)"
+        fi
+    fi
+
     create_tag "$new_version" "$dry_run"
     push_changes "$new_version" "$dry_run" "$no_tag"
     
