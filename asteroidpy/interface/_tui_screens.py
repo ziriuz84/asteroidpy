@@ -1,7 +1,19 @@
 """Textual screens replacing legacy ``print`` / ``input`` menus.
 
-Associated widget layout rules are loaded from ``style.tcss`` by the Textual root
-application in ``_tui_app``.
+Layout rules load from ``style.tcss`` via the root application in ``_tui_app``.
+
+Behaviour notes for maintainers:
+
+* **Observatory summary** — :class:`ObservatoryScreen` refreshes the read-only
+  summary on mount and on :class:`~textual.events.ScreenResume` so edits from
+  pushed child screens are visible after ``pop_screen``.
+* **Locale catalogs** — :func:`_collect_language_codes_and_catalog_warnings`
+  lists languages with a compiled ``base.mo``; ``.po``-only trees produce
+  backlog strings shown from :class:`LanguageScreen` via ``app.notify`` (no
+  ``warnings.warn`` on stderr).
+* **MPC What's Observable** — :class:`ObservingTargetListScreen` clamps numeric
+  form fields to safe ranges before building the POST payload (see module-level
+  ``_MPC_*`` constants).
 """
 
 from __future__ import annotations
@@ -10,7 +22,6 @@ import asyncio
 import datetime
 import io
 import os
-import warnings
 from configparser import ConfigParser
 from contextlib import redirect_stdout
 from typing import Any, List, Tuple, cast
@@ -25,6 +36,7 @@ from ._intl import translate
 
 from textual.binding import Binding
 from textual.containers import Horizontal, ScrollableContainer, Vertical
+from textual.events import ScreenResume
 from textual.screen import Screen
 from textual.worker import WorkerFailed
 from textual.widgets import (
@@ -72,11 +84,28 @@ def _observatory_summary(config: ConfigParser) -> str:
     return buf.getvalue().strip()
 
 
-def _collect_language_codes() -> List[str]:
-    """List locale directory names having a compiled ``base.mo``.
+_MPC_WHATSUP_DURATION_H_MIN = 1
+_MPC_WHATSUP_DURATION_H_MAX = 12
+_MPC_ELONGATION_DEG_MIN = 0
+_MPC_ELONGATION_DEG_MAX = 180
+_MPC_MIN_ALT_DEG_MIN = 0
+_MPC_MIN_ALT_DEG_MAX = 90
+_MPC_MAX_OBJECTS_MIN = 1
+_MPC_MAX_OBJECTS_MAX = 1000
 
-    Warns once per locale that only ships ``base.po``.
-    Ensures ``en`` appears when no ``locales`` tree exists or it is unavailable.
+
+def _collect_language_codes_and_catalog_warnings() -> Tuple[List[str], List[str]]:
+    """Return installed UI language codes plus optional catalog backlog messages.
+
+    First element: subdirectory names under ``locales/`` whose ``LC_MESSAGES``
+    folder contains ``base.mo`` (selectable in :class:`LanguageScreen`). ``en`` is
+    prepended when absent.
+
+    Second element: one user-facing message (already passed through ``translate()`` from
+    ``._intl``) per locale that has ``base.po`` but no compiled ``base.mo``. Those strings are
+    meant for Textual notifications (see ``LanguageScreen.on_mount``), not ``warnings.warn``.
+
+    Ensures ``en`` appears when no ``locales`` tree exists or it is unreadable.
     """
     locale_dir = os.path.abspath(
         os.path.join(os.path.dirname(__file__), "..", "..", "locales")
@@ -93,6 +122,7 @@ def _collect_language_codes() -> List[str]:
         candidates = ["en"]
 
     available_langs: List[str] = []
+    backlog: List[str] = []
     for code in candidates:
         lc_dir = os.path.join(locale_dir, code, "LC_MESSAGES")
         mo_path = os.path.join(lc_dir, "base.mo")
@@ -100,15 +130,17 @@ def _collect_language_codes() -> List[str]:
         if os.path.exists(mo_path):
             available_langs.append(code)
         elif os.path.exists(po_path):
-            warnings.warn(
-                f"Locale '{code}' has a base.po but no compiled base.mo. "
-                "Translation may not be available until compiled."
+            backlog.append(
+                translate(
+                    "Locale '{code}' has base.po but no compiled base.mo; "
+                    "translation may not be available until catalogs are compiled."
+                ).format(code=code)
             )
 
     if "en" not in available_langs:
         available_langs.insert(0, "en")
 
-    return available_langs
+    return available_langs, backlog
 
 
 class MainMenuScreen(Screen):
@@ -196,14 +228,18 @@ class GeneralConfigScreen(Screen):
 
 
 class LanguageScreen(Screen):
-    """Pick UI language from installed gettext catalogs and refresh gettext."""
+    """Pick UI language from installed gettext catalogs and refresh gettext.
+
+    On mount, surfaces one notification per locale directory that has ``base.po`` but
+    no compiled ``base.mo`` (see :func:`_collect_language_codes_and_catalog_warnings`).
+    """
 
     BINDINGS = [Binding("escape", "back", "Back")]
 
     def compose(self) -> Any:
         yield Header()
         yield Footer()
-        codes = _collect_language_codes()
+        codes, self._locale_catalog_warnings = _collect_language_codes_and_catalog_warnings()
         native_names = {
             "en": "English",
             "it": "Italiano",
@@ -231,6 +267,10 @@ class LanguageScreen(Screen):
     def action_back(self) -> None:
         self.app.pop_screen()
 
+    def on_mount(self) -> None:
+        for msg in self._locale_catalog_warnings:
+            self.app.notify(msg, severity="warning")
+
     def on_button_pressed(self, event: Button.Pressed) -> None:
         bid = event.button.id or ""
         if bid == "back":
@@ -245,7 +285,11 @@ class LanguageScreen(Screen):
 
 
 class ObservatoryScreen(Screen):
-    """Read-only observatory summary plus shortcuts to editable fields."""
+    """Read-only observatory summary plus shortcuts to editable fields.
+
+    The summary text is recomputed when the screen mounts and whenever it becomes
+    active again (``ScreenResume``) so values changed on pushed edit screens stay in sync.
+    """
 
     BINDINGS = [Binding("escape", "back", "Back")]
 
@@ -267,6 +311,17 @@ class ObservatoryScreen(Screen):
             id="panel",
         )
 
+    def on_mount(self) -> None:
+        self._refresh_observatory_summary()
+
+    def on_screen_resume(self, _event: ScreenResume) -> None:
+        self._refresh_observatory_summary()
+
+    def _refresh_observatory_summary(self) -> None:
+        cfg = _app_config(self)
+        summary = _observatory_summary(cfg) or translate("(No observatory section)")
+        self.query_one("#obs_summary", Static).update(summary)
+
     def action_back(self) -> None:
         self.app.pop_screen()
 
@@ -287,7 +342,10 @@ class ObservatoryScreen(Screen):
 
 
 class ObservatoryCoordsScreen(Screen):
-    """Edit locality name and latitude/longitude in the config."""
+    """Edit locality name and latitude/longitude in the config.
+
+    Fields load existing ``Observatory`` values on mount so partial edits do not blank untouched keys.
+    """
 
     BINDINGS = [Binding("escape", "back", "Back")]
 
@@ -320,6 +378,18 @@ class ObservatoryCoordsScreen(Screen):
 
     def action_back(self) -> None:
         self.app.pop_screen()
+
+    def on_mount(self) -> None:
+        cfg = _app_config(self)
+        place = lat_s = lon_s = ""
+        if cfg.has_section("Observatory"):
+            obs = cfg["Observatory"]
+            place = (obs.get("place") or "").strip()
+            lat_s = (obs.get("latitude") or "").strip()
+            lon_s = (obs.get("longitude") or "").strip()
+        self.query_one("#place", Input).value = place
+        self.query_one("#latitude", Input).value = lat_s
+        self.query_one("#longitude", Input).value = lon_s
 
     def on_button_pressed(self, event: Button.Pressed) -> None:
         if event.button.id == "cancel":
@@ -640,7 +710,11 @@ class WeatherScreen(Screen):
 
 
 class ObservingTargetListScreen(Screen):
-    """What's Observable-style form with scrollable fields and MPC POST payload."""
+    """What's Observable-style form with scrollable fields and MPC POST payload.
+
+    Integer fields are clamped to documented ranges (module ``_MPC_*`` constants) before
+    the request; the user gets a warning notification when a value is adjusted.
+    """
 
     BINDINGS = [Binding("escape", "back", "Back")]
 
@@ -675,27 +749,27 @@ class ObservingTargetListScreen(Screen):
                 ),
                 Horizontal(
                     Label(translate("Duration of observation (hours, max 12) -> ")),
-                    Input(placeholder="", id="duration"),
+                    Input(placeholder="1-12", id="duration"),
                     classes="input-row",
                 ),
                 Horizontal(
                     Label(translate("Minimal solar elongation -> ")),
-                    Input(placeholder="", id="solar_elong"),
+                    Input(placeholder="0-180", id="solar_elong"),
                     classes="input-row",
                 ),
                 Horizontal(
                     Label(translate("Minimal lunar elongation -> ")),
-                    Input(placeholder="", id="lunar_elong"),
+                    Input(placeholder="0-180", id="lunar_elong"),
                     classes="input-row",
                 ),
                 Horizontal(
                     Label(translate("Minimal altitude-> ")),
-                    Input(placeholder="", id="min_alt"),
+                    Input(placeholder="0-90", id="min_alt"),
                     classes="input-row",
                 ),
                 Horizontal(
                     Label(translate("Maximum number of objects -> ")),
-                    Input(placeholder="", id="max_objects"),
+                    Input(placeholder="1-1000", id="max_objects"),
                     classes="input-row",
                 ),
                 Select(
@@ -731,7 +805,11 @@ class ObservingTargetListScreen(Screen):
             await self._do_run()
 
     async def _do_run(self) -> None:
-        """Resolve token/coords, POST to MPC, optionally open browser results."""
+        """Resolve token/coords, clamp form integers to MPC-safe ranges, POST, optionally open browser.
+
+        Integer fields (#duration, elongations, min altitude, max objects) are constrained
+        against module-level ``_MPC_*`` limits with user notifications when clamping occurs.
+        """
         cfg = _app_config(self)
         btn = self.query_one("#run", Button)
         btn.disabled = True
@@ -774,14 +852,115 @@ class ObservingTargetListScreen(Screen):
                     return
 
             try:
-                duration = int(self.query_one("#duration", Input).value.strip())
-                solar_elongation = int(self.query_one("#solar_elong", Input).value.strip())
-                lunar_elongation = int(self.query_one("#lunar_elong", Input).value.strip())
-                minimal_height = int(self.query_one("#min_alt", Input).value.strip())
-                max_objects = int(self.query_one("#max_objects", Input).value.strip())
+                raw_duration = int(self.query_one("#duration", Input).value.strip())
+                raw_solar_elongation = int(
+                    self.query_one("#solar_elong", Input).value.strip()
+                )
+                raw_lunar_elongation = int(
+                    self.query_one("#lunar_elong", Input).value.strip()
+                )
+                raw_min_alt = int(self.query_one("#min_alt", Input).value.strip())
+                raw_max_objects = int(self.query_one("#max_objects", Input).value.strip())
             except ValueError:
                 self.app.notify(translate("You must enter an integer."), severity="warning")
                 return
+
+            duration = raw_duration
+            if (
+                duration < _MPC_WHATSUP_DURATION_H_MIN
+                or duration > _MPC_WHATSUP_DURATION_H_MAX
+            ):
+                duration = max(
+                    _MPC_WHATSUP_DURATION_H_MIN,
+                    min(raw_duration, _MPC_WHATSUP_DURATION_H_MAX),
+                )
+                self.app.notify(
+                    translate(
+                        "Duration of observation must be between 1 and 12 hours; "
+                        "using {hours} hour(s)."
+                    ).format(hours=duration),
+                    severity="warning",
+                )
+
+            solar_elongation = raw_solar_elongation
+            if (
+                solar_elongation < _MPC_ELONGATION_DEG_MIN
+                or solar_elongation > _MPC_ELONGATION_DEG_MAX
+            ):
+                solar_elongation = max(
+                    _MPC_ELONGATION_DEG_MIN,
+                    min(raw_solar_elongation, _MPC_ELONGATION_DEG_MAX),
+                )
+                self.app.notify(
+                    translate(
+                        "Minimal solar elongation must be between {low}° and {high}°; "
+                        "using {degrees}°."
+                    ).format(
+                        low=_MPC_ELONGATION_DEG_MIN,
+                        high=_MPC_ELONGATION_DEG_MAX,
+                        degrees=solar_elongation,
+                    ),
+                    severity="warning",
+                )
+
+            lunar_elongation = raw_lunar_elongation
+            if (
+                lunar_elongation < _MPC_ELONGATION_DEG_MIN
+                or lunar_elongation > _MPC_ELONGATION_DEG_MAX
+            ):
+                lunar_elongation = max(
+                    _MPC_ELONGATION_DEG_MIN,
+                    min(raw_lunar_elongation, _MPC_ELONGATION_DEG_MAX),
+                )
+                self.app.notify(
+                    translate(
+                        "Minimal lunar elongation must be between {low}° and {high}°; "
+                        "using {degrees}°."
+                    ).format(
+                        low=_MPC_ELONGATION_DEG_MIN,
+                        high=_MPC_ELONGATION_DEG_MAX,
+                        degrees=lunar_elongation,
+                    ),
+                    severity="warning",
+                )
+
+            minimal_height = raw_min_alt
+            if minimal_height < _MPC_MIN_ALT_DEG_MIN or minimal_height > _MPC_MIN_ALT_DEG_MAX:
+                minimal_height = max(
+                    _MPC_MIN_ALT_DEG_MIN,
+                    min(raw_min_alt, _MPC_MIN_ALT_DEG_MAX),
+                )
+                self.app.notify(
+                    translate(
+                        "Minimal altitude must be between {low}° and {high}°; using {degrees}°."
+                    ).format(
+                        low=_MPC_MIN_ALT_DEG_MIN,
+                        high=_MPC_MIN_ALT_DEG_MAX,
+                        degrees=minimal_height,
+                    ),
+                    severity="warning",
+                )
+
+            max_objects = raw_max_objects
+            if (
+                max_objects < _MPC_MAX_OBJECTS_MIN
+                or max_objects > _MPC_MAX_OBJECTS_MAX
+            ):
+                max_objects = max(
+                    _MPC_MAX_OBJECTS_MIN,
+                    min(raw_max_objects, _MPC_MAX_OBJECTS_MAX),
+                )
+                self.app.notify(
+                    translate(
+                        "Maximum number of objects must be between {low} and {high}; "
+                        "using {value}."
+                    ).format(
+                        low=_MPC_MAX_OBJECTS_MIN,
+                        high=_MPC_MAX_OBJECTS_MAX,
+                        value=max_objects,
+                    ),
+                    severity="warning",
+                )
 
             object_type = cast(str, self.query_one("#object_type", Select).value)
 
