@@ -1,3 +1,14 @@
+## [1.2.1](https://github.com/ziriuz84/asteroidpy/releases/tag/v1.2.1) (2026-05-24)
+
+### Added
+
+- feat(release): generate changelog sections from git history ([9a5c333](https://github.com/ziriuz84/asteroidpy/commit/9a5c3337d6d433d5c3b2ecc43be1698aa7e07fde))
+
+### Changed
+
+- style(interface): apply isort and black to Textual screens ([436fe73](https://github.com/ziriuz84/asteroidpy/commit/436fe733cc42d3cb92bab272ce93231d489f7bba))---
+
+
 ## [1.2.0](https://github.com/ziriuz84/asteroidpy/releases/tag/v1.2.0) (2026-05-24)
 
 ### Added
