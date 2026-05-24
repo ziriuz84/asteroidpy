@@ -51,9 +51,17 @@ def _app_config(screen: Screen) -> ConfigParser:
 def _refresh_main_menu_after_locale(screen: Screen) -> None:
     """Drop nested screens after a locale change so labels pick up gettext."""
     app = screen.app
-    while len(app.screen_stack) > 1:
+    # Do not unwind to the bare ``_default`` shell: popping until ``len == 1`` removes
+    # ``MainMenuScreen`` too, and ``switch_screen`` on ``_default`` raises IndexError on
+    # empty ``_result_callbacks``. Pop until we're on the existing main menu, drop it,
+    # then mount a fresh translated instance under the shell.
+    while not isinstance(app.screen, MainMenuScreen):
+        if len(app.screen_stack) <= 1:
+            break
         app.pop_screen()
-    app.switch_screen(MainMenuScreen())
+    if isinstance(app.screen, MainMenuScreen):
+        app.pop_screen()
+    app.push_screen(MainMenuScreen())
 
 
 def _observatory_summary(config: ConfigParser) -> str:
