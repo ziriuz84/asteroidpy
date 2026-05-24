@@ -269,7 +269,7 @@ def test_observing_target_list_scraper_parses_table(monkeypatch, sch):
     monkeypatch.setattr(
         sch.requests,
         "post",
-        lambda url, params=None, **kwargs: FakeRequestsSuccessResponse(html),
+        lambda url, data=None, params=None, **kwargs: FakeRequestsSuccessResponse(html),
     )
 
     data = sch.observing_target_list_scraper("https://mpc", {"k": "v"})
@@ -314,12 +314,44 @@ def test_observing_target_list_filters_and_formats(monkeypatch, fresh_config, sc
     assert table[0]["Time"] == "2025-01-01T00:00"
 
 
+def test_mpc_whatsup_table_cell_calendar_with_ut_paren(sch):
+    t = sch.mpc_whatsup_table_cell_to_time("2026 5 24.559 (13:25 UTC)")
+    assert "2026-05-24 13:25:00" in t.iso
+
+
+def test_mpc_whatsup_table_legacy_iso_string(sch):
+    t = sch.mpc_whatsup_table_cell_to_time("2025-01-01T00:00z")
+    assert t.iso.startswith("2025-01-01 00:00:00")
+
+
+def test_observing_target_list_includes_new_mpc_time_strings(
+    monkeypatch, fresh_config, sch
+):
+    rows: List[List[str]] = [
+        [
+            "(4)",
+            "8.3",
+            "59",
+            "160",
+            "2026 5 24.500 (12:00 UT)",
+            "00 23 41.2",
+            "-03 12 22",
+            "13.5",
+        ],
+    ]
+    monkeypatch.setattr(sch, "observing_target_list_scraper", lambda url, payload: rows)
+    monkeypatch.setattr(sch, "is_visible", lambda config, coord, t: True)
+
+    table = sch.observing_target_list(fresh_config, {"dummy": "1"})
+    assert len(table) == 1
+
+
 def test_observing_target_list_scraper_no_tables(monkeypatch, sch):
     html = b"<html><body><p>No tables here</p></body></html>"
     monkeypatch.setattr(
         sch.requests,
         "post",
-        lambda url, params=None, **kwargs: FakeRequestsSuccessResponse(html),
+        lambda url, data=None, params=None, **kwargs: FakeRequestsSuccessResponse(html),
     )
 
     data = sch.observing_target_list_scraper("https://mpc", {"k": "v"})
@@ -339,7 +371,7 @@ def test_observing_target_list_scraper_tables_without_expected_headers(
     monkeypatch.setattr(
         sch.requests,
         "post",
-        lambda url, params=None, **kwargs: FakeRequestsSuccessResponse(html),
+        lambda url, data=None, params=None, **kwargs: FakeRequestsSuccessResponse(html),
     )
 
     data = sch.observing_target_list_scraper("https://mpc", {"k": "v"})
