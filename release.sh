@@ -1,19 +1,19 @@
 #!/bin/bash
 
-# release.sh - Automatizza il processo di rilascio di asteroidpy
-# Uso: ./release.sh 1.1.3
-# Opzioni: ./release.sh --help
+# release.sh - Automates the asteroidpy release workflow
+# Usage: ./release.sh 1.1.3
+# Options: ./release.sh --help
 
 set -e
 
-# Colori
+# Colors
 RED='\033[0;31m'
 GREEN='\033[0;32m'
 YELLOW='\033[1;33m'
 BLUE='\033[0;34m'
 NC='\033[0m' # No Color
 
-# Funzioni helper
+# Helper functions
 info() {
     echo -e "${BLUE}ℹ️  $1${NC}"
 }
@@ -63,7 +63,7 @@ Options:
 Files modified:
   - asteroidpy/version.py (__version__)
   - setup.py (version, if present)
-  - CHANGELOG.md (new entry)
+  - CHANGELOG.md (new section prepended): built from commits after the tag for the version in version.py prior to bump (vX.Y.Z..HEAD); feat/fix/docs map to Added/Fixed/etc.; merges, chore: release*, __version__ bumps ignored.
 
 Requirements:
   - git
@@ -73,7 +73,7 @@ Requirements:
 EOF
 }
 
-# Valida versione
+# Validate semantic version format
 validate_version() {
     local version=$1
     if [[ ! $version =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
@@ -81,12 +81,12 @@ validate_version() {
     fi
 }
 
-# Estrai versione corrente
+# Read current version from version.py
 get_current_version() {
     grep -E '^__version__[[:space:]]*=' asteroidpy/version.py | grep -oE '[0-9]+\.[0-9]+\.[0-9]+' | head -1
 }
 
-# Incrementa versione
+# Increment version (major/minor/patch)
 increment_version() {
     local current=$1
     local type=$2
@@ -114,16 +114,16 @@ increment_version() {
     echo "$major.$minor.$patch"
 }
 
-# Valida repository state
+# Validate repo is ready for release
 validate_repo() {
     info "Validating repository state..."
     
-    # Check se siamo in un git repo
+    # Ensure we're in a git repository
     if ! git rev-parse --git-dir > /dev/null 2>&1; then
         error "Not a git repository"
     fi
     
-    # Check branch corrente
+    # Warn if not on default branch
     current_branch=$(git rev-parse --abbrev-ref HEAD)
     if [ "$current_branch" != "main" ] && [ "$current_branch" != "master" ]; then
         warning "Current branch is '$current_branch' (expected 'main' or 'master')"
@@ -147,7 +147,7 @@ validate_repo() {
     success "Repository validation passed"
 }
 
-# Aggiorna versione nei file
+# Bump version in tracked files
 update_version() {
     local new_version=$1
     local dry_run=$2
@@ -173,48 +173,181 @@ update_version() {
     success "Version updated to $new_version"
 }
 
-# Aggiorna CHANGELOG
+# GitHub https base URL from origin (https://github.com/owner/repo), or empty
+get_github_https_base() {
+    local remote
+    remote=$(git remote get-url origin 2>/dev/null || echo "")
+    if [[ "$remote" =~ github\.com[:/]([^/]+)/([^/.]+)(\.git)?$ ]]; then
+        echo "https://github.com/${BASH_REMATCH[1]}/${BASH_REMATCH[2]%.git}"
+    else
+        echo ""
+    fi
+}
+
+# Maps conventional commit subjects to changelog sections (added/changed/fixed/...)
+classify_commit_subject() {
+    local s="$1"
+    if [[ "$s" != *:* ]]; then
+        local lc
+        lc=$(printf '%s\n' "$s" | tr '[:upper:]' '[:lower:]')
+        if [[ "$lc" == bump* ]] && [[ "$s" =~ __version__ ]]; then
+            echo "skip"
+        else
+            echo "changed"
+        fi
+        return
+    fi
+
+    local prefix="${s%%:*}"
+    local body="${s#*:}"
+    local body_trim="${body#"${body%%[![:space:]]*}"}"
+    local body_lower
+    body_lower=$(printf '%s\n' "$body_trim" | tr '[:upper:]' '[:lower:]')
+
+    case "$prefix" in
+        Merge*)
+            echo "skip"
+            return
+            ;;
+    esac
+
+    local raw_type="${prefix%%(*}"
+    local type="$raw_type"
+    type="${type%\!}"
+
+    case "$type" in
+        feat | Feat | feature | Feature) echo added ;;
+        fix | Fix) echo fixed ;;
+        docs | Docs) echo documentation ;;
+        test | tests | Test | Tests) echo tests ;;
+        chore | Chore)
+            if [[ "$body_lower" == release* ]] || { [[ "$body_lower" == bump* ]] && [[ "$s" =~ __version__ ]]; }; then
+                echo skip
+            else
+                echo chores
+            fi
+            ;;
+        style | Style | refactor | Refactor | perf | Perf | ci | CI | build | Build | revert | Revert) echo changed ;;
+        *) echo changed ;;
+    esac
+}
+
+# Build markdown changelog body from git (v<previous_version>..HEAD unless fallback)
+build_changelog_notes() {
+    local previous_version=$1
+    local github_base=$2
+    local log_range=""
+    local tmpdir
+    tmpdir=$(mktemp -d)
+
+    if git rev-parse "v${previous_version}^{commit}" >/dev/null 2>&1; then
+        log_range="v${previous_version}..HEAD"
+    elif last=$(git describe --tags --abbrev=0 --match 'v*' 2>/dev/null); then
+        warning "Tag v${previous_version} not found; using revision range ${last}..HEAD"
+        log_range="${last}..HEAD"
+    else
+        warning "No v* tag found; falling back to the last 30 commits"
+        log_range="-n 30"
+    fi
+
+    : >"$tmpdir/added"
+    : >"$tmpdir/changed"
+    : >"$tmpdir/fixed"
+    : >"$tmpdir/documentation"
+    : >"$tmpdir/tests"
+    : >"$tmpdir/chores"
+
+    local -a log_cmd
+    if [[ "$log_range" == "-n 30" ]]; then
+        log_cmd=(git log -n 30 --no-merges --pretty=format:'%H|%s')
+    else
+        log_cmd=(git log "$log_range" --no-merges --pretty=format:'%H|%s')
+    fi
+
+    while IFS= read -r line; do
+        [[ -z "$line" ]] && continue
+        local hash="${line%%|*}"
+        local subject="${line#*|}"
+        local section
+        section=$(classify_commit_subject "$subject")
+        [[ "$section" == "skip" ]] && continue
+        local short
+        short=$(git rev-parse --short "$hash" 2>/dev/null || echo "${hash:0:7}")
+        local link_suffix=""
+        if [[ -n "$github_base" ]]; then
+            link_suffix=" ([${short}](${github_base}/commit/${hash}))"
+        fi
+        echo "- ${subject}${link_suffix}" >>"$tmpdir/$section"
+    done < <("${log_cmd[@]}")
+
+    append_section() {
+        local title=$1
+        local file=$2
+        if [[ -s "$file" ]]; then
+            printf '%s\n\n%s\n\n' "### $title" "$(cat "$file")" >>"$tmpdir/outbuf"
+        fi
+    }
+
+    : >"$tmpdir/outbuf"
+    append_section "Added" "$tmpdir/added"
+    append_section "Changed" "$tmpdir/changed"
+    append_section "Fixed" "$tmpdir/fixed"
+    append_section "Documentation" "$tmpdir/documentation"
+    append_section "Tests" "$tmpdir/tests"
+    append_section "Chores" "$tmpdir/chores"
+
+    if [[ ! -s "$tmpdir/outbuf" ]]; then
+        echo "### Changed"
+        echo ""
+        echo "- No commits left after filtering (merge/release/__version__ bump only). Check tags or edit this entry manually."
+        echo ""
+        rm -rf "$tmpdir"
+    else
+        cat "$tmpdir/outbuf"
+        rm -rf "$tmpdir"
+    fi
+}
+
+# Prepend generated release section to CHANGELOG.md
 update_changelog() {
-    local new_version=$1
-    local dry_run=$2
-    local date=$(date +%Y-%m-%d)
-    
+    local previous_version=$1
+    local new_version=$2
+    local dry_run=$3
+    local date
+    date=$(date +%Y-%m-%d)
+
     info "Updating CHANGELOG.md..."
-    
-    local changelog_entry="## [$new_version] - $date
 
-### Added
-- 
+    local github_base
+    github_base=$(get_github_https_base)
+    local heading
+    if [[ -n "$github_base" ]]; then
+        heading="## [$new_version](${github_base}/releases/tag/v${new_version}) (${date})"
+    else
+        heading="## [$new_version] (${date})"
+    fi
 
-### Changed
-- 
+    local body
+    body=$(build_changelog_notes "$previous_version" "$github_base")
 
-### Fixed
-- 
+    local changelog_entry="${heading}"$'\n\n'"${body}"$'---'$'\n\n'
 
----
-
-"
-    
     if [ "$dry_run" = "true" ]; then
         echo "CHANGELOG.md would be updated with:"
         echo "$changelog_entry"
     else
-        # Inserisci all'inizio del file (dopo il primo heading)
-        sed -i "/^# Release History/a \\
-$changelog_entry" CHANGELOG.md || {
-            # Se non trova il pattern, inserisci all'inizio
-            temp=$(mktemp)
-            echo "$changelog_entry" > "$temp"
-            cat CHANGELOG.md >> "$temp"
-            mv "$temp" CHANGELOG.md
-        }
+        temp=$(mktemp)
+        {
+            echo "$changelog_entry"
+            cat CHANGELOG.md
+        } >"$temp"
+        mv "$temp" CHANGELOG.md
     fi
-    
+
     success "CHANGELOG.md updated"
 }
 
-# Crea commit
+# Stage and commit version + changelog
 create_commit() {
     local version=$1
     local dry_run=$2
@@ -232,7 +365,7 @@ create_commit() {
     fi
 }
 
-# Crea tag
+# Create annotated git tag
 create_tag() {
     local version=$1
     local dry_run=$2
@@ -244,7 +377,7 @@ create_tag() {
         echo "  git tag -a v$version -m 'Release version $version'"
         echo "  git push origin main v$version"
     else
-        # Crea tag annotato
+        # Annotated tag points at release commit (__version__)
         git tag -a "v$version" -m "Release version $version"
         success "Tag created: v$version"
     fi
@@ -314,13 +447,13 @@ main() {
         esac
     done
     
-    # Recupero versione attuale se non specificata
+    # Require explicit version (--patch|--minor|--major handled above)
     if [ -z "$new_version" ]; then
         current=$(get_current_version)
         error "No version specified. Current version: $current\nRun with --help for usage"
     fi
     
-    # Valida versione
+    # Semantic version sanity check
     validate_version "$new_version"
     
     # Info
@@ -332,7 +465,7 @@ main() {
         warning "DRY RUN MODE - no changes will be made"
     fi
     
-    # Se push_only, salta la validazione e aggiornamento
+    # Push-only: skip changelog/version steps
     if [ "$push_only" = "true" ]; then
         info "Push-only mode: skipping validation and updates"
         push_changes "$new_version" "$dry_run" "$no_tag"
@@ -340,15 +473,18 @@ main() {
         return 0
     fi
     
-    # Validazione
+    # Prerequisites
     validate_repo
-    
-    # Aggiornamenti
+
+    local previous_version
+    previous_version=$(get_current_version)
+
+    # Version file, changelog, commit
     update_version "$new_version" "$dry_run"
-    update_changelog "$new_version" "$dry_run"
+    update_changelog "$previous_version" "$new_version" "$dry_run"
     create_commit "$new_version" "$dry_run"
 
-    # Coerenza con Jenkins: il tag deve puntare al commit che contiene __version__
+    # Tag must attach to the commit that touches __version__ (CI expects this)
     if [ "$dry_run" != "true" ]; then
         if ! git show --pretty="" --name-only HEAD | grep -qx 'asteroidpy/version.py'; then
             error "Release commit missing asteroidpy/version.py — refusing to tag (fix release.sh)"
@@ -382,5 +518,5 @@ main() {
     fi
 }
 
-# Esegui
+# Entry point
 main "$@"
