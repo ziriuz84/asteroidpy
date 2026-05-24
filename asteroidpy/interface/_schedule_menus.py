@@ -67,7 +67,7 @@ def observing_target_list_menu(config: ConfigParser) -> None:
         )
     else:
         observation_time = select_specific_time()
-    duration = get_integer(translate("Duration of observation -> "))
+    duration = get_integer(translate("Duration of observation (hours, max 12) -> "))
     solar_elongation = get_integer(translate("Minimal solar elongation -> "))
     lunar_elongation = get_integer(translate("Minimal lunar elongation -> "))
     minimal_height = get_integer(translate("Minimal altitude-> "))

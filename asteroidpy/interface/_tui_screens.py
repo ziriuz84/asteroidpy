@@ -26,6 +26,7 @@ from ._intl import translate
 from textual.binding import Binding
 from textual.containers import Horizontal, ScrollableContainer, Vertical
 from textual.screen import Screen
+from textual.worker import WorkerFailed
 from textual.widgets import (
     Button,
     Checkbox,
@@ -665,7 +666,7 @@ class ObservingTargetListScreen(Screen):
                     classes="input-row",
                 ),
                 Horizontal(
-                    Label(translate("Duration of observation -> ")),
+                    Label(translate("Duration of observation (hours, max 12) -> ")),
                     Input(placeholder="", id="duration"),
                     classes="input-row",
                 ),
@@ -808,7 +809,7 @@ class ObservingTargetListScreen(Screen):
                 msg = translate("Done. Table opened in browser.")
             else:
                 msg = str(target_list)
-            await self.app.push_screen_wait(ResultLogScreen(msg))
+            await _push_result_log_modal(self, msg)
         finally:
             btn.disabled = False
 
@@ -860,6 +861,24 @@ class ResultLogScreen(Screen):
     def on_button_pressed(self, event: Button.Pressed) -> None:
         if event.button.id == "close":
             self.dismiss()
+
+
+async def _push_result_log_modal(screen: Screen, body: str) -> None:
+    """Push :class:`ResultLogScreen` and await dismiss.
+
+    ``App.push_screen_wait`` requires an active Textual worker; message handlers
+    (e.g. button presses) run outside that context, so the wait is delegated to
+    ``run_worker`` (see ``NoActiveWorker`` in Textual).
+    """
+
+    async def _work() -> None:
+        await screen.app.push_screen_wait(ResultLogScreen(body))
+
+    worker = screen.run_worker(_work(), exit_on_error=False)
+    try:
+        await worker.wait()
+    except WorkerFailed as exc:
+        raise exc.error from exc
 
 
 class NeocpScreen(Screen):
@@ -935,7 +954,7 @@ class NeocpScreen(Screen):
                 msg = translate("Done. Table opened in browser.")
             else:
                 msg = str(table)
-            await self.app.push_screen_wait(ResultLogScreen(msg))
+            await _push_result_log_modal(self, msg)
         finally:
             btn.disabled = False
 
@@ -1011,7 +1030,7 @@ class EphemerisScreen(Screen):
                 name,
                 step,
             )
-            await self.app.push_screen_wait(ResultLogScreen(str(table)))
+            await _push_result_log_modal(self, str(table))
         finally:
             btn.disabled = False
 
