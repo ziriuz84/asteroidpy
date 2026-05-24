@@ -1,13 +1,32 @@
-## [1.2.0] - 2026-05-24
+## [1.2.0](https://github.com/ziriuz84/asteroidpy/releases/tag/v1.2.0) (2026-05-24)
 
 ### Added
-- 
+
+- **interface:** interactive full-screen terminal UI powered by Textual—configuration, scheduling (including MPC lists, ephemerides, weather, twilight), and horizon-aware flows—wired to the shared `configuration`/`scheduling` stack ([#129](https://github.com/ziriuz84/asteroidpy/pull/129)).
 
 ### Changed
-- 
+
+- **interface:** stylesheet lives in external `style.tcss`; assorted screen/widget docstrings expanded for maintainers ([37a5364](https://github.com/ziriuz84/asteroidpy/commit/37a53645e614b563a66aaf126a7dcb959560d45e)).
+- **interface:** observatory overview updates when returning from child editors; locality/latitude/longitude form fields pre-loaded from saved config ([263f37b](https://github.com/ziriuz84/asteroidpy/commit/263f37bd69c495850303bfcd166bb3cff8b9c60c)).
+- **interface:** MPC “What's Observable” parameters clamp to safe ranges before POST, with translated user notices when values are adjusted; locales that only ship `base.po` (no compiled `base.mo`) surface status via notification instead of `warnings.warn` ([263f37b](https://github.com/ziriuz84/asteroidpy/commit/263f37bd69c495850303bfcd166bb3cff8b9c60c), [57f1bc4](https://github.com/ziriuz84/asteroidpy/commit/57f1bc4cac55944f1f314c4317b167c908c0e3e3)).
+- **i18n:** gettext catalogs and PO gap strings aligned with shipped UI languages as the Textual frontend landed ([8a01023](https://github.com/ziriuz84/asteroidpy/commit/8a010230f94b657b113ce24a02793d3169aad10e)).
 
 ### Fixed
-- 
+
+- **scheduling:** MPC What's Observable POST handling and observing-target timestamps aligned with the live HTML form ([fbe608d](https://github.com/ziriuz84/asteroidpy/commit/fbe608de3ea5be2a22929f6c873875a1cfcf35d7)).
+- **interface:** long-lived result dialogs avoid `NoActiveWorker` by awaiting `push_screen_wait` inside Textual workers ([135ae69](https://github.com/ziriuz84/asteroidpy/commit/135ae69760b32211e098b178f6c712617aed1d2c)).
+- **interface:** switching UI language rewinds stacked screens safely so the rebuilt main menu is not discarded under `_default` ([09a9bcc](https://github.com/ziriuz84/asteroidpy/commit/09a9bcce304e40967bd0c2f55804c2a60dc82b23)).
+
+### Documentation
+
+- Sphinx configuration and package RST refreshed (including Napoleon-backed API notes) ([bba7336](https://github.com/ziriuz84/asteroidpy/commit/bba73368d3f7f6c60c07dbc4a001a9de370f87d1)).
+- **security:** SECURITY policy rewritten as advisory workflow guidance ([a3c37ad](https://github.com/ziriuz84/asteroidpy/commit/a3c37ad94b1bf2e955ac53d747d80b2d54ca31a0)).
+- README translator guidance and FAQs updated for `.mo`/`.po` parity; Sphinx `interface` subsection documents TUI expectations; gettext bootstrap docstrings clarified ([c2f99d9](https://github.com/ziriuz84/asteroidpy/commit/c2f99d94b33735e6b619d3a2e1ef99df322f7c4c)).
+
+### Chores
+
+- bump `__version__` to **1.2.0** ([7e72b0e](https://github.com/ziriuz84/asteroidpy/commit/7e72b0e8342871d78a2974875b06fa8b84084881))
+- chore: release **v1.2.0** ([043538e](https://github.com/ziriuz84/asteroidpy/commit/043538ee5ed56f0d8921367c8ce2653377e6996a))
 
 ---
 
