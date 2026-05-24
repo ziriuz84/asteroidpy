@@ -26,19 +26,10 @@ from configparser import ConfigParser
 from contextlib import redirect_stdout
 from typing import Any, List, Tuple, cast
 
-import asteroidpy.configuration as configuration
-import asteroidpy.scheduling as scheduling
-
-from asteroidpy.version import __version__
-
-from ._i18n import setup_gettext
-from ._intl import translate
-
 from textual.binding import Binding
 from textual.containers import Horizontal, ScrollableContainer, Vertical
 from textual.events import ScreenResume
 from textual.screen import Screen
-from textual.worker import WorkerFailed
 from textual.widgets import (
     Button,
     Checkbox,
@@ -50,6 +41,14 @@ from textual.widgets import (
     Select,
     Static,
 )
+from textual.worker import WorkerFailed
+
+import asteroidpy.configuration as configuration
+import asteroidpy.scheduling as scheduling
+from asteroidpy.version import __version__
+
+from ._i18n import setup_gettext
+from ._intl import translate
 
 
 def _app_config(screen: Screen) -> ConfigParser:
@@ -239,7 +238,9 @@ class LanguageScreen(Screen):
     def compose(self) -> Any:
         yield Header()
         yield Footer()
-        codes, self._locale_catalog_warnings = _collect_language_codes_and_catalog_warnings()
+        codes, self._locale_catalog_warnings = (
+            _collect_language_codes_and_catalog_warnings()
+        )
         native_names = {
             "en": "English",
             "it": "Italiano",
@@ -725,10 +726,10 @@ class ObservingTargetListScreen(Screen):
             Vertical(
                 Label(translate("Observing target list")),
                 Checkbox(
-                    translate("Use observation time \"now\" (UTC)"),
+                    translate('Use observation time "now" (UTC)'),
                     id="use_now",
                 ),
-                Label(translate("Start time (UTC) if not \"now\"")),
+                Label(translate('Start time (UTC) if not "now"')),
                 Horizontal(
                     Label(translate("Day")),
                     Input(placeholder="DD", id="day"),
@@ -860,9 +861,13 @@ class ObservingTargetListScreen(Screen):
                     self.query_one("#lunar_elong", Input).value.strip()
                 )
                 raw_min_alt = int(self.query_one("#min_alt", Input).value.strip())
-                raw_max_objects = int(self.query_one("#max_objects", Input).value.strip())
+                raw_max_objects = int(
+                    self.query_one("#max_objects", Input).value.strip()
+                )
             except ValueError:
-                self.app.notify(translate("You must enter an integer."), severity="warning")
+                self.app.notify(
+                    translate("You must enter an integer."), severity="warning"
+                )
                 return
 
             duration = raw_duration
@@ -925,7 +930,10 @@ class ObservingTargetListScreen(Screen):
                 )
 
             minimal_height = raw_min_alt
-            if minimal_height < _MPC_MIN_ALT_DEG_MIN or minimal_height > _MPC_MIN_ALT_DEG_MAX:
+            if (
+                minimal_height < _MPC_MIN_ALT_DEG_MIN
+                or minimal_height > _MPC_MIN_ALT_DEG_MAX
+            ):
                 minimal_height = max(
                     _MPC_MIN_ALT_DEG_MIN,
                     min(raw_min_alt, _MPC_MIN_ALT_DEG_MAX),
@@ -942,10 +950,7 @@ class ObservingTargetListScreen(Screen):
                 )
 
             max_objects = raw_max_objects
-            if (
-                max_objects < _MPC_MAX_OBJECTS_MIN
-                or max_objects > _MPC_MAX_OBJECTS_MAX
-            ):
+            if max_objects < _MPC_MAX_OBJECTS_MIN or max_objects > _MPC_MAX_OBJECTS_MAX:
                 max_objects = max(
                     _MPC_MAX_OBJECTS_MIN,
                     min(raw_max_objects, _MPC_MAX_OBJECTS_MAX),
@@ -1161,16 +1166,12 @@ class EphemerisScreen(Screen):
                 Input(placeholder="", id="oname"),
                 classes="input-row",
             ),
-            Label(
-                translate(
-                    """Stepping
+            Label(translate("""Stepping
     m - 1 minute
     h - 1 hour
     d - 1 day
     w - 1 week
-    """
-                )
-            ),
+    """)),
             Select(
                 (
                     ("m — 1 minute", "m"),
@@ -1258,7 +1259,9 @@ class TwilightScreen(Screen):
             def _twilight_bundle(cfg: ConfigParser) -> Tuple[Any, Any]:
                 """Pair twilight and sun/moon results for ``asyncio.to_thread``."""
 
-                return scheduling.twilight_times(cfg), scheduling.sun_moon_ephemeris(cfg)
+                return scheduling.twilight_times(cfg), scheduling.sun_moon_ephemeris(
+                    cfg
+                )
 
             result_times, ephemeris = await asyncio.to_thread(
                 _twilight_bundle,
@@ -1281,7 +1284,9 @@ class TwilightScreen(Screen):
                 "",
                 translate("Sunrise: {t}").format(t=ephemeris["Sunrise"].strftime(tfmt)),
                 translate("Sunset: {t}").format(t=ephemeris["Sunset"].strftime(tfmt)),
-                translate("Moonrise: {t}").format(t=ephemeris["Moonrise"].strftime(tfmt)),
+                translate("Moonrise: {t}").format(
+                    t=ephemeris["Moonrise"].strftime(tfmt)
+                ),
                 translate("Moonset: {t}").format(t=ephemeris["Moonset"].strftime(tfmt)),
                 translate("Moon illumination: {f}").format(f=ephemeris["MoonIll"]),
             ]
