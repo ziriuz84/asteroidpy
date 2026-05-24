@@ -2,7 +2,7 @@ from setuptools import find_packages, setup
 
 setup(
     name="AsteroidPy",
-    version='1.1.5',
+    version='1.2.0',
     description="A tool for asteroid observation scheduling and analysis",
     url="https://github.com/ziriuz84/asteroidpy",
     author="Sirio Negri",

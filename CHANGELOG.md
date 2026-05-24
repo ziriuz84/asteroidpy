@@ -1,3 +1,17 @@
+## [1.2.0] - 2026-05-24
+
+### Added
+- 
+
+### Changed
+- 
+
+### Fixed
+- 
+
+---
+
+
 ## [1.1.5](https://github.com/ziriuz84/asteroidpy/releases/tag/v1.1.5) (2026-05-18)
 
 ### Chores
