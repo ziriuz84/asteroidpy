@@ -617,5 +617,55 @@ msgstr "Crépuscule et Soleil/Lune"
 msgid "Compute"
 msgstr "Calculer"
 
+#: asteroidpy/interface/_tui_screens.py (locale discovery)
+#, python-brace-format
+msgid ""
+"Locale '{code}' has base.po but no compiled base.mo; translation may not "
+"be available until catalogs are compiled."
+msgstr ""
+"Pour la locale « {code} », le fichier base.po existe sans fichier base.mo "
+"compilé ; la traduction peut être indisponible tant que les catalogues ne "
+"sont pas compilés."
+
+#: asteroidpy/interface/_tui_screens.py (What's Observable form)
+#, python-brace-format
+msgid ""
+"Duration of observation must be between 1 and 12 hours; using {hours} hour(s)."
+msgstr ""
+"La durée d'observation doit être comprise entre 1 et 12 heures ; valeur "
+"utilisée : {hours} h."
+
+#: asteroidpy/interface/_tui_screens.py (What's Observable form)
+#, python-brace-format
+msgid ""
+"Minimal solar elongation must be between {low}° and {high}°; using {degrees}°."
+msgstr ""
+"L'élongation solaire minimale doit être comprise entre {low}° et {high}° ; "
+"valeur utilisée : {degrees}°."
+
+#: asteroidpy/interface/_tui_screens.py (What's Observable form)
+#, python-brace-format
+msgid ""
+"Minimal lunar elongation must be between {low}° and {high}°; using {degrees}°."
+msgstr ""
+"L'élongation lunaire minimale doit être comprise entre {low}° et {high}° ; "
+"valeur utilisée : {degrees}°."
+
+#: asteroidpy/interface/_tui_screens.py (What's Observable form)
+#, python-brace-format
+msgid ""
+"Minimal altitude must be between {low}° and {high}°; using {degrees}°."
+msgstr ""
+"L'altitude minimale doit être comprise entre {low}° et {high}° ; "
+"valeur utilisée : {degrees}°."
+
+#: asteroidpy/interface/_tui_screens.py (What's Observable form)
+#, python-brace-format
+msgid ""
+"Maximum number of objects must be between {low} and {high}; using {value}."
+msgstr ""
+"Le nombre maximal d'objets doit être compris entre {low} et {high} ; "
+"valeur utilisée : {value}."
+
 #~ msgid "Work in Progress"
 #~ msgstr "Travail en cours"

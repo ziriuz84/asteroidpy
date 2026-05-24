@@ -615,5 +615,54 @@ msgstr "Crepúsculo y Sol/Luna"
 msgid "Compute"
 msgstr "Calcular"
 
+#: asteroidpy/interface/_tui_screens.py (locale discovery)
+#, python-brace-format
+msgid ""
+"Locale '{code}' has base.po but no compiled base.mo; translation may not "
+"be available until catalogs are compiled."
+msgstr ""
+"La configuración regional «{code}» tiene base.po pero no una base.mo "
+"compilada; es posible que la traducción no esté disponible hasta compilar los "
+"catálogos."
+
+#: asteroidpy/interface/_tui_screens.py (What's Observable form)
+#, python-brace-format
+msgid ""
+"Duration of observation must be between 1 and 12 hours; using {hours} hour(s)."
+msgstr ""
+"La duración de la observación debe estar entre 1 y 12 horas; valor usado: "
+"{hours} h."
+
+#: asteroidpy/interface/_tui_screens.py (What's Observable form)
+#, python-brace-format
+msgid ""
+"Minimal solar elongation must be between {low}° and {high}°; using {degrees}°."
+msgstr ""
+"La elongación solar mínima debe estar entre {low}° y {high}°; valor usado: "
+"{degrees}°."
+
+#: asteroidpy/interface/_tui_screens.py (What's Observable form)
+#, python-brace-format
+msgid ""
+"Minimal lunar elongation must be between {low}° and {high}°; using {degrees}°."
+msgstr ""
+"La elongación lunar mínima debe estar entre {low}° y {high}°; valor usado: "
+"{degrees}°."
+
+#: asteroidpy/interface/_tui_screens.py (What's Observable form)
+#, python-brace-format
+msgid ""
+"Minimal altitude must be between {low}° and {high}°; using {degrees}°."
+msgstr ""
+"La altitud mínima debe estar entre {low}° y {high}°; valor usado: {degrees}°."
+
+#: asteroidpy/interface/_tui_screens.py (What's Observable form)
+#, python-brace-format
+msgid ""
+"Maximum number of objects must be between {low} and {high}; using {value}."
+msgstr ""
+"El número máximo de objetos debe estar entre {low} y {high}; valor usado: "
+"{value}."
+
 #~ msgid "Work in Progress"
 #~ msgstr "Trabajo en curso"
