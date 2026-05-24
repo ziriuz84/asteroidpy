@@ -43,6 +43,9 @@ Layout (private submodules; import only if you extend the UI):
 
 * ``_tui_app`` — root Textual ``App`` subclass and ``style.tcss`` path
 * ``_tui_screens`` — ``Screen`` definitions for menus, forms, and result views
+  (refreshes the observatory summary when resuming from child editors, clamps
+  MPC What's Observable numeric fields before POST, notifies when a locale has
+  ``base.po`` but no compiled ``base.mo``—compile with ``msgfmt`` as below)
 * ``style.tcss`` — layout rules for centered panels, logs, and labelled inputs
 
 .. automodule:: asteroidpy.interface

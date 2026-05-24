@@ -120,7 +120,7 @@ Small differences can arise from different orbital elements, epoch dates, or tim
 Check that all dependencies are installed (`pip install .`), that `~/.asteroidpy` is writable, and that you have internet access (required for weather and ephemeris queries). If the config file is corrupted, you can remove `~/.asteroidpy` and let the app recreate it on next run.
 
 **Which languages are supported?**  
-English (default), Italiano, Deutsch, Français, Español, Português. Change the language in **Configuration → General**; only locales with compiled `.mo` files are shown.
+English (default), Italiano, Deutsch, Français, Español, Português. Change the language in **Configuration → General** → **Language**. Only locales with compiled `.mo` files are listed as selectable; if a folder under `locales/` has only a `base.po`, the UI may show a notice when opening the language screen—compile with `msgfmt` so the locale appears as a proper option.
 
 ---
 
@@ -228,6 +228,7 @@ AsteroidPy uses [GNU gettext](https://www.gnu.org/software/gettext/) with a sing
    msgfmt -o locales/nl/LC_MESSAGES/base.mo locales/nl/LC_MESSAGES/base.po
    ```
    The `msgfmt` command comes with the gettext package (`gettext` on most Linux distros).
+   Until the `.mo` exists, text from that `.po` is not used by gettext; the interactive UI may notify you once per incomplete locale under **General** → **Language**.
 
 4. The new language will appear in **Configuration → General** after restart.
 
