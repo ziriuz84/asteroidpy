@@ -50,6 +50,16 @@ AsteroidPy runs on **Linux**, **macOS**, and **Windows**.
 
 ## Installation
 
+### From PyPI
+
+With Python 3.9+ and a virtual environment activated (recommended):
+
+```bash
+pip install asteroidpy
+```
+
+See the package on [PyPI](https://pypi.org/project/Asteroidpy/).
+
 ### From source
 
 1. Clone the repository:
@@ -117,7 +127,7 @@ The [Minor Planet Center](https://www.minorplanetcenter.net/iau/lists/ObsCodes.h
 Small differences can arise from different orbital elements, epoch dates, or time handling. AsteroidPy uses MPC data directly; ensure your observatory coordinates and time (UTC vs local) match across tools.
 
 **The application fails to start or shows errors.**  
-Check that all dependencies are installed (`pip install .`), that `~/.asteroidpy` is writable, and that you have internet access (required for weather and ephemeris queries). If the config file is corrupted, you can remove `~/.asteroidpy` and let the app recreate it on next run.
+Check that all dependencies are installed (`pip install asteroidpy` from PyPI, or `pip install .` from a source checkout), that `~/.asteroidpy` is writable, and that you have internet access (required for weather and ephemeris queries). If the config file is corrupted, you can remove `~/.asteroidpy` and let the app recreate it on next run.
 
 **Which languages are supported?**  
 English (default), Italiano, Deutsch, Français, Español, Português. Change the language in **Configuration → General** → **Language**. Only locales with compiled `.mo` files are listed as selectable; if a folder under `locales/` has only a `base.po`, the UI may show a notice when opening the language screen—compile with `msgfmt` so the locale appears as a proper option.
