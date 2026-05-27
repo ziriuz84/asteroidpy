@@ -9,7 +9,7 @@ import asteroidpy.configuration as configuration
 def get_locale_dir() -> Path:
     """Return the packaged ``asteroidpy/locales`` directory."""
 
-    return Path(files("asteroidpy").joinpath("locales"))
+    return Path(str(files("asteroidpy").joinpath("locales")))
 
 
 def setup_gettext(config: ConfigParser) -> None:
