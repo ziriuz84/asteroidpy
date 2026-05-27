@@ -13,6 +13,8 @@ pipeline {
 
     environment {
         VENV_DIR = '.venv'
+        SONAR_HOST_URL = 'https://sq.casapomininegri.it'
+        SONAR_SCANNER_VERSION = '6.2.1.4610'
     }
 
     stages {
@@ -125,6 +127,44 @@ pipeline {
             }
         }
 
+        // Informational only: SonarQube never fails the build (findings or scanner errors).
+        stage('SonarQube Analysis') {
+            steps {
+                catchError(buildResult: 'SUCCESS', stageResult: 'UNSTABLE', message: 'SonarQube analysis failed (non-blocking)') {
+                    withCredentials([
+                        string(credentialsId: 'SONAR_TOKEN', variable: 'SONAR_TOKEN')
+                    ]) {
+                        sh '''#!/usr/bin/env bash
+                            set -euo pipefail
+
+                            ensure_sonar_scanner() {
+                                if command -v sonar-scanner >/dev/null 2>&1; then
+                                    return 0
+                                fi
+                                local scanner_zip="/tmp/sonar-scanner-cli-${SONAR_SCANNER_VERSION}-linux-x64.zip"
+                                local scanner_dir="/tmp/sonar-scanner-${SONAR_SCANNER_VERSION}-linux-x64"
+                                echo "Downloading SonarScanner ${SONAR_SCANNER_VERSION}..."
+                                curl -fsSL \
+                                    "https://binaries.sonarsource.com/Distribution/sonar-scanner-cli/sonar-scanner-cli-${SONAR_SCANNER_VERSION}-linux-x64.zip" \
+                                    -o "${scanner_zip}"
+                                rm -rf "${scanner_dir}"
+                                unzip -q "${scanner_zip}" -d /tmp
+                                export PATH="${scanner_dir}/bin:${PATH}"
+                            }
+
+                            ensure_sonar_scanner
+
+                            sonar-scanner \
+                                -Dsonar.host.url="${SONAR_HOST_URL}" \
+                                -Dsonar.token="${SONAR_TOKEN}" \
+                                -Dsonar.projectVersion="${GIT_COMMIT:-unknown}" \
+                                -Dsonar.qualitygate.wait=false
+                        '''
+                    }
+                }
+            }
+        }
+
         stage('Build Package') {
             steps {
                 sh '''#!/usr/bin/env bash
@@ -226,6 +266,7 @@ pipeline {
         always {
             sh '''
                 rm -rf ${VENV_DIR} test-install build *.egg-info
+                rm -rf /tmp/sonar-scanner-* /tmp/sonar-scanner-cli-*.zip
             '''
         }
         success {

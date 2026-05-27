@@ -3,6 +3,8 @@
 [![GitHub](https://img.shields.io/github/license/ziriuz84/asteroidpy)](https://github.com/ziriuz84/asteroidpy)
 [![Contributor Covenant](https://img.shields.io/badge/Contributor%20Covenant-2.1-4baaaa.svg)](CODE_OF_CONDUCT.md)
 [![contributions welcome](https://img.shields.io/badge/contributions-welcome-brightgreen.svg?style=flat)](https://github.com/ziriuz84/asteroidpy/issues)
+[![Quality Gate](https://sq.casapomininegri.it/api/project_badges/measure?project=ziriuz84_asteroidpy_1d603420-1b43-4943-86f6-ab01cd7be87b&metric=alert_status)](https://sq.casapomininegri.it/dashboard?id=ziriuz84_asteroidpy_1d603420-1b43-4943-86f6-ab01cd7be87b)
+[![Coverage](https://sq.casapomininegri.it/api/project_badges/measure?project=ziriuz84_asteroidpy_1d603420-1b43-4943-86f6-ab01cd7be87b&metric=coverage)](https://sq.casapomininegri.it/dashboard?id=ziriuz84_asteroidpy_1d603420-1b43-4943-86f6-ab01cd7be87b)
 
 AsteroidPy is a command-line tool for astronomers to schedule and manage asteroid observations. It integrates with the Minor Planet Center and other astronomical data sources to provide ephemerides, NEO confirmation candidates, weather forecasts, and observing aids—all from an interactive terminal UI built with [Textual](https://textual.textualize.io/).
 
@@ -214,11 +216,26 @@ CI runs on **Jenkins** via [`Jenkinsfile`](Jenkinsfile) (triggered on every push
 | Setup | always | venv, `pip install -e ".[dev]"`, installs `gettext`/`msgfmt` when missing |
 | Lint | always (including releases) | `ruff`, `mypy`, `isort`, `black --check` |
 | Test | always | `pytest` with coverage (`coverage.xml` archived) |
+| SonarQube | always | uploads analysis to [sq.casapomininegri.it](https://sq.casapomininegri.it); non-blocking (stage may show unstable if upload fails) |
 | Build | always | compiles `.mo` catalogs, then `python -m build` |
 | Validate / install smoke test | always | `twine check`, install wheel, verify locale catalogs and `asteroidpy` entry point |
 | Publish to PyPI | release tags only (`vX.Y.Z`) | uploads to PyPI when the tag matches `asteroidpy/version.py` |
 
 Successful builds archive `dist/*` (and `coverage.xml`) as Jenkins artifacts. GitHub Actions workflows are not used; Jenkins is the single CI/CD path for builds and PyPI publishing.
+
+#### SonarQube setup (one-time)
+
+Before the SonarQube stage can run on Jenkins:
+
+1. Create or import the project on [sq.casapomininegri.it](https://sq.casapomininegri.it) and note its project key (currently `ziriuz84_asteroidpy_1d603420-1b43-4943-86f6-ab01cd7be87b`).
+2. Confirm `sonar.projectKey` in [`sonar-project.properties`](sonar-project.properties) matches the SonarQube project.
+3. Generate a token under *My Account → Security* and store it in Jenkins as a **Secret text** credential with ID `SONAR_TOKEN`.
+4. Ensure the Jenkins agent can reach `https://sq.casapomininegri.it`, has a JRE (`java -version`), and `curl`/`unzip` if SonarScanner is not preinstalled.
+5. For README badges: after the first analysis, verify badge URLs under *Project → Project Information → Get project badges*; if badges do not load publicly, allow project badge access in *Administration → Configuration → General Settings → Security*.
+
+The pipeline downloads SonarScanner automatically when it is not installed on the agent. If the server uses a self-signed TLS certificate, install the CA on the Jenkins agent or configure `SONAR_SCANNER_OPTS` with a truststore.
+
+SonarQube is **informational only**: findings on the server never block lint, test, build, or PyPI publish, and scanner errors (token, network, server down) mark the SonarQube stage as **unstable** while the overall build still succeeds. There is no Quality Gate stage in the Jenkinsfile.
 
 ### Code style
 

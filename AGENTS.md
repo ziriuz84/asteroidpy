@@ -11,7 +11,8 @@ Purpose: guidance for agentic edits in asteroidpy.
 - HTML API docs: install Sphinx with `pip install -e ".[docs]"`, then `(cd docs && make html)`, output under `docs/build/html/`.
 
 **CI / Release**
-- Jenkins pipeline: [`Jenkinsfile`](Jenkinsfile) — lint, tests, build, wheel smoke test, PyPI publish on `vX.Y.Z` tags; archives `dist/*` and `coverage.xml`.
+- Jenkins pipeline: [`Jenkinsfile`](Jenkinsfile) — lint, tests, SonarQube analysis (`https://sq.casapomininegri.it`), build, wheel smoke test, PyPI publish on `vX.Y.Z` tags; archives `dist/*` and `coverage.xml`.
+- SonarQube config: [`sonar-project.properties`](sonar-project.properties) — keep `sonar.projectKey` aligned with the SonarQube project; Jenkins credential ID `SONAR_TOKEN`.
 - Release scripts: `./release.sh` (version bump + tag + push), `./ghrelease.sh` (GitHub release from CHANGELOG).
 - No GitHub Actions workflows; do not add `.github/workflows/` unless explicitly requested.
 
