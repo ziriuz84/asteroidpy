@@ -1,3 +1,11 @@
+## [1.3.2](https://github.com/ziriuz84/asteroidpy/releases/tag/v1.3.2) (2026-05-27)
+
+### Changed
+
+- style(test): format lambda in unreadable config test ([e501905](https://github.com/ziriuz84/asteroidpy/commit/e5019056b9f1334634d2634daf492e75e0ab44ca))
+---
+
+
 ## [1.3.1](https://github.com/ziriuz84/asteroidpy/releases/tag/v1.3.1) (2026-05-27)
 
 ### Changed
