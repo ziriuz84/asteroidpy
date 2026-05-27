@@ -1,3 +1,19 @@
+## [1.3.0](https://github.com/ziriuz84/asteroidpy/releases/tag/v1.3.0) (2026-05-27)
+
+### Added
+
+- feat(release): compile locales on release and harden ghrelease.sh ([fc5c3f1](https://github.com/ziriuz84/asteroidpy/commit/fc5c3f167e92d5026f18b06fc4ae624048ee2aa9))
+
+### Changed
+
+- ci: remove GitHub Actions and harden Jenkins pipeline ([b262eed](https://github.com/ziriuz84/asteroidpy/commit/b262eede95e0c65c567969f2e5f54439ce12ef1d))
+
+### Documentation
+
+- docs(readme): document Jenkins CI, Windows install, and release flow ([d81791f](https://github.com/ziriuz84/asteroidpy/commit/d81791f3023180af496cf4e6d2b8b791fdc7f7c1))
+---
+
+
 ## [1.2.3](https://github.com/ziriuz84/asteroidpy/releases/tag/v1.2.3) (2026-05-24)
 
 ### Changed
