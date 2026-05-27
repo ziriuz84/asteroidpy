@@ -12,9 +12,7 @@ def test_load_config_initializes_when_file_unreadable(tmp_path, monkeypatch):
     monkeypatch.setattr(
         platformdirs,
         "user_config_dir",
-        lambda app_name, appauthor=False, **_kw: str(
-            fake_home / ".config" / app_name
-        ),
+        lambda app_name, appauthor=False, **_kw: str(fake_home / ".config" / app_name),
     )
 
     canon = fake_home / ".config" / cfg.APP_NAME / cfg.CONFIG_FILENAME
