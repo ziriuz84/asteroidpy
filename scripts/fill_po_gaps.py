@@ -15,7 +15,7 @@ from pathlib import Path
 import polib
 
 REPO_ROOT = Path(__file__).resolve().parents[1]
-LOCALES = REPO_ROOT / "locales"
+LOCALES = REPO_ROOT / "asteroidpy" / "locales"
 
 # msgid → per-locale msgstr (empty "en" means use msgid unless "en" override is set)
 GAP_STRINGS: dict[str, dict[str, str]] = {

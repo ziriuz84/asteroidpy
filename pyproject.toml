@@ -14,7 +14,6 @@ dependencies=[
     "textual>=8.0,<9",
     "requests",
     "beautifulsoup4",
-    "configparser",
     "astropy",
     "httpx",
     "astroplan",
@@ -27,9 +26,20 @@ classifiers=[
 "Intended Audience :: Science/Research",
 # "License :: OSI Approved :: GPL v3",
 "Operating System :: OS Independent",
+"Operating System :: Microsoft :: Windows",
 "Programming Language :: Python :: 3",
 ]
 license-files=["LICENSE"]
+
+[project.scripts]
+asteroidpy = "asteroidpy:main"
+
+[tool.setuptools.packages.find]
+where = ["."]
+include = ["asteroidpy*"]
+
+[tool.setuptools.package-data]
+asteroidpy = ["locales/**/*.mo", "interface/style.tcss"]
 
 [tool.setuptools.dynamic]
 version = {attr = "asteroidpy.version.__version__"}
@@ -39,6 +49,8 @@ dev = [
     "pytest",
     "ruff",
     "mypy",
+    "black",
+    "isort",
 ]
 docs = [
     "sphinx>=7",

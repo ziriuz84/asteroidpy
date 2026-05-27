@@ -1,8 +1,15 @@
 import gettext
-import os
 from configparser import ConfigParser
+from importlib.resources import files
+from pathlib import Path
 
 import asteroidpy.configuration as configuration
+
+
+def get_locale_dir() -> Path:
+    """Return the packaged ``asteroidpy/locales`` directory."""
+
+    return Path(files("asteroidpy").joinpath("locales"))
 
 
 def setup_gettext(config: ConfigParser) -> None:
@@ -15,9 +22,7 @@ def setup_gettext(config: ConfigParser) -> None:
 
     configuration.load_config(config)
     lang = config.get("General", "lang", fallback="en")
-    locale_dir = os.path.abspath(
-        os.path.join(os.path.dirname(__file__), "..", "..", "locales")
-    )
+    locale_dir = str(get_locale_dir())
     translator = gettext.translation(
         "base",
         localedir=locale_dir,

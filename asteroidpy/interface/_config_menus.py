@@ -9,6 +9,7 @@ from typing import Dict
 
 import asteroidpy.configuration as configuration
 
+from ._i18n import get_locale_dir
 from ._input import get_float, get_integer, prompt_int_in_range, prompt_line
 from ._intl import translate
 
@@ -90,9 +91,7 @@ def observatory_config_menu(config: ConfigParser) -> None:
 
 
 def change_language(config: ConfigParser) -> None:
-    locale_dir = os.path.abspath(
-        os.path.join(os.path.dirname(__file__), "..", "..", "locales")
-    )
+    locale_dir = str(get_locale_dir())
     try:
         candidates = sorted(
             [

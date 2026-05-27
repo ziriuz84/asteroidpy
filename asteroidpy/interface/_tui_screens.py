@@ -47,7 +47,7 @@ import asteroidpy.configuration as configuration
 import asteroidpy.scheduling as scheduling
 from asteroidpy.version import __version__
 
-from ._i18n import setup_gettext
+from ._i18n import get_locale_dir, setup_gettext
 from ._intl import translate
 
 
@@ -106,9 +106,7 @@ def _collect_language_codes_and_catalog_warnings() -> Tuple[List[str], List[str]
 
     Ensures ``en`` appears when no ``locales`` tree exists or it is unreadable.
     """
-    locale_dir = os.path.abspath(
-        os.path.join(os.path.dirname(__file__), "..", "..", "locales")
-    )
+    locale_dir = str(get_locale_dir())
     try:
         candidates = sorted(
             [
