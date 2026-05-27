@@ -20,6 +20,7 @@ AsteroidPy is a command-line tool for astronomers to schedule and manage asteroi
 - [For Contributors](#for-contributors)
   - [Project architecture](#project-architecture)
   - [How to add a translation](#how-to-add-a-translation)
+  - [Continuous integration (Jenkins)](#continuous-integration-jenkins)
   - [Release process](#release-process)
 - [Release History](#release-history)
 - [License](#license)
@@ -46,6 +47,8 @@ AsteroidPy is a command-line tool for astronomers to schedule and manage asteroi
 
 AsteroidPy runs on **Linux**, **macOS**, and **Windows**.
 
+On **Windows**, use [Windows Terminal](https://github.com/microsoft/terminal) (recommended) or another modern terminal for the Textual UI. The first `pip install` may take several minutes because scientific dependencies (`astropy`, `lxml`, and related packages) download platform-specific wheels. Python **3.10–3.12** from [python.org](https://www.python.org/downloads/) is the most reliable choice on Windows.
+
 ---
 
 ## Installation
@@ -59,6 +62,8 @@ pip install asteroidpy
 ```
 
 See the package on [PyPI](https://pypi.org/project/Asteroidpy/).
+
+On Windows, after installation the `asteroidpy` command is available in your virtual environment's `Scripts` folder (for example `.venv\Scripts\asteroidpy.exe`).
 
 ### From source
 
@@ -98,7 +103,7 @@ Run the application:
 asteroidpy
 ```
 
-On first launch, AsteroidPy creates a config directory at `~/.asteroidpy` with default settings. Use the **Configuration** menu to set:
+On first launch, AsteroidPy creates a config file with default settings. Use the **Configuration** menu to set:
 
 - **Observatory**: coordinates, altitude, MPC code
 - **Virtual horizon**: minimum altitude per cardinal direction
@@ -108,7 +113,9 @@ On first launch, AsteroidPy creates a config directory at `~/.asteroidpy` with d
 
 ## Configuration
 
-Configuration is stored in `~/.asteroidpy`. Use the in-app **Configuration → General** menu to change:
+Configuration is stored in a single INI file named `.asteroidpy`, in the application config directory returned by [platformdirs](https://github.com/platformdirs/platformdirs) (for example `~/.config/asteroidpy/` on Linux, `~/Library/Application Support/asteroidpy/` on macOS, and `%LOCALAPPDATA%\asteroidpy\` on Windows). Legacy installs may still have a copy at `~/.asteroidpy`, which is migrated automatically on first run.
+
+Use the in-app **Configuration → General** menu to change:
 
 | Option | Description |
 |--------|-------------|
@@ -127,10 +134,10 @@ The [Minor Planet Center](https://www.minorplanetcenter.net/iau/lists/ObsCodes.h
 Small differences can arise from different orbital elements, epoch dates, or time handling. AsteroidPy uses MPC data directly; ensure your observatory coordinates and time (UTC vs local) match across tools.
 
 **The application fails to start or shows errors.**  
-Check that all dependencies are installed (`pip install asteroidpy` from PyPI, or `pip install .` from a source checkout), that `~/.asteroidpy` is writable, and that you have internet access (required for weather and ephemeris queries). If the config file is corrupted, you can remove `~/.asteroidpy` and let the app recreate it on next run.
+Check that all dependencies are installed (`pip install asteroidpy` from PyPI, or `pip install .` from a source checkout), that the config directory is writable (see [Configuration](#configuration) for the platform-specific path), and that you have internet access (required for weather and ephemeris queries). If the config file is corrupted, remove `.asteroidpy` from that config directory and let the app recreate it on next run.
 
 **Which languages are supported?**  
-English (default), Italiano, Deutsch, Français, Español, Português. Change the language in **Configuration → General** → **Language**. Only locales with compiled `.mo` files are listed as selectable; if a folder under `locales/` has only a `base.po`, the UI may show a notice when opening the language screen—compile with `msgfmt` so the locale appears as a proper option.
+English (default), Italiano, Deutsch, Français, Español, Português. Change the language in **Configuration → General** → **Language**. PyPI wheels ship with compiled `.mo` catalogs for all supported languages. When working from a source checkout, only locales with compiled `.mo` files are listed as selectable; if a folder under `asteroidpy/locales/` has only a `base.po`, the UI may show a notice when opening the language screen—compile with `msgfmt` so the locale appears as a proper option.
 
 ---
 
@@ -161,8 +168,10 @@ Thank you for considering contributing to AsteroidPy. Please read the [Code of C
 2. Install development dependencies (optional, for tests and linting):
 
    ```bash
-   pip install pytest ruff mypy black isort
+   pip install -e ".[dev]"
    ```
+
+   Or install tools individually: `pytest`, `ruff`, `mypy`, `black`, `isort`.
 
 3. Run the test suite:
 
@@ -189,6 +198,28 @@ Thank you for considering contributing to AsteroidPy. Please read the [Code of C
    python -m build
    ```
 
+   Before building a release wheel, compile locale catalogs if you changed `.po` files:
+
+   ```bash
+   msgfmt -o asteroidpy/locales/en/LC_MESSAGES/base.mo asteroidpy/locales/en/LC_MESSAGES/base.po
+   # repeat for other locales, or use ./release.sh which compiles them automatically
+   ```
+
+### Continuous integration (Jenkins)
+
+CI runs on **Jenkins** via [`Jenkinsfile`](Jenkinsfile) (triggered on every push to GitHub). The pipeline:
+
+| Stage | When | What it does |
+|-------|------|--------------|
+| Setup | always | venv, `pip install -e ".[dev]"`, installs `gettext`/`msgfmt` when missing |
+| Lint | always (including releases) | `ruff`, `mypy`, `isort`, `black --check` |
+| Test | always | `pytest` with coverage (`coverage.xml` archived) |
+| Build | always | compiles `.mo` catalogs, then `python -m build` |
+| Validate / install smoke test | always | `twine check`, install wheel, verify locale catalogs and `asteroidpy` entry point |
+| Publish to PyPI | release tags only (`vX.Y.Z`) | uploads to PyPI when the tag matches `asteroidpy/version.py` |
+
+Successful builds archive `dist/*` (and `coverage.xml`) as Jenkins artifacts. GitHub Actions workflows are not used; Jenkins is the single CI/CD path for builds and PyPI publishing.
+
 ### Code style
 
 - **Imports**: standard library → third-party → local; explicit imports only
@@ -211,55 +242,60 @@ asteroidpy/
 ├── interface/        # Textual TUI, gettext setup (legacy menu helpers retained)
 ├── scheduling.py     # Ephemerides, weather, NEOcp, twilight
 ├── configuration.py  # Observatory config, horizon, language
-└── locales/          # gettext translations (en, it, de, fr, es, pt)
+└── locales/          # gettext translations (en, it, de, fr, es, pt), shipped in PyPI wheels
 ```
 
 - **`interface`** — Main entry for the interactive UI (Textual screens). Loads config, sets up gettext, and delegates to `scheduling` for ephemeris/weather/NEOcp and to `configuration` for settings.
 - **`scheduling`** — Astronomy logic: MPC queries, 7Timer weather, twilight, Sun/Moon ephemeris. Uses `configuration.load_config()` to read observatory data.
-- **`configuration`** — Persists and loads settings in `~/.asteroidpy`; handles observatory coordinates, virtual horizon, and language. Used by both `interface` and `scheduling`.
+- **`configuration`** — Persists and loads settings via platformdirs; handles observatory coordinates, virtual horizon, and language. Used by both `interface` and `scheduling`.
 
 ### How to add a translation
 
-AsteroidPy uses [GNU gettext](https://www.gnu.org/software/gettext/) with a single catalog `base`. Translations live under `locales/<lang>/LC_MESSAGES/`.
+AsteroidPy uses [GNU gettext](https://www.gnu.org/software/gettext/) with a single catalog `base`. Translations live under `asteroidpy/locales/<lang>/LC_MESSAGES/`.
 
 1. Create a new locale directory:
    ```bash
-   mkdir -p locales/nl/LC_MESSAGES
+   mkdir -p asteroidpy/locales/nl/LC_MESSAGES
    ```
 
 2. Copy and adapt an existing `.po` file, or create one from the template:
    ```bash
-   cp locales/it/LC_MESSAGES/base.po locales/nl/LC_MESSAGES/base.po
+   cp asteroidpy/locales/it/LC_MESSAGES/base.po asteroidpy/locales/nl/LC_MESSAGES/base.po
    ```
-   Edit `locales/nl/LC_MESSAGES/base.po`, set `Language: nl`, and translate all `msgstr` entries.
+   Edit `asteroidpy/locales/nl/LC_MESSAGES/base.po`, set `Language: nl`, and translate all `msgstr` entries.
 
-3. Compile the `.po` file into a `.mo` file (required for the language to appear in the menu):
+3. Compile the `.po` file into a `.mo` file (required for the language to appear in the menu when running from source):
    ```bash
-   msgfmt -o locales/nl/LC_MESSAGES/base.mo locales/nl/LC_MESSAGES/base.po
+   msgfmt -o asteroidpy/locales/nl/LC_MESSAGES/base.mo asteroidpy/locales/nl/LC_MESSAGES/base.po
    ```
-   The `msgfmt` command comes with the gettext package (`gettext` on most Linux distros).
+   The `msgfmt` command comes with the gettext package (`gettext` on most Linux distros; on Windows, install via [MSYS2](https://www.msys2.org/) or Chocolatey).
    Until the `.mo` exists, text from that `.po` is not used by gettext; the interactive UI may notify you once per incomplete locale under **General** → **Language**.
 
 4. The new language will appear in **Configuration → General** after restart.
 
-To add or update translatable strings for all locales, update `locales/base.pot` (e.g. with `xgettext` or `pybabel`), then merge into each `.po` with `msgmerge`, translate, and recompile with `msgfmt`.
+To add or update translatable strings for all locales, update `asteroidpy/locales/base.pot` (e.g. with `xgettext` or `pybabel`), then merge into each `.po` with `msgmerge`, translate, and recompile with `msgfmt`.
 
 ### Release process
 
-1. Update `asteroidpy/version.py` (`__version__`, used by setuptools and the UI); keep `setup.py` in sync if you still rely on it.
-2. Add the corresponding entry to `CHANGELOG.md` under a new `[X.Y.Z]` heading with date and link to the tag.
-3. Run tests and build:
+Releases are automated with helper scripts and published by Jenkins when a version tag is pushed.
+
+1. **Prepare the release** (bumps `asteroidpy/version.py`, compiles locale catalogs, prepends `CHANGELOG.md`, commits, tags, and pushes):
+
    ```bash
-   pytest -q
-   python -m build
+   ./release.sh --patch    # or --minor, --major, or an explicit X.Y.Z
    ```
-4. Commit the version bump and changelog, then create and push a tag:
+
+   Preview without changes: `./release.sh --dry-run --patch`
+
+2. **Jenkins** detects the new `vX.Y.Z` tag, runs tests, builds the wheel/sdist, validates the package, and publishes to [PyPI](https://pypi.org/project/Asteroidpy/).
+
+3. **Create the GitHub release** (release notes taken from the top `CHANGELOG.md` entry):
+
    ```bash
-   git tag vX.Y.Z -m "Release vX.Y.Z"
-   git push origin main --tags
+   ./ghrelease.sh
    ```
-   (Use `git tag -s` for a signed tag if you have GPG configured.)
-5. Create a release on GitHub from the new tag and attach the built artifacts (e.g. from `dist/`).
+
+Manual alternative (without the scripts): update `asteroidpy/version.py` and `CHANGELOG.md`, compile `.mo` files under `asteroidpy/locales/`, commit, tag (`git tag vX.Y.Z`), push the branch and tag, then run `./ghrelease.sh` after Jenkins finishes the PyPI upload.
 
 ---
 
