@@ -61,13 +61,14 @@ Options:
   --push-only      Only push existing tag (for recovery)
 
 Files modified:
-  - asteroidpy/version.py (__version__)
-  - setup.py (version, if present)
+  - asteroidpy/version.py (__version__; pyproject.toml reads it via setuptools dynamic)
+  - asteroidpy/locales/*/LC_MESSAGES/base.mo (recompiled from .po when msgfmt is available)
   - CHANGELOG.md (new section prepended): built from commits after the tag for the version in version.py prior to bump (vX.Y.Z..HEAD); feat/fix/docs map to Added/Fixed/etc.; merges, chore: release*, __version__ bumps ignored.
 
 Requirements:
   - git
   - grep/sed
+  - msgfmt (gettext; optional but recommended so PyPI wheels ship fresh .mo catalogs)
   - Current branch: main (or development)
 
 EOF
@@ -154,23 +155,57 @@ update_version() {
     
     info "Updating version to $new_version..."
     
-    # asteroidpy/version.py (canonical; pyproject.build reads this via setuptools dynamic)
+    # asteroidpy/version.py (canonical; pyproject.toml reads this via setuptools dynamic)
     if [ "$dry_run" = "true" ]; then
         sed -E -e 's/^__version__[[:space:]]*=.*/__version__ = "'"$new_version"'"/' asteroidpy/version.py | head -3
     else
         sed -i -E 's/^__version__[[:space:]]*=.*/__version__ = "'"$new_version"'"/' asteroidpy/version.py
     fi
     
-    # setup.py
-    if grep -q 'version=' setup.py; then
-        if [ "$dry_run" = "true" ]; then
-            sed -e "s/version=.*/version='$new_version',/" setup.py | head -5
-        else
-            sed -i "s/version=.*/version='$new_version',/" setup.py
-        fi
-    fi
-    
     success "Version updated to $new_version"
+}
+
+# Compile gettext catalogs shipped inside the wheel (asteroidpy/locales/)
+compile_locale_catalogs() {
+    local dry_run=$1
+    local msgfmt_missing_warned=false
+    local compiled=0
+
+    info "Compiling locale catalogs under asteroidpy/locales/..."
+
+    shopt -s nullglob
+    local po_files=(asteroidpy/locales/*/LC_MESSAGES/base.po)
+    shopt -u nullglob
+
+    if [ ${#po_files[@]} -eq 0 ]; then
+        warning "No base.po files found under asteroidpy/locales/"
+        return 0
+    fi
+
+    for po in "${po_files[@]}"; do
+        local mo="${po%.po}.mo"
+        if ! command -v msgfmt >/dev/null 2>&1; then
+            if [ "$msgfmt_missing_warned" = "false" ]; then
+                warning "msgfmt not found; install gettext to refresh .mo files before release"
+                msgfmt_missing_warned=true
+            fi
+            if [ ! -f "$mo" ]; then
+                error "Missing $mo and msgfmt is unavailable; compile catalogs or install gettext"
+            fi
+            continue
+        fi
+
+        if [ "$dry_run" = "true" ]; then
+            echo "Would run: msgfmt -o $mo $po"
+        else
+            msgfmt -o "$mo" "$po"
+        fi
+        compiled=$((compiled + 1))
+    done
+
+    if [ "$compiled" -gt 0 ]; then
+        success "Compiled $compiled locale catalog(s)"
+    fi
 }
 
 # GitHub https base URL from origin (https://github.com/owner/repo), or empty
@@ -329,6 +364,7 @@ update_changelog() {
 
     local body
     body=$(build_changelog_notes "$previous_version" "$github_base")
+    body="${body%"${body##*[![:space:]]}"}"$'\n'
 
     local changelog_entry="${heading}"$'\n\n'"${body}"$'---'$'\n\n'
 
@@ -356,10 +392,10 @@ create_commit() {
     
     if [ "$dry_run" = "true" ]; then
         echo "Would run:"
-        echo "  git add asteroidpy/version.py setup.py CHANGELOG.md"
+        echo "  git add asteroidpy/version.py asteroidpy/locales CHANGELOG.md"
         echo "  git commit -m 'chore: release v$version'"
     else
-        git add asteroidpy/version.py setup.py CHANGELOG.md
+        git add asteroidpy/version.py asteroidpy/locales CHANGELOG.md
         git commit -m "chore: release v$version"
         success "Commit created"
     fi
@@ -479,8 +515,9 @@ main() {
     local previous_version
     previous_version=$(get_current_version)
 
-    # Version file, changelog, commit
+    # Version file, locale catalogs, changelog, commit
     update_version "$new_version" "$dry_run"
+    compile_locale_catalogs "$dry_run"
     update_changelog "$previous_version" "$new_version" "$dry_run"
     create_commit "$new_version" "$dry_run"
 
@@ -510,9 +547,8 @@ main() {
         success "Release v$new_version created successfully!"
         echo ""
         echo "Next steps:"
-        echo "  1. Jenkins will automatically detect the tag and run the pipeline"
-        echo "  2. Package will be built and published to PyPI"
-        echo "  3. Monitor the build at: https://jenkins.example.com/job/asteroidpy-publish/"
+        echo "  1. Jenkins will detect the tag and run tests, build, and PyPI publish"
+        echo "  2. After Jenkins succeeds, run ./ghrelease.sh to create the GitHub release"
         echo ""
         info "Release process initiated! 🚀"
     fi
