@@ -1,3 +1,11 @@
+## [1.3.1](https://github.com/ziriuz84/asteroidpy/releases/tag/v1.3.1) (2026-05-27)
+
+### Changed
+
+- No commits left after filtering (merge/release/__version__ bump only). Check tags or edit this entry manually.
+---
+
+
 ## [1.3.0](https://github.com/ziriuz84/asteroidpy/releases/tag/v1.3.0) (2026-05-27)
 
 ### Added
