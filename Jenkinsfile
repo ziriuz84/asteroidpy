@@ -1,7 +1,6 @@
 pipeline {
     agent any
 
-    // Trigga automaticamente su push (via webhook GitHub)
     triggers {
         githubPush()
     }
@@ -17,147 +16,162 @@ pipeline {
     }
 
     stages {
-        stage('🔍 Detect Release') {
+        stage('Detect Release') {
             steps {
                 script {
-                    echo "Checking if this is a release tag..."
-                    try {
-                        // Ottieni il tag attuale (se esiste)
-                        def tagName = sh(
-                            script: 'git describe --exact-match --tags HEAD 2>/dev/null',
-                            returnStdout: true
-                        ).trim()
-                        
-                        // Verifica se matchla il pattern di versione
-                        if (tagName =~ /^v\d+\.\d+\.\d+/) {
-                            env.IS_RELEASE = 'true'
-                            env.RELEASE_VERSION = tagName
-                            echo "✅ RELEASE TAG DETECTED: $tagName"
-                        } else {
-                            env.IS_RELEASE = 'false'
-                            echo "⏭️ Tag found but not a release: $tagName"
+                    echo 'Checking if this is a release tag...'
+                    def tagName = env.TAG_NAME?.trim()
+                    if (!tagName) {
+                        tagName = env.GIT_TAG?.trim()
+                    }
+                    if (!tagName) {
+                        try {
+                            tagName = sh(
+                                script: 'git describe --exact-match --tags HEAD 2>/dev/null',
+                                returnStdout: true
+                            ).trim()
+                        } catch (Exception ignored) {
+                            tagName = ''
                         }
-                    } catch (Exception e) {
+                    }
+
+                    if (tagName =~ /^v\d+\.\d+\.\d+/) {
+                        env.IS_RELEASE = 'true'
+                        env.RELEASE_VERSION = tagName
+                        echo "Release tag detected: ${tagName}"
+                    } else {
                         env.IS_RELEASE = 'false'
                         env.RELEASE_VERSION = 'N/A'
-                        echo "⏭️ No tag found - regular commit"
+                        if (tagName) {
+                            echo "Tag found but not a release: ${tagName}"
+                        } else {
+                            echo 'No release tag found - regular commit build'
+                        }
                     }
                 }
             }
         }
 
-        stage('📦 Setup Environment') {
+        stage('Setup Environment') {
             steps {
-                script {
-                    echo "Setting up Python environment..."
-                    sh '''
-                        set -eu
-                        python3 --version
-                        python3 -m venv ${VENV_DIR}
-                        . ${VENV_DIR}/bin/activate
-                        pip install --upgrade pip setuptools wheel
-                        pip install build twine pytest pytest-cov mypy ruff black isort
-                        pip install -e .
-                        echo "✓ Environment ready"
-                    '''
-                }
-            }
-        }
+                sh '''#!/usr/bin/env bash
+                    set -euo pipefail
 
-        stage('🎨 Lint & Format') {
-            when {
-                expression {
-                    return env.IS_RELEASE != 'true'  // Salta se è una release
-                }
-            }
-            steps {
-                script {
-                    echo "Running code quality checks..."
-                    sh '''
-                        set -eu
-                        . ${VENV_DIR}/bin/activate
-                        echo "Checking with ruff..."
-                        ruff check asteroidpy/ tests/
-                        echo "Checking types with mypy..."
-                        mypy asteroidpy/
-                        echo "Checking import order with isort..."
-                        isort --check asteroidpy/ tests/
-                        echo "Checking format with black..."
-                        black --check asteroidpy/ tests/
-                    '''
-                }
-            }
-        }
+                    activate_venv() {
+                        . "${VENV_DIR}/bin/activate"
+                    }
 
-        stage('🧪 Run Tests') {
-            steps {
-                script {
-                    echo "Running test suite..."
-                    sh '''
-                        set -eu
-                        . ${VENV_DIR}/bin/activate
-                        pytest tests/ -v --tb=short --cov=asteroidpy --cov-report=xml --junitxml=test-results.xml
-                        if [ -f coverage.xml ]; then
-                            echo "✓ Coverage report generated"
+                    ensure_msgfmt() {
+                        if command -v msgfmt >/dev/null 2>&1; then
+                            return 0
                         fi
-                    '''
-                }
+                        echo "msgfmt not found; attempting to install gettext..."
+                        if command -v apt-get >/dev/null 2>&1; then
+                            sudo apt-get update -qq
+                            sudo apt-get install -y gettext
+                        elif command -v dnf >/dev/null 2>&1; then
+                            sudo dnf install -y gettext
+                        elif command -v yum >/dev/null 2>&1; then
+                            sudo yum install -y gettext
+                        fi
+                        if ! command -v msgfmt >/dev/null 2>&1; then
+                            echo "ERROR: msgfmt unavailable. Install gettext on the Jenkins agent or grant sudo for apt/dnf/yum."
+                            exit 1
+                        fi
+                    }
+
+                    python3 --version
+                    python3 -m venv "${VENV_DIR}"
+                    activate_venv
+                    pip install --upgrade pip setuptools wheel
+                    pip install build twine pytest-cov
+                    pip install -e ".[dev]"
+                    ensure_msgfmt
+                    echo "Environment ready"
+                '''
+            }
+        }
+
+        stage('Lint') {
+            steps {
+                sh '''#!/usr/bin/env bash
+                    set -euo pipefail
+                    . "${VENV_DIR}/bin/activate"
+
+                    echo "Checking with ruff..."
+                    ruff check asteroidpy/ tests/
+                    echo "Checking types with mypy..."
+                    mypy asteroidpy/
+                    echo "Checking import order with isort..."
+                    isort --check asteroidpy/ tests/
+                    echo "Checking format with black..."
+                    black --check asteroidpy/ tests/
+                '''
+            }
+        }
+
+        stage('Test') {
+            steps {
+                sh '''#!/usr/bin/env bash
+                    set -euo pipefail
+                    . "${VENV_DIR}/bin/activate"
+                    pytest tests/ -v --tb=short --cov=asteroidpy --cov-report=xml --junitxml=test-results.xml
+                '''
             }
             post {
                 always {
-                    junit testResults: 'test-results.xml'
+                    junit testResults: 'test-results.xml', allowEmptyResults: false
                 }
             }
         }
 
-        stage('🏗️ Build Package') {
+        stage('Build Package') {
             steps {
-                script {
-                    echo "Building distribution packages..."
-                    sh '''
-                        set -eu
-                        . ${VENV_DIR}/bin/activate
-                        rm -rf dist/ build/ *.egg-info
-                        python -m build
-                        echo "Build artifacts:"
-                        ls -lh dist/
-                    '''
-                }
+                sh '''#!/usr/bin/env bash
+                    set -euo pipefail
+                    . "${VENV_DIR}/bin/activate"
+                    rm -rf dist/ build/ *.egg-info
+
+                    echo "Compiling locale catalogs..."
+                    for po in asteroidpy/locales/*/LC_MESSAGES/base.po; do
+                        msgfmt -o "${po%.po}.mo" "$po"
+                    done
+
+                    python -m build
+                    ls -lh dist/
+                '''
             }
         }
 
-        stage('✅ Validate Package') {
+        stage('Validate Package') {
             steps {
-                script {
-                    echo "Validating package metadata..."
-                    sh '''
-                        set -eu
-                        . ${VENV_DIR}/bin/activate
-                        twine check dist/* --strict
-                    '''
-                }
+                sh '''#!/usr/bin/env bash
+                    set -euo pipefail
+                    . "${VENV_DIR}/bin/activate"
+                    twine check dist/* --strict
+                '''
             }
         }
 
-        stage('🧪 Test Installation') {
+        stage('Install Smoke Test') {
             steps {
-                script {
-                    echo "Testing package installation..."
-                    sh '''
-                        set -eu
-                        . ${VENV_DIR}/bin/activate
-                        python -m venv test-install
-                        . test-install/bin/activate
-                        pip install --quiet dist/asteroidpy-*.whl
-                        python -c "import asteroidpy; print('✓ Package imported successfully')"
-                        deactivate
-                        rm -rf test-install
-                    '''
-                }
+                sh '''#!/usr/bin/env bash
+                    set -euo pipefail
+                    . "${VENV_DIR}/bin/activate"
+                    python -m venv test-install
+                    . test-install/bin/activate
+                    pip install --quiet dist/asteroidpy-*.whl
+                    python -c "import asteroidpy; print('Package imported successfully')"
+                    python -c "from importlib.resources import files; mo = files('asteroidpy') / 'locales/en/LC_MESSAGES/base.mo'; assert mo.is_file(), mo; print('Locale catalogs packaged')"
+                    python -c "from importlib.metadata import entry_points; matches = [ep for ep in entry_points(group='console_scripts') if ep.name == 'asteroidpy']; assert len(matches) == 1 and matches[0].value == 'asteroidpy:main', matches; print('Console script entry point registered')"
+                    command -v asteroidpy >/dev/null
+                    deactivate
+                    rm -rf test-install
+                '''
             }
         }
 
-        stage('🚀 Publish to PyPI') {
+        stage('Publish to PyPI') {
             when {
                 expression {
                     return env.IS_RELEASE == 'true'
@@ -165,92 +179,69 @@ pipeline {
             }
             steps {
                 script {
-                    echo "🎉 Publishing ${env.RELEASE_VERSION} to PyPI..."
+                    echo "Publishing ${env.RELEASE_VERSION} to PyPI..."
                     withCredentials([
                         string(credentialsId: 'PYPI_API_TOKEN', variable: 'PYPI_TOKEN')
                     ]) {
                         sh '''#!/usr/bin/env bash
                             set -euo pipefail
-                            . ${VENV_DIR}/bin/activate
+                            . "${VENV_DIR}/bin/activate"
 
-                            # Verifica versione
                             VERSION=$(grep -E '^__version__' asteroidpy/version.py | grep -oE '[0-9]+\\.[0-9]+\\.[0-9]+' | head -1)
-                            TAG="${RELEASE_VERSION#v}"  # Rimuovi il 'v' dal tag
-                            
+                            TAG="${RELEASE_VERSION#v}"
+
                             if [ "$VERSION" != "$TAG" ]; then
                                 echo "ERROR: Version mismatch — upload blocked."
                                 echo "  asteroidpy/version.py: $VERSION"
                                 echo "  Git tag: $TAG"
                                 exit 1
                             fi
-                            
-                            # Upload
+
                             twine upload \
                                 -u __token__ \
-                                -p $PYPI_TOKEN \
+                                -p "$PYPI_TOKEN" \
                                 --skip-existing \
                                 dist/*
-                            
-                            echo "✓ Upload completed"
+
+                            echo "Upload completed"
                         '''
                     }
                 }
             }
         }
 
-        stage('📢 Notify Success') {
+        stage('Notify Success') {
             when {
                 expression {
                     return env.IS_RELEASE == 'true'
                 }
             }
             steps {
-                script {
-                    echo "Sending notifications..."
-                    sh '''
-                        echo "✅ Release ${RELEASE_VERSION} successfully published to PyPI!"
-                        
-                        # Opzionale: notifica via ntfy
-                        # curl -X POST https://ntfy.example.com/asteroidpy \
-                        #   -d "✅ ${RELEASE_VERSION} published to PyPI" \
-                        #   -H "Priority: high"
-                        
-                        # Opzionale: notifica a Discord
-                        # curl -X POST $DISCORD_WEBHOOK \
-                        #   -H "Content-Type: application/json" \
-                        #   -d "{\"content\":\"📦 asteroidpy ${RELEASE_VERSION} released!\"}"
-                    '''
-                }
+                echo "Release ${env.RELEASE_VERSION} successfully published to PyPI"
             }
         }
     }
 
     post {
         always {
-            script {
-                echo "🧹 Cleaning up..."
-                sh '''
-                    rm -rf ${VENV_DIR} test-install build *.egg-info
-                '''
-            }
+            sh '''
+                rm -rf ${VENV_DIR} test-install build *.egg-info
+            '''
         }
         success {
+            archiveArtifacts artifacts: 'dist/*', fingerprint: true, allowEmptyArchive: false
+            archiveArtifacts artifacts: 'coverage.xml', allowEmptyArchive: true
             script {
                 if (env.IS_RELEASE == 'true') {
-                    echo "✅ Release Pipeline SUCCESS!"
-                    currentBuild.description = "✅ Released ${env.RELEASE_VERSION}"
+                    currentBuild.description = "Released ${env.RELEASE_VERSION}"
                 } else {
-                    echo "✅ Build Pipeline SUCCESS!"
-                    currentBuild.description = "✅ Build successful"
+                    currentBuild.description = 'Build successful'
                 }
             }
         }
         failure {
             script {
-                echo "❌ Pipeline FAILED!"
-                currentBuild.description = "❌ Build failed"
-                // Opzionale: notifica errore
-                // sh 'curl -X POST https://ntfy.example.com/asteroidpy -d "❌ Build failed"'
+                currentBuild.description = 'Build failed'
             }
         }
     }
