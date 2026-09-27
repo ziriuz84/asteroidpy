@@ -332,8 +332,8 @@ def observatory_summary_lines(
 
 def print_obs_config(
     config: ConfigParser,
-    *,
     show_sensitive: bool = False,
+    *,
     labels: Mapping[str, str] | None = None,
 ) -> None:
     """Print the ``[Observatory]`` section to stdout, redacting sensitive fields.

@@ -268,6 +268,20 @@ def test_print_obs_config_accepts_translated_labels(tmp_home, fresh_config, caps
     assert "Observatory name: " in stdout
 
 
+def test_print_obs_config_accepts_positional_show_sensitive(
+    tmp_home, fresh_config, capsys
+):
+    """``show_sensitive`` stayed positional-or-keyword for existing callers."""
+    write_config_file(
+        config_file_canonical(tmp_home),
+        create_minimal_config_text(latitude="45.0"),
+    )
+
+    cfg.print_obs_config(fresh_config, True)
+
+    assert "Latitude: 45.0" in capsys.readouterr().out
+
+
 def test_observatory_summary_lines_shows_sensitive_by_default(tmp_home, fresh_config):
     write_config_file(
         config_file_canonical(tmp_home),
