@@ -1193,3 +1193,39 @@ def test_planner_settings_fallback_and_normalization(monkeypatch, fresh_config, 
     assert settings["weights"]["cloud"] == pytest.approx(
         sch.DEFAULT_PLANNER_WEIGHTS["cloud"] / total
     )
+
+
+def test_best_nights_skips_non_mapping_forecast_items(monkeypatch, fresh_config, sch):
+    # 7Timer occasionally returns a partially malformed series; a non-dict item
+    # must be skipped instead of raising AttributeError in the Best Night screen.
+    _, astro, observer_cls = _planner_mock_fakes(sch)
+
+    def fake_raw(config: ConfigParser, product: str = "astro") -> dict[str, Any]:
+        return {
+            "init": "2026092600",
+            "dataseries": [None, "oops", 42, ["nope"]]
+            + _planner_three_night_forecast(),
+        }
+
+    monkeypatch.setattr(sch, "weather_forecast_raw", fake_raw)
+    monkeypatch.setattr(sch, "astronomical_night", astro)
+    monkeypatch.setattr(sch, "Observer", observer_cls)
+
+    nights = sch.best_nights(fresh_config)
+    assert [night["date"] for night in nights] == [
+        sch.datetime.date(2026, 9, 26),
+        sch.datetime.date(2026, 9, 27),
+    ]
+
+
+def test_best_nights_all_items_invalid(monkeypatch, fresh_config, sch):
+    monkeypatch.setattr(
+        sch,
+        "weather_forecast_raw",
+        lambda config, product="astro": {
+            "init": "2026092600",
+            "dataseries": [None, "oops", 42, [{"cloudcover": 1}]],
+        },
+    )
+    assert sch.best_nights(fresh_config) == []
+    assert "No weather forecast available." in sch.best_nights_report(fresh_config)

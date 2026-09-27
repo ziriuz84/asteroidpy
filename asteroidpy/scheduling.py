@@ -1406,8 +1406,13 @@ def best_nights(
 
     points: list[tuple[Time, dict[str, Any]]] = []
     for item in dataseries:
+        if not isinstance(item, dict):
+            continue
+        timepoint = item.get("timepoint")
+        if timepoint is None:
+            continue
         try:
-            hours = int(item.get("timepoint"))
+            hours = int(timepoint)
         except (TypeError, ValueError):
             continue
         points.append((Time(time_start + datetime.timedelta(hours=hours)), item))
