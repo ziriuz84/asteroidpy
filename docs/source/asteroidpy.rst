@@ -78,7 +78,10 @@ Layout (private submodules; import only if you extend the UI):
   :func:`~asteroidpy.configuration.print_obs_config`
 * ``_tui_app`` — root Textual ``App`` subclass and ``style.tcss`` path
 * ``_tui_screens`` — ``Screen`` definitions for menus, forms, and result views
-  (refreshes the observatory summary when resuming from child editors, showing
+  (every screen derives from the shared ``MenuScreen``, which binds the arrow
+  keys to Textual's focus actions and the digits to the numbered buttons, as
+  described in :ref:`keyboard-navigation`; refreshes the observatory summary
+  when resuming from child editors, showing
   latitude, longitude and altitude in clear via
   :func:`~asteroidpy.configuration.observatory_summary_lines`, clamps MPC What's
   Observable numeric fields before POST, notifies when a locale has ``base.po``

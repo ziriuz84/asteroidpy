@@ -16,6 +16,7 @@ AsteroidPy is a command-line tool for astronomers to schedule and manage asteroi
 - [Requirements](#requirements)
 - [Installation](#installation)
 - [Quick Start](#quick-start)
+- [Keyboard Navigation](#keyboard-navigation)
 - [Configuration](#configuration)
 - [FAQ](#faq)
 - [Data Sources](#data-sources)
@@ -111,6 +112,24 @@ On first launch, AsteroidPy creates a config file with default settings. Use the
 - **General**: interface language
 
 The **Observation scheduling** menu offers weather, MPC observing target list, NEOcp list, object ephemeris, twilight times, and best upcoming night.
+
+---
+
+## Keyboard Navigation
+
+Every screen is fully drivable from the keyboard; the mouse is optional.
+
+| Key | Action |
+|-----|--------|
+| `Up` / `Down` | Move the focus to the previous/next widget, exactly like `Shift+Tab` / `Tab` |
+| `Tab` / `Shift+Tab` | Move the focus forward/backward |
+| `0`–`9` | Activate the menu entry carrying that number in its label (e.g. `1 - Configuration`, `0 - Back to main menu`) |
+| `Escape` | Go back to the previous screen |
+| `Ctrl+Q` | Quit, from the main menu |
+
+The numbers are always visible in the button labels, so the shortcut for a screen is readable without leaving it. A digit with no matching entry — or one whose entry is disabled while a background query runs — is simply ignored.
+
+Arrow keys also work while filling in a form, and typing digits into a text field is never intercepted: input widgets consume printable characters before the shortcut is considered.
 
 ---
 
