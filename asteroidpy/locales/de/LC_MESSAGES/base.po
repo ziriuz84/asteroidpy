@@ -678,5 +678,33 @@ msgstr "Beste kommende Nacht"
 msgid "Find best night"
 msgstr "Beste Nacht finden"
 
+#: asteroidpy/configuration.py:43
+msgid "Locality"
+msgstr "Ort"
+
+#: asteroidpy/configuration.py:44
+msgid "Latitude"
+msgstr "Breitengrad"
+
+#: asteroidpy/configuration.py:45
+msgid "Longitude"
+msgstr "Längengrad"
+
+#: asteroidpy/configuration.py:46
+msgid "Altitude"
+msgstr "Höhe"
+
+#: asteroidpy/configuration.py:47
+msgid "Observer name"
+msgstr "Name des Beobachters"
+
+#: asteroidpy/configuration.py:48
+msgid "Observatory name"
+msgstr "Name des Observatoriums"
+
+#: asteroidpy/configuration.py:49
+msgid "MPC code"
+msgstr "MPC-Code"
+
 #~ msgid "Work in Progress"
 #~ msgstr "Arbeit läuft"
