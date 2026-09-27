@@ -19,6 +19,7 @@ object via :func:`asteroidpy.configuration.load_config`.
 
 import asyncio
 import datetime
+import math
 import re
 from configparser import ConfigParser
 from typing import Any, Literal, cast
@@ -1293,6 +1294,11 @@ def _planner_settings(config: ConfigParser) -> dict[str, Any]:
     ``max_nights`` is clamped to at least 1; weights are normalized to sum to 1.
     Any missing or non-numeric value falls back to :data:`DEFAULT_PLANNER_WEIGHTS`
     / :data:`DEFAULT_PLANNER_MAX_NIGHTS`.
+
+    Weights must be finite and non-negative: a negative weight would invert a
+    quality factor (a negative ``w_moon`` would reward a brighter Moon) and let
+    the score leave the 0-100 range, so such a value is rejected in favour of
+    its default.
     """
 
     if not config.has_section("Planner"):
@@ -1304,9 +1310,12 @@ def _planner_settings(config: ConfigParser) -> dict[str, Any]:
 
     def _float(key: str, default: float) -> float:
         try:
-            return float(section.get(key, str(default)))
+            value = float(section.get(key, str(default)))
         except (TypeError, ValueError):
             return default
+        if not math.isfinite(value) or value < 0:
+            return default
+        return value
 
     weights = {
         "cloud": _float("w_cloud", DEFAULT_PLANNER_WEIGHTS["cloud"]),

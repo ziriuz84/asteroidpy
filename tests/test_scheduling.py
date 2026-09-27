@@ -1185,14 +1185,45 @@ def test_planner_settings_fallback_and_normalization(monkeypatch, fresh_config, 
         "w_cloud": "not-a-number",
         "w_seeing": "2.0",
         "w_transparency": "1.0",
-        "w_moon": "-1.0",
+        "w_moon": "1.0",
     }
     settings = sch._planner_settings(fresh_config)
     assert settings["max_nights"] == sch.DEFAULT_PLANNER_MAX_NIGHTS
-    total = sch.DEFAULT_PLANNER_WEIGHTS["cloud"] + 2.0 + 1.0 - 1.0
+    total = sch.DEFAULT_PLANNER_WEIGHTS["cloud"] + 2.0 + 1.0 + 1.0
     assert settings["weights"]["cloud"] == pytest.approx(
         sch.DEFAULT_PLANNER_WEIGHTS["cloud"] / total
     )
+
+
+@pytest.mark.parametrize("bad_weight", ["-1.0", "-0.5", "nan", "inf", "-inf"])
+def test_planner_settings_rejects_invalid_weights(bad_weight, fresh_config, sch):
+    # A negative weight would invert a quality factor (e.g. a negative moon weight
+    # would reward a brighter Moon) and let the score leave the 0-100 range;
+    # non-finite values would poison the normalization. Both fall back.
+    fresh_config["Planner"] = {
+        "w_cloud": "1.0",
+        "w_seeing": "1.0",
+        "w_transparency": "1.0",
+        "w_moon": bad_weight,
+    }
+    settings = sch._planner_settings(fresh_config)
+    expected_total = 3.0 + sch.DEFAULT_PLANNER_WEIGHTS["moon"]
+    assert settings["weights"]["moon"] == pytest.approx(
+        sch.DEFAULT_PLANNER_WEIGHTS["moon"] / expected_total
+    )
+    assert all(value >= 0 for value in settings["weights"].values())
+    assert sum(settings["weights"].values()) == pytest.approx(1.0)
+
+
+def test_planner_settings_all_zero_weights_fall_back_to_defaults(fresh_config, sch):
+    fresh_config["Planner"] = {
+        "w_cloud": "0",
+        "w_seeing": "0",
+        "w_transparency": "0",
+        "w_moon": "0",
+    }
+    settings = sch._planner_settings(fresh_config)
+    assert settings["weights"] == pytest.approx(dict(sch.DEFAULT_PLANNER_WEIGHTS))
 
 
 def test_best_nights_skips_non_mapping_forecast_items(monkeypatch, fresh_config, sch):
