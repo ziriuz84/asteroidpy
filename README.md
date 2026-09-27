@@ -161,7 +161,7 @@ Missing options are filled from the built-in defaults on every load, so a partia
 ## FAQ
 
 **Where do I find my MPC observatory code?**  
-The [Minor Planet Center](https://www.minorplanetcenter.net/iau/lists/ObsCodes.html) publishes the list of observatory codes. If your site is not listed, use `XXX` or another temporary code until you register it with the MPC.
+The [Minor Planet Center](https://www.minorplanetcenter.net/iau/lists/ObsCodes.html) publishes the list of observatory codes. The default is `500` (Geocentric). If your site is not listed, keep `500` or use another temporary code until you register it with the MPC.
 
 **Why do ephemerides differ from Stellarium or other tools?**  
 Small differences can arise from different orbital elements, epoch dates, or time handling. AsteroidPy uses MPC data directly; ensure your observatory coordinates and time (UTC vs local) match across tools.

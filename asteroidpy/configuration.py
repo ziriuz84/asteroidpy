@@ -78,7 +78,7 @@ SECTION_DEFAULTS: dict[str, dict[str, str]] = {
         "altitude": "0.0",
         "obs_name": "",
         "observer_name": "",
-        "mpc_code": "XXX",
+        "mpc_code": "500",
         "east_altitude": "0",
         "nord_altitude": "0",
         "south_altitude": "0",

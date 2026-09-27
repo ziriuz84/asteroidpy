@@ -90,7 +90,7 @@ def create_minimal_config_text(**overrides) -> str:
     altitude = overrides.get("altitude", "0.0")
     obs_name = overrides.get("obs_name", "")
     observer_name = overrides.get("observer_name", "")
-    mpc_code = overrides.get("mpc_code", "XXX")
+    mpc_code = overrides.get("mpc_code", "500")
 
     return (
         "[General]\n"
@@ -115,7 +115,7 @@ def test_save_config_writes_file(tmp_home, fresh_config):
         "altitude": "0.0",
         "obs_name": "",
         "observer_name": "",
-        "mpc_code": "XXX",
+        "mpc_code": "500",
     }
 
     cfg.save_config(fresh_config)
@@ -165,7 +165,7 @@ def test_change_obs_altitude_updates_file(tmp_home, fresh_config):
 def test_change_mpc_code_updates_file(tmp_home, fresh_config):
     write_config_file(
         config_file_canonical(tmp_home),
-        create_minimal_config_text(mpc_code="XXX"),
+        create_minimal_config_text(mpc_code="500"),
     )
 
     cfg.change_mpc_code(fresh_config, code="C10")
@@ -436,7 +436,7 @@ def test_legacy_dump_localizes_labels_and_keeps_redaction(italian_catalog, capsy
     stdout = capsys.readouterr().out
     assert "Località: " in stdout
     assert f"Latitudine: {cfg.REDACTED_PLACEHOLDER}" in stdout
-    assert "Codice MPC: XXX" in stdout
+    assert "Codice MPC: 500" in stdout
 
 
 def test_tui_observatory_summary_localizes_labels(italian_catalog):
@@ -446,7 +446,7 @@ def test_tui_observatory_summary_localizes_labels(italian_catalog):
     summary = _observatory_summary(italian_catalog)
 
     assert "Latitudine: 0.0" in summary
-    assert "Codice MPC: XXX" in summary
+    assert "Codice MPC: 500" in summary
 
 
 def test_load_config_reads_existing_file(tmp_home, fresh_config):
