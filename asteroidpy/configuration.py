@@ -31,6 +31,24 @@ class VirtualHorizonDegrees(TypedDict):
     west: str
 
 
+#: Placeholder printed in place of latitude, longitude and altitude when the
+#: observatory summary is redacted.
+REDACTED_PLACEHOLDER = "***REDACTED***"
+
+#: ``(option, default label, sensitive)`` for every ``[Observatory]`` field shown by
+#: :func:`observatory_summary_lines` and :func:`print_obs_config`, in display order.
+#: Labels are msgid-style English: callers needing a localized UI pass translated
+#: labels, the Textual one via ``asteroidpy.interface._intl.translate``.
+OBSERVATORY_FIELD_LABELS: tuple[tuple[str, str, bool], ...] = (
+    ("place", "Locality", False),
+    ("latitude", "Latitude", True),
+    ("longitude", "Longitude", True),
+    ("altitude", "Altitude", True),
+    ("observer_name", "Observer name", False),
+    ("obs_name", "Observatory name", False),
+    ("mpc_code", "MPC code", False),
+)
+
 #: Default value of every known INI section/option, applied by
 #: :func:`merge_missing_defaults` so partial or older config files stay usable.
 SECTION_DEFAULTS: dict[str, dict[str, str]] = {
@@ -274,34 +292,61 @@ def change_observer_name(config: ConfigParser, name: str) -> None:
     save_config(config)
 
 
-def print_obs_config(config: ConfigParser, show_sensitive: bool = False) -> None:
-    """Print the ``[Observatory]`` section to stdout.
+def observatory_summary_lines(
+    config: ConfigParser,
+    *,
+    show_sensitive: bool = True,
+    labels: Mapping[str, str] | None = None,
+) -> list[str]:
+    """Return the ``[Observatory]`` fields as ready-to-display ``label: value`` lines.
 
-    Coordinates and altitude are redacted unless *show_sensitive* is true, so
-    the default output is safe to paste into public logs.
+    *show_sensitive* defaults to ``True`` because this is the human-readable view:
+    the interactive UI shows latitude, longitude and altitude in clear, since the
+    user entered them and there is no log to leak them into. Pass ``False`` — or use
+    :func:`print_obs_config`, the log-oriented entry point — to redact them.
+
+    *labels* maps ``[Observatory]`` option names to display labels; options absent
+    from the mapping fall back to the msgid-style defaults in
+    :data:`OBSERVATORY_FIELD_LABELS`. This module is gettext-free by design, so the
+    Textual UI passes labels already run through
+    ``asteroidpy.interface._intl.translate``.
     """
 
     load_config(config)
     if not config.has_section("Observatory"):
-        return
+        return []
+
     obs = config["Observatory"]
-
-    def _print_field(option: str, label: str, *, redact_when_private: bool) -> None:
+    chosen = labels or {}
+    lines: list[str] = []
+    for option, default_label, sensitive in OBSERVATORY_FIELD_LABELS:
         if not config.has_option("Observatory", option):
-            return
+            continue
+        label = chosen.get(option, default_label)
         value = obs[option]
-        if show_sensitive or not redact_when_private:
-            print(f"{label}: {value}")
-        else:
-            print(f"{label}: ***REDACTED***")
+        if sensitive and not show_sensitive:
+            value = REDACTED_PLACEHOLDER
+        lines.append(f"{label}: {value}")
+    return lines
 
-    _print_field("place", "Località", redact_when_private=False)
-    _print_field("latitude", "Latitudine", redact_when_private=True)
-    _print_field("longitude", "Longitudine", redact_when_private=True)
-    _print_field("altitude", "Altitudine", redact_when_private=True)
-    _print_field("observer_name", "Osservatore", redact_when_private=False)
-    _print_field("obs_name", "Nome Osservatorio", redact_when_private=False)
-    _print_field("mpc_code", "Codice MPC", redact_when_private=False)
+
+def print_obs_config(
+    config: ConfigParser,
+    *,
+    show_sensitive: bool = False,
+    labels: Mapping[str, str] | None = None,
+) -> None:
+    """Print the ``[Observatory]`` section to stdout, redacting sensitive fields.
+
+    Coordinates and altitude are redacted unless *show_sensitive* is true, so the
+    default output is safe to paste into public logs. For an unredacted, display-ready
+    summary prefer :func:`observatory_summary_lines`.
+    """
+
+    for line in observatory_summary_lines(
+        config, show_sensitive=show_sensitive, labels=labels
+    ):
+        print(line)
 
 
 def virtual_horizon_configuration(

@@ -50,6 +50,7 @@ Observatory:
 * :func:`change_mpc_code`: Persist the MPC observatory code
 * :func:`change_obs_name`: Persist the observatory site name
 * :func:`change_observer_name`: Persist the observer name
+* :func:`observatory_summary_lines`: Observatory fields as display-ready ``label: value`` lines, translated labels optional
 * :func:`print_obs_config`: Print the observatory section, redacting coordinates by default
 * :func:`virtual_horizon_configuration`: Persist per-direction virtual horizon minima
 
@@ -76,9 +77,11 @@ Layout (private submodules; import only if you extend the UI):
 * ``_input`` — EOF-safe ``prompt_line`` / ``get_integer`` / ``get_float`` / ``prompt_int_in_range``
 * ``_tui_app`` — root Textual ``App`` subclass and ``style.tcss`` path
 * ``_tui_screens`` — ``Screen`` definitions for menus, forms, and result views
-  (refreshes the observatory summary when resuming from child editors, clamps
-  MPC What's Observable numeric fields before POST, notifies when a locale has
-  ``base.po`` but no compiled ``base.mo``—compile with ``msgfmt`` as below)
+  (refreshes the observatory summary when resuming from child editors, showing
+  latitude, longitude and altitude in clear via
+  :func:`~asteroidpy.configuration.observatory_summary_lines`, clamps MPC What's
+  Observable numeric fields before POST, notifies when a locale has ``base.po``
+  but no compiled ``base.mo``—compile with ``msgfmt`` as below)
 * ``style.tcss`` — layout rules for centered panels, logs, and labelled inputs
 
 .. automodule:: asteroidpy.interface

@@ -213,13 +213,13 @@ def test_print_obs_config_redacts_sensitive_by_default(tmp_home, fresh_config, c
     cfg.print_obs_config(fresh_config)
 
     stdout = capsys.readouterr().out
-    assert "Località: City" in stdout
-    assert "Latitudine: ***REDACTED***" in stdout
-    assert "Longitudine: ***REDACTED***" in stdout
-    assert "Altitudine: ***REDACTED***" in stdout
-    assert "Osservatore: John" in stdout
-    assert "Nome Osservatorio: MainObs" in stdout
-    assert "Codice MPC: A12" in stdout
+    assert "Locality: City" in stdout
+    assert "Latitude: ***REDACTED***" in stdout
+    assert "Longitude: ***REDACTED***" in stdout
+    assert "Altitude: ***REDACTED***" in stdout
+    assert "Observer name: John" in stdout
+    assert "Observatory name: MainObs" in stdout
+    assert "MPC code: A12" in stdout
 
 
 def test_print_obs_config_shows_values_when_show_sensitive_true(
@@ -241,13 +241,138 @@ def test_print_obs_config_shows_values_when_show_sensitive_true(
     cfg.print_obs_config(fresh_config, show_sensitive=True)
 
     stdout = capsys.readouterr().out
+    assert "Locality: City" in stdout
+    assert "Latitude: 45.0" in stdout
+    assert "Longitude: 9.0" in stdout
+    assert "Altitude: 100.0" in stdout
+    assert "Observer name: John" in stdout
+    assert "Observatory name: MainObs" in stdout
+    assert "MPC code: A12" in stdout
+
+
+def test_print_obs_config_accepts_translated_labels(tmp_home, fresh_config, capsys):
+    write_config_file(
+        config_file_canonical(tmp_home), create_minimal_config_text(place="City")
+    )
+
+    cfg.print_obs_config(
+        fresh_config,
+        show_sensitive=True,
+        labels={"place": "Località", "latitude": "Lat"},
+    )
+
+    stdout = capsys.readouterr().out
     assert "Località: City" in stdout
-    assert "Latitudine: 45.0" in stdout
-    assert "Longitudine: 9.0" in stdout
-    assert "Altitudine: 100.0" in stdout
-    assert "Osservatore: John" in stdout
-    assert "Nome Osservatorio: MainObs" in stdout
-    assert "Codice MPC: A12" in stdout
+    assert "Lat: 0.0" in stdout
+    # Options missing from *labels* keep the msgid-style default.
+    assert "Observatory name: " in stdout
+
+
+def test_observatory_summary_lines_shows_sensitive_by_default(tmp_home, fresh_config):
+    write_config_file(
+        config_file_canonical(tmp_home),
+        create_minimal_config_text(
+            place="City", latitude="45.0", longitude="9.0", altitude="100.0"
+        ),
+    )
+
+    lines = cfg.observatory_summary_lines(fresh_config)
+
+    assert "Latitude: 45.0" in lines
+    assert "Longitude: 9.0" in lines
+    assert "Altitude: 100.0" in lines
+
+
+def test_observatory_summary_lines_redacts_when_not_show_sensitive(
+    tmp_home, fresh_config
+):
+    write_config_file(
+        config_file_canonical(tmp_home),
+        create_minimal_config_text(
+            place="City", latitude="45.0", longitude="9.0", altitude="100.0"
+        ),
+    )
+
+    lines = cfg.observatory_summary_lines(fresh_config, show_sensitive=False)
+
+    assert "Locality: City" in lines
+    assert "Latitude: ***REDACTED***" in lines
+    assert "Longitude: ***REDACTED***" in lines
+    assert "Altitude: ***REDACTED***" in lines
+
+
+def test_observatory_summary_lines_field_order_and_labels(tmp_home, fresh_config):
+    write_config_file(
+        config_file_canonical(tmp_home),
+        create_minimal_config_text(
+            place="City", latitude="45.0", obs_name="MainObs", mpc_code="A12"
+        ),
+    )
+
+    lines = cfg.observatory_summary_lines(fresh_config)
+
+    assert [line.split(":", 1)[0] for line in lines] == [
+        default_label
+        for _option, default_label, _sensitive in cfg.OBSERVATORY_FIELD_LABELS
+    ]
+
+
+def test_observatory_summary_lines_uses_supplied_labels(tmp_home, fresh_config):
+    write_config_file(
+        config_file_canonical(tmp_home),
+        create_minimal_config_text(
+            place="City", latitude="45.0", obs_name="MainObs", mpc_code="A12"
+        ),
+    )
+
+    lines = cfg.observatory_summary_lines(
+        fresh_config,
+        labels={
+            "place": "Località",
+            "latitude": "Latitudine",
+            "obs_name": "Nome Osservatorio",
+            "mpc_code": "Codice MPC",
+        },
+    )
+
+    assert "Località: City" in lines
+    assert "Latitudine: 45.0" in lines
+    assert "Nome Osservatorio: MainObs" in lines
+    assert "Codice MPC: A12" in lines
+    # Options missing from *labels* keep the msgid-style default.
+    assert "Observer name: " in lines
+
+
+def test_observatory_summary_lines_fills_missing_observatory_defaults(
+    tmp_home, fresh_config
+):
+    """A config file without ``[Observatory]`` still yields the default summary."""
+    write_config_file(config_file_canonical(tmp_home), "[General]\nlang = en\n")
+
+    lines = cfg.observatory_summary_lines(fresh_config, show_sensitive=False)
+
+    assert "Locality: " in lines
+    assert f"Latitude: {cfg.REDACTED_PLACEHOLDER}" in lines
+
+
+def test_tui_observatory_summary_renders_coordinates(tmp_home, fresh_config):
+    """The Observatory screen shows the real values, not the redacted log dump."""
+    pytest.importorskip("textual")
+    from asteroidpy.interface._tui_screens import _observatory_summary
+
+    write_config_file(
+        config_file_canonical(tmp_home),
+        create_minimal_config_text(
+            place="City", latitude="45.0", longitude="9.0", altitude="100.0"
+        ),
+    )
+
+    summary = _observatory_summary(fresh_config)
+
+    assert "45.0" in summary
+    assert "9.0" in summary
+    assert "100.0" in summary
+    assert cfg.REDACTED_PLACEHOLDER not in summary
 
 
 def test_load_config_reads_existing_file(tmp_home, fresh_config):

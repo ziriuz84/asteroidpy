@@ -20,10 +20,8 @@ from __future__ import annotations
 
 import asyncio
 import datetime
-import io
 import os
 from configparser import ConfigParser
-from contextlib import redirect_stdout
 from typing import Any, cast
 
 from textual.binding import Binding
@@ -79,11 +77,20 @@ def _refresh_main_menu_after_locale(screen: Screen) -> None:
 
 
 def _observatory_summary(config: ConfigParser) -> str:
-    """Capture ``configuration.print_obs_config`` stdout as plain text."""
-    buf = io.StringIO()
-    with redirect_stdout(buf):
-        configuration.print_obs_config(config)
-    return buf.getvalue().strip()
+    """Return the localized, unredacted ``[Observatory]`` summary shown by the UI.
+
+    Unlike :func:`~asteroidpy.configuration.print_obs_config`, which is the log-safe
+    dump, this view shows latitude, longitude and altitude: the user typed them in
+    and there is no public log to protect. Labels go through :func:`translate` so
+    the summary follows the configured language.
+    """
+
+    labels = {
+        option: translate(default_label)
+        for option, default_label, _sensitive in configuration.OBSERVATORY_FIELD_LABELS
+    }
+    lines = configuration.observatory_summary_lines(config, labels=labels)
+    return "\n".join(lines)
 
 
 _MPC_WHATSUP_DURATION_H_MIN = 1

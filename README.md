@@ -222,7 +222,7 @@ e comandi di verifica.
 
 ### Debito tecnico
 
-- [ ] **F1** La schermata Osservatorio mostra le coordinate come `***REDACTED***`; etichette di `print_obs_config` hardcoded in italiano e non traducibili
+- [x] **F1** Schermata Osservatorio: coordinate mostrate in chiaro via `observatory_summary_lines`, etichette di `print_obs_config` passate da gettext e presenti in tutti i cataloghi
 - [ ] **F2** Rimozione del frontend legacy orfano (`_config_menus.py`, `_schedule_menus.py`, `_input.py`), irraggiungibile e già divergente dalla TUI
 - [ ] **F3** Test della TUI: oggi le 19 schermate non hanno nessun test
 - [ ] **F4** Deduplicazione di `test_configuration.py` e `test_configuration_unittest.py`
