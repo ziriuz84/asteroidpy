@@ -49,6 +49,17 @@ OBSERVATORY_FIELD_LABELS: tuple[tuple[str, str, bool], ...] = (
     ("mpc_code", "MPC code", False),
 )
 
+#: ``[Planner]`` weight option per best-night scoring factor, in the order shown by
+#: the in-app planner editor. Mirrors the ``Planner`` keys of
+#: :data:`SECTION_DEFAULTS`; used by :func:`change_planner_weights`.
+PLANNER_WEIGHT_FACTORS: dict[str, str] = {
+    "cloud": "w_cloud",
+    "seeing": "w_seeing",
+    "transparency": "w_transparency",
+    "moon": "w_moon",
+}
+
+
 #: Default value of every known INI section/option, applied by
 #: :func:`merge_missing_defaults` so partial or older config files stay usable.
 SECTION_DEFAULTS: dict[str, dict[str, str]] = {
@@ -254,6 +265,33 @@ def change_mpc_code(config: ConfigParser, code: str) -> None:
 
     load_config(config)
     config["Observatory"]["mpc_code"] = str(code)
+    save_config(config)
+
+
+def change_planner_weights(
+    config: ConfigParser, max_nights: int, weights: Mapping[str, float]
+) -> None:
+    """Persist the ``[Planner]`` tuning of the best-night planner.
+
+    Parameters
+    ----------
+    config : ConfigParser
+        Configuration to update and write to disk.
+    max_nights : int
+        How many upcoming nights the planner ranks.
+    weights : mapping
+        Relative weight per scoring factor (``cloud``, ``seeing``,
+        ``transparency``, ``moon``, see :data:`PLANNER_WEIGHT_FACTORS`), stored as
+        given: the planner normalizes them when scoring. Callers are expected to
+        have validated them first, as the in-app editor does with
+        :func:`asteroidpy.scheduling.parse_planner_weights`.
+    """
+
+    load_config(config)
+    section = config["Planner"]
+    section["max_nights"] = str(max_nights)
+    for factor, option in PLANNER_WEIGHT_FACTORS.items():
+        section[option] = str(weights[factor])
     save_config(config)
 
 

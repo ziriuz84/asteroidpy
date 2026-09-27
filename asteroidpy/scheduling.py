@@ -21,6 +21,7 @@ import asyncio
 import datetime
 import math
 import re
+from collections.abc import Mapping, Sequence
 from configparser import ConfigParser
 from typing import Any, Literal, NamedTuple, cast
 
@@ -53,6 +54,14 @@ DEFAULT_PLANNER_WEIGHTS = {
 
 #: Maximum number of nights to report when ``[Planner] max_nights`` is missing.
 DEFAULT_PLANNER_MAX_NIGHTS = 5
+
+#: ``[Planner]`` INI option that stores the weight of each scoring factor.
+PLANNER_WEIGHT_OPTIONS: dict[str, str] = {
+    "cloud": "w_cloud",
+    "seeing": "w_seeing",
+    "transparency": "w_transparency",
+    "moon": "w_moon",
+}
 
 #: Number of ephemeris points requested from the MPC when none is given.
 DEFAULT_EPHEMERIS_POINTS = 30
@@ -1408,19 +1417,125 @@ def object_ephemeris(
     return ephemeris
 
 
-def _planner_settings(config: ConfigParser) -> dict[str, Any]:
-    """Return planner tuning from the ``[Planner]`` INI section with hardcoded fallback.
+class PlannerValueError(ValueError):
+    """Raised for a ``[Planner]`` value that the best-night planner cannot use.
 
-    ``max_nights`` is clamped to at least 1; weights are normalized to sum to 1.
-    Any missing or non-numeric value falls back to :data:`DEFAULT_PLANNER_WEIGHTS`
-    / :data:`DEFAULT_PLANNER_MAX_NIGHTS`.
+    *reason* is a stable machine-readable code, so a UI can pick a translated
+    message without parsing prose, and *options* lists the INI option names to
+    blame. Reasons:
 
-    Weights must be finite and non-negative: a negative weight would invert a
-    quality factor (a negative ``w_moon`` would reward a brighter Moon) and let
-    the score leave the 0-100 range, so such a value is rejected in favour of
-    its default.
+    * ``not_a_number`` — the value is not numeric;
+    * ``not_an_integer`` — ``max_nights`` is not a whole number;
+    * ``out_of_range`` — the value is negative, not finite, or below the minimum
+      (weights must be non-negative, ``max_nights`` at least 1);
+    * ``zero_sum`` — every weight is zero, which would leave the score undefined.
     """
 
+    def __init__(self, reason: str, options: Sequence[str]) -> None:
+        super().__init__(f"{reason}: {', '.join(options)}")
+        self.reason = reason
+        self.options = tuple(options)
+
+
+def _weight_problem(raw: Any) -> str | None:
+    """Return why *raw* is unusable as a planner weight, or None when it is fine."""
+    try:
+        value = float(raw)
+    except (TypeError, ValueError):
+        return "not_a_number"
+    if not math.isfinite(value) or value < 0:
+        return "out_of_range"
+    return None
+
+
+def normalize_planner_weights(weights: Mapping[str, float]) -> dict[str, float]:
+    """Validate planner weights and return them divided by their sum.
+
+    This is the single place where the weighting rules live: the in-app editor
+    validates with it before saving, and :func:`best_nights` applies the result
+    to every night it ranks.
+
+    Raises
+    ------
+    PlannerValueError
+        If a weight is not a finite non-negative number, or all of them are zero
+        (the score would divide by zero).
+    """
+    problems = [(factor, _weight_problem(value)) for factor, value in weights.items()]
+    invalid = [(factor, reason) for factor, reason in problems if reason is not None]
+    if invalid:
+        raise PlannerValueError(
+            invalid[0][1], [PLANNER_WEIGHT_OPTIONS.get(f, f) for f, _ in invalid]
+        )
+    total = math.fsum(float(value) for value in weights.values())
+    if total <= 0:
+        raise PlannerValueError("zero_sum", list(PLANNER_WEIGHT_OPTIONS.values()))
+    return {factor: float(value) / total for factor, value in weights.items()}
+
+
+def parse_planner_max_nights(raw: Any) -> int:
+    """Return ``[Planner] max_nights`` as a whole number of nights (at least 1).
+
+    Raises
+    ------
+    PlannerValueError
+        If *raw* is not an integer or is below 1. The editor must refuse to store
+        such a value, while :func:`planner_settings` stays tolerant of a
+        hand-edited file.
+    """
+    if isinstance(raw, bool):
+        raise PlannerValueError("not_an_integer", ("max_nights",))
+    try:
+        value = int(str(raw).strip())
+    except (TypeError, ValueError):
+        raise PlannerValueError("not_an_integer", ("max_nights",)) from None
+    if value < 1:
+        raise PlannerValueError("out_of_range", ("max_nights",))
+    return value
+
+
+def parse_planner_weights(raw: Mapping[str, Any]) -> dict[str, float]:
+    """Parse raw ``[Planner]`` values into the weights the scorer really uses.
+
+    Options absent from *raw* fall back to :data:`DEFAULT_PLANNER_WEIGHTS`; the
+    result is normalized to sum to 1, so the editor can show the user the numbers
+    that will be applied (see :func:`normalize_planner_weights`).
+
+    Raises
+    ------
+    PlannerValueError
+        If any weight is unusable, naming every offending option.
+    """
+    parsed: dict[str, float] = {}
+    problems: list[str] = []
+    reason = ""
+    for factor, option in PLANNER_WEIGHT_OPTIONS.items():
+        value = raw.get(option, DEFAULT_PLANNER_WEIGHTS[factor])
+        problem = _weight_problem(value)
+        if problem is None:
+            parsed[factor] = float(value)
+        else:
+            problems.append(option)
+            reason = reason or problem
+    if problems:
+        raise PlannerValueError(reason, problems)
+    return normalize_planner_weights(parsed)
+
+
+def planner_settings(config: ConfigParser) -> dict[str, Any]:
+    """Return the planner tuning of *config*, tolerating a hand-edited INI file.
+
+    The returned mapping has two keys: ``max_nights`` (an ``int`` of at least 1)
+    and ``weights`` (the four factors, normalized to sum to 1). Each option is read
+    through its strict parser, so the accepted ranges are defined once in
+    :func:`parse_planner_max_nights` and :func:`parse_planner_weights`; a value
+    those reject falls back to :data:`DEFAULT_PLANNER_MAX_NIGHTS` or, weight by
+    weight, to :data:`DEFAULT_PLANNER_WEIGHTS`.
+
+    A negative or non-finite weight is rejected because it would invert a quality
+    factor (a negative ``w_moon`` would reward a brighter Moon) and let the score
+    leave the 0-100 range.
+    """
     if not config.has_section("Planner"):
         return {
             "max_nights": DEFAULT_PLANNER_MAX_NIGHTS,
@@ -1428,37 +1543,25 @@ def _planner_settings(config: ConfigParser) -> dict[str, Any]:
         }
     section = config["Planner"]
 
-    def _float(key: str, default: float) -> float:
-        try:
-            value = float(section.get(key, str(default)))
-        except (TypeError, ValueError):
-            return default
-        if not math.isfinite(value) or value < 0:
-            return default
-        return value
-
-    weights = {
-        "cloud": _float("w_cloud", DEFAULT_PLANNER_WEIGHTS["cloud"]),
-        "seeing": _float("w_seeing", DEFAULT_PLANNER_WEIGHTS["seeing"]),
-        "transparency": _float(
-            "w_transparency", DEFAULT_PLANNER_WEIGHTS["transparency"]
-        ),
-        "moon": _float("w_moon", DEFAULT_PLANNER_WEIGHTS["moon"]),
-    }
-    total = sum(weights.values())
-    if total <= 0:
-        weights = dict(DEFAULT_PLANNER_WEIGHTS)
-        total = 1.0
     try:
-        max_nights = int(section.get("max_nights", ""))
-        if max_nights < 1:
-            raise ValueError
-    except (ValueError, TypeError):
+        max_nights = parse_planner_max_nights(section.get("max_nights", ""))
+    except PlannerValueError:
         max_nights = DEFAULT_PLANNER_MAX_NIGHTS
-    return {
-        "max_nights": max_nights,
-        "weights": {key: value / total for key, value in weights.items()},
-    }
+
+    weights: dict[str, float] = {}
+    for factor, option in PLANNER_WEIGHT_OPTIONS.items():
+        value = section.get(option, DEFAULT_PLANNER_WEIGHTS[factor])
+        weights[factor] = (
+            float(value)
+            if _weight_problem(value) is None
+            else DEFAULT_PLANNER_WEIGHTS[factor]
+        )
+    try:
+        normalized = normalize_planner_weights(weights)
+    except PlannerValueError:
+        # All-zero weights (or a bad mix that still adds up to nothing): start over.
+        normalized = dict(DEFAULT_PLANNER_WEIGHTS)
+    return {"max_nights": max_nights, "weights": normalized}
 
 
 def astronomical_night(config: ConfigParser, date: datetime.date) -> tuple[Time, Time]:
@@ -1637,7 +1740,9 @@ def _score_night(entry: dict[str, Any], weights: dict[str, float]) -> None:
 
 
 def best_nights(
-    config: ConfigParser, max_nights: int | None = None
+    config: ConfigParser,
+    max_nights: int | None = None,
+    weights: Mapping[str, float] | None = None,
 ) -> list[dict[str, Any]]:
     """Rank upcoming astronomical nights from the 7Timer astro forecast.
 
@@ -1645,7 +1750,7 @@ def best_nights(
     astronomical twilight window contains it. Per night, the mean cloud cover
     (percent), seeing and transparency indices, and the Moon illumination at the
     middle of the night are combined into a 0–100 score using the ``[Planner]``
-    weights (see ``_planner_settings``).
+    weights (see :func:`planner_settings`).
 
     Nights containing any precipitation timepoint are discarded.
 
@@ -1655,6 +1760,10 @@ def best_nights(
         Observatory settings and optional ``[Planner]`` tuning.
     max_nights : int, optional
         Override ``[Planner] max_nights``; defaults to the configured value.
+    weights : mapping, optional
+        Score with these weights instead of the configured ones, which is how the
+        planner editor previews unsaved values. They are validated and normalized
+        by :func:`normalize_planner_weights`.
 
     Returns
     -------
@@ -1662,6 +1771,11 @@ def best_nights(
         Each entry has ``date`` (start date), ``start``/``end`` (astropy Time),
         ``length_h``, ``avg_cloud_pct``, ``avg_seeing``, ``avg_transparency``,
         ``moon_illum`` and ``score`` (100 = ideal). Empty when no forecast data.
+
+    Raises
+    ------
+    PlannerValueError
+        If *weights* is supplied and unusable.
     """
 
     configuration.load_config(config)
@@ -1687,9 +1801,12 @@ def best_nights(
         if entry is not None:
             results.append(entry)
 
-    settings = _planner_settings(config)
+    settings = planner_settings(config)
+    scoring_weights = (
+        settings["weights"] if weights is None else normalize_planner_weights(weights)
+    )
     for entry in results:
-        _score_night(entry, settings["weights"])
+        _score_night(entry, scoring_weights)
     results.sort(key=lambda entry: entry["score"], reverse=True)
     if max_nights is None:
         max_nights = settings["max_nights"]
@@ -1702,7 +1819,7 @@ def best_nights_report(config: ConfigParser, max_nights: int | None = None) -> s
     Returns a short error message when no forecast data is available.
     """
 
-    settings = _planner_settings(config)
+    settings = planner_settings(config)
     if max_nights is None:
         max_nights = settings["max_nights"]
     nights = best_nights(config, max_nights)

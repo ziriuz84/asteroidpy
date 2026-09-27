@@ -1035,42 +1035,45 @@ def test_astronomical_night_uses_local_solar_noon(monkeypatch, fresh_config, sch
     assert calls["morning_ref"].iso.startswith("2026-09-26 11:24")
 
 
+def _planner_tp(hours: int, cloud: int, seeing: int, transp: int, prec: str = "none"):
+    """One 7Timer ``astro`` timepoint, *hours* after the forecast init."""
+
+    return {
+        "timepoint": hours,
+        "cloudcover": cloud,
+        "seeing": seeing,
+        "transparency": transp,
+        "prec_type": prec,
+    }
+
+
 def _planner_three_night_forecast() -> list[dict[str, Any]]:
     """3-hourly 7Timer-style forecast spanning three nights (26/27 clear, 28 rainy)."""
 
-    def tp(hours: int, cloud: int, seeing: int, transp: int, prec: str = "none"):
-        return {
-            "timepoint": hours,
-            "cloudcover": cloud,
-            "seeing": seeing,
-            "transparency": transp,
-            "prec_type": prec,
-        }
-
     return [
         # night of 2026-09-26, window [26 17:30, 27 04:30)
-        tp(18, 1, 1, 8),
-        tp(21, 1, 1, 8),
-        tp(24, 1, 1, 8),
-        tp(27, 1, 1, 8),
+        _planner_tp(18, 1, 1, 8),
+        _planner_tp(21, 1, 1, 8),
+        _planner_tp(24, 1, 1, 8),
+        _planner_tp(27, 1, 1, 8),
         # daytime 27
-        tp(30, 1, 1, 8),
-        tp(33, 1, 1, 8),
-        tp(36, 1, 1, 8),
-        tp(39, 1, 1, 8),
+        _planner_tp(30, 1, 1, 8),
+        _planner_tp(33, 1, 1, 8),
+        _planner_tp(36, 1, 1, 8),
+        _planner_tp(39, 1, 1, 8),
         # night of 2026-09-27, window [27 17:30, 28 04:30)
-        tp(42, 5, 4, 4),
-        tp(45, 5, 4, 4),
-        tp(48, 5, 4, 4),
-        tp(51, 5, 4, 4),
+        _planner_tp(42, 5, 4, 4),
+        _planner_tp(45, 5, 4, 4),
+        _planner_tp(48, 5, 4, 4),
+        _planner_tp(51, 5, 4, 4),
         # daytime 28
-        tp(54, 5, 4, 4),
-        tp(57, 5, 4, 4),
-        tp(60, 5, 4, 4),
-        tp(63, 5, 4, 4),
+        _planner_tp(54, 5, 4, 4),
+        _planner_tp(57, 5, 4, 4),
+        _planner_tp(60, 5, 4, 4),
+        _planner_tp(63, 5, 4, 4),
         # night of 2026-09-28, window [28 17:30, 29 04:30) -> rainy
-        tp(66, 1, 1, 8, prec="rain"),
-        tp(69, 1, 1, 8, prec="rain"),
+        _planner_tp(66, 1, 1, 8, prec="rain"),
+        _planner_tp(69, 1, 1, 8, prec="rain"),
     ]
 
 
@@ -1162,7 +1165,7 @@ def test_best_nights_report_renders_ranked_table(monkeypatch, fresh_config, sch)
 
 
 def test_planner_settings_fallback_and_normalization(monkeypatch, fresh_config, sch):
-    settings = sch._planner_settings(fresh_config)
+    settings = sch.planner_settings(fresh_config)
     assert settings["max_nights"] == sch.DEFAULT_PLANNER_MAX_NIGHTS
     assert settings["weights"]["cloud"] == pytest.approx(
         sch.DEFAULT_PLANNER_WEIGHTS["cloud"]
@@ -1176,7 +1179,7 @@ def test_planner_settings_fallback_and_normalization(monkeypatch, fresh_config, 
         "w_transparency": "1.0",
         "w_moon": "1.0",
     }
-    settings = sch._planner_settings(fresh_config)
+    settings = sch.planner_settings(fresh_config)
     assert settings["max_nights"] == 3
     assert all(v == pytest.approx(0.25) for v in settings["weights"].values())
 
@@ -1187,7 +1190,7 @@ def test_planner_settings_fallback_and_normalization(monkeypatch, fresh_config, 
         "w_transparency": "1.0",
         "w_moon": "1.0",
     }
-    settings = sch._planner_settings(fresh_config)
+    settings = sch.planner_settings(fresh_config)
     assert settings["max_nights"] == sch.DEFAULT_PLANNER_MAX_NIGHTS
     total = sch.DEFAULT_PLANNER_WEIGHTS["cloud"] + 2.0 + 1.0 + 1.0
     assert settings["weights"]["cloud"] == pytest.approx(
@@ -1206,7 +1209,7 @@ def test_planner_settings_rejects_invalid_weights(bad_weight, fresh_config, sch)
         "w_transparency": "1.0",
         "w_moon": bad_weight,
     }
-    settings = sch._planner_settings(fresh_config)
+    settings = sch.planner_settings(fresh_config)
     expected_total = 3.0 + sch.DEFAULT_PLANNER_WEIGHTS["moon"]
     assert settings["weights"]["moon"] == pytest.approx(
         sch.DEFAULT_PLANNER_WEIGHTS["moon"] / expected_total
@@ -1222,7 +1225,7 @@ def test_planner_settings_all_zero_weights_fall_back_to_defaults(fresh_config, s
         "w_transparency": "0",
         "w_moon": "0",
     }
-    settings = sch._planner_settings(fresh_config)
+    settings = sch.planner_settings(fresh_config)
     assert settings["weights"] == pytest.approx(dict(sch.DEFAULT_PLANNER_WEIGHTS))
 
 
@@ -1260,3 +1263,326 @@ def test_best_nights_all_items_invalid(monkeypatch, fresh_config, sch):
     )
     assert sch.best_nights(fresh_config) == []
     assert "No weather forecast available." in sch.best_nights_report(fresh_config)
+
+
+def test_planner_weight_options_match_the_known_factors(sch):
+    # The editor inputs, the persistence layer and the scorer must agree on the
+    # factor names, otherwise a saved weight would never be read back.
+    import asteroidpy.configuration as configuration
+
+    assert set(sch.PLANNER_WEIGHT_OPTIONS) == set(sch.DEFAULT_PLANNER_WEIGHTS)
+    assert set(sch.PLANNER_WEIGHT_OPTIONS.values()) <= set(
+        configuration.SECTION_DEFAULTS["Planner"]
+    )
+    assert configuration.PLANNER_WEIGHT_FACTORS == sch.PLANNER_WEIGHT_OPTIONS
+
+
+def test_parse_planner_weights_normalizes_and_fills_defaults(fresh_config, sch):
+    fresh_config["Planner"] = {"w_cloud": "4", "w_seeing": "2.5"}
+    weights = sch.parse_planner_weights(fresh_config["Planner"])
+    # Missing options fall back to the defaults, then all four are divided by
+    # their sum: 4 + 2.5 + 0.15 + 0.2 = 6.85.
+    assert weights == pytest.approx(
+        {
+            "cloud": 4 / 6.85,
+            "seeing": 2.5 / 6.85,
+            "transparency": 0.15 / 6.85,
+            "moon": 0.2 / 6.85,
+        }
+    )
+    assert sum(weights.values()) == pytest.approx(1.0)
+
+
+@pytest.mark.parametrize(
+    ("raw", "reason", "options"),
+    [
+        ({"w_cloud": "abc"}, "not_a_number", {"w_cloud"}),
+        ({"w_seeing": "-1"}, "out_of_range", {"w_seeing"}),
+        ({"w_moon": "nan"}, "out_of_range", {"w_moon"}),
+        ({"w_moon": "inf"}, "out_of_range", {"w_moon"}),
+        (
+            {"w_cloud": "0", "w_seeing": "0", "w_transparency": "0", "w_moon": "0"},
+            "zero_sum",
+            {"w_cloud", "w_seeing", "w_transparency", "w_moon"},
+        ),
+    ],
+)
+def test_parse_planner_weights_rejects_unusable_values(raw, reason, options, sch):
+    with pytest.raises(sch.PlannerValueError) as excinfo:
+        sch.parse_planner_weights(raw)
+    assert excinfo.value.reason == reason
+    assert set(excinfo.value.options) == options
+
+
+def test_parse_planner_weights_names_every_offending_option(sch):
+    with pytest.raises(sch.PlannerValueError) as excinfo:
+        sch.parse_planner_weights({"w_cloud": "x", "w_moon": "-2"})
+    assert set(excinfo.value.options) == {"w_cloud", "w_moon"}
+
+
+@pytest.mark.parametrize("raw", ["0", "-1", "abc", "", "1.5", "2.0", None])
+def test_parse_planner_max_nights_rejects_unusable_values(raw, sch):
+    with pytest.raises(sch.PlannerValueError) as excinfo:
+        sch.parse_planner_max_nights(raw)
+    assert excinfo.value.reason in {"not_an_integer", "out_of_range"}
+    assert excinfo.value.options == ("max_nights",)
+
+
+@pytest.mark.parametrize(("raw", "expected"), [("1", 1), (" 12 ", 12), (30, 30)])
+def test_parse_planner_max_nights_accepts_whole_numbers(raw, expected, sch):
+    assert sch.parse_planner_max_nights(raw) == expected
+
+
+def test_normalize_planner_weights_rejects_empty_sum(sch):
+    with pytest.raises(sch.PlannerValueError) as excinfo:
+        sch.normalize_planner_weights(dict.fromkeys(sch.DEFAULT_PLANNER_WEIGHTS, 0.0))
+    assert excinfo.value.reason == "zero_sum"
+
+
+def _planner_opposed_nights_forecast() -> list[dict[str, Any]]:
+    """Forecast whose two usable nights trade places depending on the weights.
+
+    Night 26 is overcast but transparent, night 27 is clear but hazy, and night 28
+    is discarded for rain: a cloud-only ranking and a transparency-only ranking
+    therefore disagree on the winner.
+    """
+
+    return [
+        # night of 2026-09-26, window [26 17:30, 27 04:30)
+        _planner_tp(18, 8, 4, 8),
+        _planner_tp(21, 8, 4, 8),
+        _planner_tp(24, 8, 4, 8),
+        _planner_tp(27, 8, 4, 8),
+        # daytime 27
+        _planner_tp(30, 1, 1, 1),
+        _planner_tp(33, 1, 1, 1),
+        _planner_tp(36, 1, 1, 1),
+        _planner_tp(39, 1, 1, 1),
+        # night of 2026-09-27, window [27 17:30, 28 04:30)
+        _planner_tp(42, 1, 1, 1),
+        _planner_tp(45, 1, 1, 1),
+        _planner_tp(48, 1, 1, 1),
+        _planner_tp(51, 1, 1, 1),
+        # daytime 28
+        _planner_tp(54, 8, 4, 8),
+        _planner_tp(57, 8, 4, 8),
+        _planner_tp(60, 8, 4, 8),
+        _planner_tp(63, 8, 4, 8),
+        # night of 2026-09-28 -> rainy
+        _planner_tp(66, 1, 1, 8, prec="rain"),
+        _planner_tp(69, 1, 1, 8, prec="rain"),
+    ]
+
+
+def _patch_planner_forecast(monkeypatch, sch, series):
+    """Wire the planner fakes around *series* and return the three fake helpers."""
+
+    _raw, astro, observer_cls = _planner_mock_fakes(sch)
+    monkeypatch.setattr(
+        sch,
+        "weather_forecast_raw",
+        lambda config, product="astro": {"init": "2026092600", "dataseries": series},
+    )
+    monkeypatch.setattr(sch, "astronomical_night", astro)
+    monkeypatch.setattr(sch, "Observer", observer_cls)
+    return astro, observer_cls
+
+
+def test_best_nights_weights_override_changes_the_ranking(
+    monkeypatch, fresh_config, sch
+):
+    # The planner editor previews unsaved weights: passing them to best_nights
+    # must be enough to change both the score and the order of the nights.
+    _patch_planner_forecast(monkeypatch, sch, _planner_opposed_nights_forecast())
+    clear = sch.datetime.date(2026, 9, 27)
+    cloudy = sch.datetime.date(2026, 9, 26)
+
+    cloud_only = sch.best_nights(
+        fresh_config, weights={"cloud": 1, "seeing": 0, "transparency": 0, "moon": 0}
+    )
+    transparency_only = sch.best_nights(
+        fresh_config, weights={"cloud": 0, "seeing": 0, "transparency": 1, "moon": 0}
+    )
+    assert cloud_only[0]["date"] == clear
+    assert transparency_only[0]["date"] == cloudy
+    # Weights are normalized, so a single factor scores on its own.
+    assert cloud_only[0]["score"] == pytest.approx(100 * (1 - 3.0 / 100))
+    assert transparency_only[0]["score"] == pytest.approx(100.0)
+
+
+def test_best_nights_uses_configured_weights_by_default(monkeypatch, fresh_config, sch):
+    _patch_planner_forecast(monkeypatch, sch, _planner_opposed_nights_forecast())
+    fresh_config["Planner"] = {
+        "max_nights": "2",
+        "w_cloud": "0",
+        "w_seeing": "0",
+        "w_transparency": "1",
+        "w_moon": "0",
+    }
+    nights = sch.best_nights(fresh_config)
+    assert [night["date"] for night in nights] == [
+        sch.datetime.date(2026, 9, 26),
+        sch.datetime.date(2026, 9, 27),
+    ]
+    assert nights[0]["score"] == pytest.approx(100.0)
+
+
+def test_best_nights_rejects_invalid_weights_override(fresh_config, sch):
+    with pytest.raises(sch.PlannerValueError):
+        sch.best_nights(
+            fresh_config,
+            weights={"cloud": -1, "seeing": 1, "transparency": 1, "moon": 1},
+        )
+
+
+def test_object_ephemeris_passes_the_requested_point_count(
+    monkeypatch, fresh_config, sch
+):
+    seen: dict[str, int] = {}
+
+    def fake_get_ephemeris(name: str, location: Any, step: Any, number: int):
+        seen["number"] = number
+        from astropy.table import QTable
+
+        return QTable(
+            {
+                "Date": ["t1"],
+                "RA": ["1h"],
+                "Dec": ["+1d"],
+                "Elongation": [10.0],
+                "V": [18.0],
+                "Altitude": [30.0],
+                "Proper motion": [0.1],
+                "Direction": ["E"],
+            }
+        )
+
+    monkeypatch.setattr(sch.MPC, "get_ephemeris", fake_get_ephemeris)
+
+    sch.object_ephemeris(fresh_config, "Ceres", stepping="h")
+    assert seen["number"] == sch.DEFAULT_EPHEMERIS_POINTS
+
+    sch.object_ephemeris(fresh_config, "Ceres", stepping="h", number=1)
+    assert seen["number"] == 1
+
+    sch.object_ephemeris(fresh_config, "Ceres", stepping="h", number="250")
+    assert seen["number"] == 250
+
+
+@pytest.mark.parametrize("number", [0, -1, 1.5, "abc", "", None, True, 10001])
+def test_object_ephemeris_rejects_an_unusable_point_count(
+    number, monkeypatch, fresh_config, sch
+):
+    def fake_get_ephemeris(name: str, location: Any, step: Any, number: int):
+        raise AssertionError("the MPC must not be queried with an invalid count")
+
+    monkeypatch.setattr(sch.MPC, "get_ephemeris", fake_get_ephemeris)
+
+    with pytest.raises(ValueError):
+        sch.object_ephemeris(fresh_config, "Ceres", stepping="h", number=number)
+
+
+@pytest.mark.parametrize(
+    ("raw", "expected"),
+    [
+        (1, 1),
+        ("1", 1),
+        (30, 30),
+        (" 250 ", 250),
+        (sch_max := 10000, sch_max),
+    ],
+)
+def test_validated_ephemeris_points_accepts_the_documented_range(raw, expected, sch):
+    assert sch.validated_ephemeris_points(raw) == expected
+
+
+def _forecast_with_hours(timepoints: list[int], temp: Any = 12.3) -> dict[str, Any]:
+    """Build a 7Timer ``astro`` payload with one timepoint per hour offset."""
+
+    return {
+        "init": "2026092600",
+        "dataseries": [
+            {
+                "timepoint": hours,
+                "cloudcover": 2,
+                "seeing": 3,
+                "transparency": 5,
+                "lifted_index": -2,
+                "temp2m": temp,
+                "rh2m": 4,
+                "wind10m": {"direction": 180, "speed": 5},
+                "prec_type": "none",
+            }
+            for hours in timepoints
+        ],
+    }
+
+
+def test_weather_forecast_report_horizon_limits_the_timepoints(
+    monkeypatch, fresh_config, sch
+):
+    monkeypatch.setattr(
+        sch,
+        "weather_forecast_raw",
+        lambda config, product="astro": _forecast_with_hours([0, 3, 6, 9, 72, 75]),
+    )
+
+    # Every kept row carries the temperature, so counting it counts the rows.
+    assert sch.weather_forecast_report(fresh_config, hours=6).count("12.3 C") == 3
+    assert sch.weather_forecast_report(fresh_config, hours=72).count("12.3 C") == 5
+    # Without an explicit horizon the whole series is shown, as before.
+    assert sch.weather_forecast_report(fresh_config).count("12.3 C") == 6
+
+
+def test_weather_forecast_report_rejects_a_negative_horizon(fresh_config, sch):
+    with pytest.raises(ValueError):
+        sch.weather_forecast_report(fresh_config, hours=-3)
+
+
+def test_weather_forecast_report_converts_the_temperature_unit(
+    monkeypatch, fresh_config, sch
+):
+    monkeypatch.setattr(
+        sch,
+        "weather_forecast_raw",
+        lambda config, product="astro": _forecast_with_hours([0]),
+    )
+
+    celsius = sch.weather_forecast_report(fresh_config, temperature_unit="C")
+    fahrenheit = sch.weather_forecast_report(fresh_config, temperature_unit="F")
+    assert "12.3 C" in celsius
+    assert "54.1 F" in fahrenheit
+
+
+def test_weather_forecast_report_skips_malformed_timepoints(
+    monkeypatch, fresh_config, sch
+):
+    payload = _forecast_with_hours([0])
+    payload["dataseries"] = [None, "nope", {"timepoint": 3, "temp2m": 5}] + payload[
+        "dataseries"
+    ]
+    monkeypatch.setattr(
+        sch, "weather_forecast_raw", lambda config, product="astro": payload
+    )
+
+    report = sch.weather_forecast_report(fresh_config)
+    assert "5 C" in report
+
+
+@pytest.mark.parametrize(
+    ("celsius", "unit", "expected"),
+    [
+        (12.3, "C", "12.3 C"),
+        (0, "C", "0 C"),
+        (12.3, "F", "54.1 F"),
+        (0, "F", "32.0 F"),
+        (-40, "F", "-40.0 F"),
+        (None, "C", "N/A"),
+        (None, "F", "N/A"),
+        ("oops", "F", "N/A"),
+    ],
+)
+def test_weather_temperature(celsius, unit, expected, sch):
+    assert sch.weather_temperature(celsius, unit) == expected
+
+

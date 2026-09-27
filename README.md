@@ -124,6 +124,7 @@ Use the in-app **Configuration** menu to change:
 |--------|-------------|
 | **Observatory** | Latitude, longitude, altitude, site and observer names, MPC observatory code |
 | **Virtual horizon** | Minimum altitude (in degrees) per cardinal direction for visibility |
+| **Planner** | Number of nights the best-night planner ranks, and the relative weights of cloud cover, seeing, transparency and Moon illumination |
 | **Language** | Interface language (English, Italiano, Deutsch, Français, Español, Português) |
 
 The same values can be edited by hand in the INI file. It has three sections:
@@ -134,7 +135,7 @@ The same values can be edited by hand in the INI file. It has three sections:
 | `[Planner]` | `max_nights` — how many nights the best-night planner ranks; `w_cloud`, `w_seeing`, `w_transparency`, `w_moon` — relative weights, normalized to sum to 1 |
 | `[Observatory]` | `place`, `latitude`, `longitude`, `altitude`, `obs_name`, `observer_name`, `mpc_code`, `nord_altitude`, `east_altitude`, `south_altitude`, `west_altitude` |
 
-Missing options are filled from the built-in defaults on every load, so a partial or older file stays usable. The `[Planner]` weights are read from the file only — there is no in-app screen for them yet; they control the **Best upcoming night** score, whose only inputs are cloud cover, seeing, transparency and Moon illumination. Nights with any precipitation are discarded outright.
+Missing options are filled from the built-in defaults on every load, so a partial or older file stays usable. The `[Planner]` weights control the **Best upcoming night** score, whose only inputs are cloud cover, seeing, transparency and Moon illumination; nights with any precipitation are discarded outright. The **Configuration → Planner** screen edits `max_nights` and the four weights, shows the values that will really be applied (the weights divided by their sum) and previews the score of the next few nights without saving.
 
 ---
 

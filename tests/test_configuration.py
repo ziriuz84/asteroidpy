@@ -501,3 +501,37 @@ def test_load_config_initializes_when_missing(tmp_home, fresh_config, monkeypatc
 
     assert called["count"] >= 1
     assert os.path.exists(config_file_canonical(tmp_home))
+
+
+def test_change_planner_weights_persists_the_planner_section(tmp_home, fresh_config):
+    write_config_file(config_file_canonical(tmp_home), create_minimal_config_text())
+    cfg.load_config(fresh_config)
+
+    cfg.change_planner_weights(
+        fresh_config,
+        12,
+        {"cloud": 0.5, "seeing": 0.2, "transparency": 0.1, "moon": 0.2},
+    )
+
+    reloaded = ConfigParser()
+    cfg.load_config(reloaded)
+    assert reloaded.get("Planner", "max_nights") == "12"
+    assert reloaded.get("Planner", "w_cloud") == "0.5"
+    assert reloaded.get("Planner", "w_seeing") == "0.2"
+    assert reloaded.get("Planner", "w_transparency") == "0.1"
+    assert reloaded.get("Planner", "w_moon") == "0.2"
+    assert "w_cloud = 0.5" in read_config_file(config_file_canonical(tmp_home))
+
+
+def test_planner_weight_factors_match_the_ini_schema():
+    # The editor builds its inputs from this mapping, so it must stay in sync with
+    # the options the loader knows about.
+    assert cfg.PLANNER_WEIGHT_FACTORS == {
+        "cloud": "w_cloud",
+        "seeing": "w_seeing",
+        "transparency": "w_transparency",
+        "moon": "w_moon",
+    }
+    assert set(cfg.PLANNER_WEIGHT_FACTORS.values()) == set(
+        cfg.SECTION_DEFAULTS["Planner"]
+    ) - {"max_nights"}

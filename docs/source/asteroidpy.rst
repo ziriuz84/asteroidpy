@@ -160,12 +160,18 @@ Best-night planner:
 * :func:`astronomical_night`: ``(evening, morning)`` astronomical twilight for a night
 * :func:`best_nights`: Ranked upcoming nights with per-night quality scores
 * :func:`best_nights_report`: Plain-text ranking table (used by the TUI)
+* :func:`planner_settings`: Read ``[Planner]`` tolerantly, falling back to the defaults
+* :func:`parse_planner_max_nights`: Strict ``max_nights`` parser used by the editor
+* :func:`parse_planner_weights`: Strict ``[Planner]`` weight parser, normalized to 1
+* :func:`normalize_planner_weights`: Validate weights and divide them by their sum
+* :exc:`PlannerValueError`: Why a planner value was rejected, and which options to blame
 
 Module constants:
 
 * :data:`SEVENTIMER_API_URL`: 7Timer endpoint queried for forecasts
 * :data:`DEFAULT_PLANNER_WEIGHTS`: Fallback planner weights (also see ``[Planner]``)
 * :data:`DEFAULT_PLANNER_MAX_NIGHTS`: Fallback number of ranked nights
+* :data:`PLANNER_WEIGHT_OPTIONS`: ``[Planner]`` option holding each factor's weight
 * :data:`CLOUDCOVER_MIDPOINT_PCT`: 7Timer ``cloudcover`` code to percent midpoint
 * :data:`MPC_WHATSUP_INDEX_URL`: MPC "What's Observable" form endpoint
 * :data:`DEFAULT_EPHEMERIS_POINTS`: Ephemeris points requested by default

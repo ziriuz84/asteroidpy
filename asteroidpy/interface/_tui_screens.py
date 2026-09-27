@@ -14,6 +14,12 @@ Behaviour notes for maintainers:
 * **MPC What's Observable** — :class:`ObservingTargetListScreen` clamps numeric
   form fields to safe ranges before building the POST payload (see module-level
   ``_MPC_*`` constants).
+* **Planner editor** — :class:`PlannerSettingsScreen` validates the ``[Planner]``
+  fields with the same parsers the loader uses
+  (:func:`~asteroidpy.scheduling.parse_planner_weights`,
+  :func:`~asteroidpy.scheduling.parse_planner_max_nights`), shows the weights as
+  they will really be applied and previews the score of a few nights without
+  saving.
 """
 
 from __future__ import annotations
@@ -22,6 +28,7 @@ import asyncio
 import datetime
 import math
 import os
+from collections.abc import Mapping, Sequence
 from configparser import ConfigParser
 from typing import Any, cast
 
@@ -48,6 +55,72 @@ from asteroidpy.version import __version__
 
 from ._i18n import get_locale_dir, setup_gettext
 from ._intl import observatory_labels, translate
+
+#: Number of nights ranked by the planner editor preview, to keep it quick.
+PLANNER_PREVIEW_NIGHTS = 3
+
+#: Translatable explanation of each :class:`~asteroidpy.scheduling.PlannerValueError`
+#: reason, so the editor never has to build an English sentence itself.
+PLANNER_ERROR_MESSAGES: dict[str, str] = {
+    "not_a_number": "Planner weights must be numbers.",
+    "not_an_integer": "The number of nights must be a whole number.",
+    "out_of_range": (
+        "Planner weights must be zero or greater, and the number of nights "
+        "at least 1."
+    ),
+    "zero_sum": "At least one planner weight must be greater than zero.",
+}
+
+#: Translatable name of each best-night scoring factor, shown next to its value.
+PLANNER_FACTOR_LABELS: dict[str, str] = {
+    "cloud": "Cloud cover",
+    "seeing": "Seeing",
+    "transparency": "Transparency",
+    "moon": "Moon",
+}
+
+def _planner_error_message(reason: str) -> str:
+    """Return the translated text explaining a planner validation *reason*."""
+
+    fallback = PLANNER_ERROR_MESSAGES["out_of_range"]
+    return translate(PLANNER_ERROR_MESSAGES.get(reason, fallback))
+
+
+def _planner_weight_labels(weights: Mapping[str, float]) -> list[str]:
+    """Render normalized planner weights as ``label value`` lines for the editor.
+
+    *weights* maps each scoring factor to its value; factors keep the order of
+    :data:`PLANNER_FACTOR_LABELS` so the user can match the preview to the fields.
+    """
+
+    return [
+        f"{translate(PLANNER_FACTOR_LABELS.get(factor, factor))}: {weight:.3f}"
+        for factor, weight in weights.items()
+    ]
+
+
+def _planner_preview_lines(
+    nights: Sequence[Mapping[str, Any]], weights: Mapping[str, float]
+) -> list[str]:
+    """Render the planner editor preview: weights in use, then the best nights.
+
+    *nights* is a :func:`~asteroidpy.scheduling.best_nights` result, kept short by
+    the caller. Free of widgets so it can be tested directly.
+    """
+
+    lines = [translate("Weights used for the score:"), *_planner_weight_labels(weights)]
+    if not nights:
+        lines.append(translate("No weather forecast available."))
+        return lines
+    lines.append("")
+    lines.append(translate("Best nights with these weights:"))
+    for rank, night in enumerate(nights, start=1):
+        lines.append(
+            f"{rank}. {night['date']}  "
+            f"{night['start'].strftime('%H:%M')} - {night['end'].strftime('%H:%M')} UTC  "
+            f"{translate('score')} {night['score']:.1f}"
+        )
+    return lines
 
 
 def _app_config(screen: Screen) -> ConfigParser:
@@ -221,7 +294,7 @@ class MainMenuScreen(Screen):
 
 
 class ConfigRootScreen(Screen):
-    """Configuration branch: general options or observatory details."""
+    """Configuration branch: general options, planner tuning or observatory details."""
 
     BINDINGS = [Binding("escape", "back", "Back")]
 
@@ -232,6 +305,7 @@ class ConfigRootScreen(Screen):
             Label(translate("Configuration")),
             Button(translate("1 - General"), id="general"),
             Button(translate("2 - Observatory"), id="obs"),
+            Button(translate("3 - Planner"), id="planner"),
             Button(translate("0 - Back to main menu"), id="back"),
             id="panel",
         )
@@ -244,6 +318,8 @@ class ConfigRootScreen(Screen):
             self.app.push_screen(GeneralConfigScreen())
         elif event.button.id == "obs":
             self.app.push_screen(ObservatoryScreen())
+        elif event.button.id == "planner":
+            self.app.push_screen(PlannerSettingsScreen())
         elif event.button.id == "back":
             self.app.pop_screen()
 
@@ -703,7 +779,168 @@ class ObservatoryHorizonScreen(Screen):
             altitudes[option] = str(value)
         configuration.virtual_horizon_configuration(_app_config(self), altitudes)
         self.app.pop_screen()
+
+
+class PlannerSettingsScreen(Screen):
+    """Edit the ``[Planner]`` best-night weights and how many nights are ranked.
+
+    Fields are prefilled with the stored values, falling back to the built-in
+    defaults for options missing from the INI file. The same parsers the loader
+    uses (:func:`~asteroidpy.scheduling.parse_planner_weights`,
+    :func:`~asteroidpy.scheduling.parse_planner_max_nights`) validate the input, so
+    an unusable value is refused with a translated message instead of being
+    quietly replaced by a default, and the weights that will really be applied (the
+    inputs divided by their sum) are shown under the fields.
+    """
+
+    BINDINGS = [Binding("escape", "back", "Back")]
+
+    def compose(self) -> Any:
+        yield Header()
+        yield Footer()
+        yield ScrollableContainer(
+            Vertical(
+                Label(translate("Configuration -> Planner")),
+                Label(
+                    translate("Weights are relative: they are normalized to sum to 1.")
+                ),
+                Horizontal(
+                    Label(translate("Number of nights to rank -> ")),
+                    Input(placeholder=">=1", id="max_nights"),
+                    classes="input-row",
+                ),
+                Horizontal(
+                    Label(translate("Cloud cover weight -> ")),
+                    Input(placeholder=">=0", id="w_cloud"),
+                    classes="input-row",
+                ),
+                Horizontal(
+                    Label(translate("Seeing weight -> ")),
+                    Input(placeholder=">=0", id="w_seeing"),
+                    classes="input-row",
+                ),
+                Horizontal(
+                    Label(translate("Transparency weight -> ")),
+                    Input(placeholder=">=0", id="w_transparency"),
+                    classes="input-row",
+                ),
+                Horizontal(
+                    Label(translate("Moon weight -> ")),
+                    Input(placeholder=">=0", id="w_moon"),
+                    classes="input-row",
+                ),
+                Static("", id="summary"),
+                Horizontal(
+                    Button(translate("Preview score"), id="preview"),
+                    Button(translate("Save"), id="save", variant="primary"),
+                    Button(translate("Cancel"), id="cancel"),
+                ),
+                RichLog(id="log", wrap=True, highlight=True),
+                id="inner",
+            ),
+            id="panel",
+        )
+
+    def on_mount(self) -> None:
+        """Prefill the fields from the ``[Planner]`` section and show the weights."""
+
+        config = _app_config(self)
+        configuration.load_config(config)
+        section = config["Planner"]
+        self.query_one("#max_nights", Input).value = str(section.get("max_nights", ""))
+        for option in scheduling.PLANNER_WEIGHT_OPTIONS.values():
+            self.query_one(f"#{option}", Input).value = str(section.get(option, ""))
+        self._refresh_summary()
+
+    def on_input_changed(self, event: Input.Changed) -> None:
+        """Keep the applied-weights summary in sync with the fields."""
+
+        self._refresh_summary()
+
+    def action_back(self) -> None:
         self.app.pop_screen()
+
+    async def on_button_pressed(self, event: Button.Pressed) -> None:
+        bid = event.button.id or ""
+        if bid == "cancel":
+            self.app.pop_screen()
+        elif bid == "save":
+            self._save()
+        elif bid == "preview":
+            await self._preview()
+
+    def _planner_values(self) -> tuple[int, dict[str, float], dict[str, float]]:
+        """Return ``(max_nights, entered weights, applied weights)`` from the fields.
+
+        Raises
+        ------
+        scheduling.PlannerValueError
+            If any field is unusable, carrying the reason and the offending options.
+        """
+
+        entered_raw = {
+            option: self.query_one(f"#{option}", Input).value.strip()
+            for option in scheduling.PLANNER_WEIGHT_OPTIONS.values()
+        }
+        max_nights = scheduling.parse_planner_max_nights(
+            self.query_one("#max_nights", Input).value.strip()
+        )
+        applied = scheduling.parse_planner_weights(entered_raw)
+        entered = {
+            factor: float(entered_raw[option])
+            for factor, option in scheduling.PLANNER_WEIGHT_OPTIONS.items()
+        }
+        return max_nights, entered, applied
+
+    def _refresh_summary(self) -> None:
+        """Show the weights the planner applies, or why the fields cannot be used."""
+
+        summary = self.query_one("#summary", Static)
+        try:
+            _max_nights, _entered, applied = self._planner_values()
+        except scheduling.PlannerValueError as exc:
+            summary.update(_planner_error_message(exc.reason))
+            return
+        summary.update(
+            translate("Weights used by the planner (normalized):\n{weights}").format(
+                weights="\n".join(_planner_weight_labels(applied))
+            )
+        )
+
+    def _save(self) -> None:
+        """Validate and persist the ``[Planner]`` section, keeping the screen on error."""
+
+        try:
+            max_nights, entered, _applied = self._planner_values()
+        except scheduling.PlannerValueError as exc:
+            self.app.notify(_planner_error_message(exc.reason), severity="warning")
+            return
+        configuration.change_planner_weights(_app_config(self), max_nights, entered)
+        self.app.pop_screen()
+
+    async def _preview(self) -> None:
+        """Rank a few nights with the weights in the fields, without saving them."""
+
+        try:
+            _max_nights, _entered, applied = self._planner_values()
+        except scheduling.PlannerValueError as exc:
+            self.app.notify(_planner_error_message(exc.reason), severity="warning")
+            return
+        log = self.query_one("#log", RichLog)
+        button = self.query_one("#preview", Button)
+        log.clear()
+        button.disabled = True
+        try:
+            nights = await asyncio.to_thread(
+                scheduling.best_nights,
+                _app_config(self),
+                PLANNER_PREVIEW_NIGHTS,
+                applied,
+            )
+            for line in _planner_preview_lines(nights, applied):
+                log.write(line)
+        finally:
+            button.disabled = False
 
 
 class SchedulingRootScreen(Screen):

@@ -88,9 +88,11 @@ The file has three sections:
 
 Missing options are filled from the defaults declared in
 :data:`asteroidpy.configuration.SECTION_DEFAULTS` on every load, so a partial
-or older file stays usable. ``[General] lang``, the ``[Observatory]`` fields and
-the virtual horizon are editable from the in-app **Configuration** menu; the
-``[Planner]`` weights are read from the file only.
+or older file stays usable. Every section is editable from the in-app
+**Configuration** menu, ``[Planner]`` included: the planner screen validates the
+weights with the same rules as the loader, shows the values that will really be
+applied (the weights divided by their sum) and previews the score of the next few
+nights without saving.
 
 Documentation
 -------------
