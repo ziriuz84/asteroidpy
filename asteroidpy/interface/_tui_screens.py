@@ -51,6 +51,7 @@ from textual.worker import WorkerFailed
 
 import asteroidpy.configuration as configuration
 import asteroidpy.scheduling as scheduling
+from asteroidpy.errors import DataSourceError
 from asteroidpy.version import __version__
 
 from ._i18n import get_locale_dir, setup_gettext
@@ -78,6 +79,16 @@ PLANNER_FACTOR_LABELS: dict[str, str] = {
     "transparency": "Transparency",
     "moon": "Moon",
 }
+
+#: Translatable explanation of each
+#: :class:`~asteroidpy.errors.DataSourceError` reason raised while scraping the
+#: MPC What's Observable form, so the user learns what to try next.
+WHATSUP_ERROR_LABELS: dict[str, str] = {
+    "http_status": "unexpected page",
+    "network_error": "page unreachable",
+    "token_not_found": "no form token in the page",
+}
+
 
 def _planner_error_message(reason: str) -> str:
     """Return the translated text explaining a planner validation *reason*."""
@@ -1173,17 +1184,24 @@ class ObservingTargetListScreen(Screen):
         btn = self.query_one("#run", Button)
         btn.disabled = True
         try:
-            authenticity_token, used_fallback = await asyncio.to_thread(
-                scheduling.resolve_whatsup_authenticity_token
-            )
-            if used_fallback:
+            try:
+                authenticity_token = await asyncio.to_thread(
+                    scheduling.resolve_whatsup_authenticity_token
+                )
+            except DataSourceError as error:
+                # No embedded token to fall back on: say why and stop, instead of
+                # posting a form the MPC is bound to reject.
                 self.app.notify(
                     translate(
-                        "Could not load a fresh MPC form token from the What's Observable page; "
-                        "using an embedded fallback. The request might fail."
+                        "The {source} page could not be used ({reason}); try again later."
+                    ).format(
+                        source=scheduling.MPC_WHATSUP_SOURCE,
+                        reason=translate(WHATSUP_ERROR_LABELS.get(error.reason, ""))
+                        or error.reason,
                     ),
-                    severity="warning",
+                    severity="error",
                 )
+                return
 
             coordinates = await asyncio.to_thread(_local_coordinates, cfg)
             use_now = self.query_one("#use_now", Checkbox).value

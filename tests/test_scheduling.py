@@ -1,4 +1,5 @@
 import asyncio
+import pathlib
 from configparser import ConfigParser
 from typing import Any
 
@@ -1586,3 +1587,97 @@ def test_weather_temperature(celsius, unit, expected, sch):
     assert sch.weather_temperature(celsius, unit) == expected
 
 
+def _whatsup_page(token: str | None) -> bytes:
+    """A What's Observable page with or without a Rails form token."""
+
+    if token is None:
+        return b"<html><body><form action='/whatsup/index'></form></body></html>"
+    return (
+        "<html><body><form>"
+        f'<input type="hidden" name="authenticity_token" value="{token}">'
+        "</form></body></html>"
+    ).encode()
+
+
+class _TokenResponse:
+    def __init__(self, content: bytes, status_code: int = 200) -> None:
+        self.content = content
+        self.text = content.decode()
+        self.status_code = status_code
+
+
+def test_resolve_whatsup_authenticity_token_scrapes_the_form(monkeypatch, sch):
+    monkeypatch.setattr(
+        sch.requests,
+        "get",
+        lambda url, headers=None, timeout=None: _TokenResponse(_whatsup_page("fresh")),
+    )
+    assert sch.resolve_whatsup_authenticity_token() == "fresh"
+
+
+def test_resolve_whatsup_authenticity_token_falls_back_to_the_csrf_meta(
+    monkeypatch, sch
+):
+    page = b'<html><head><meta name="csrf-token" content="from-meta"></head></html>'
+    monkeypatch.setattr(
+        sch.requests,
+        "get",
+        lambda url, headers=None, timeout=None: _TokenResponse(page),
+    )
+    assert sch.resolve_whatsup_authenticity_token() == "from-meta"
+
+
+def test_resolve_whatsup_authenticity_token_reports_a_page_without_token(
+    monkeypatch, sch
+):
+    monkeypatch.setattr(
+        sch.requests,
+        "get",
+        lambda url, headers=None, timeout=None: _TokenResponse(_whatsup_page(None)),
+    )
+    with pytest.raises(sch.DataSourceError) as raised:
+        sch.resolve_whatsup_authenticity_token()
+    assert raised.value.reason == sch.REASON_TOKEN_NOT_FOUND
+    assert raised.value.source == sch.MPC_WHATSUP_SOURCE
+    assert "MPC" in str(raised.value)
+
+
+def test_resolve_whatsup_authenticity_token_reports_an_unexpected_status(
+    monkeypatch, sch
+):
+    monkeypatch.setattr(
+        sch.requests,
+        "get",
+        lambda url, headers=None, timeout=None: _TokenResponse(b"", status_code=503),
+    )
+    with pytest.raises(sch.DataSourceError) as raised:
+        sch.resolve_whatsup_authenticity_token()
+    assert raised.value.reason == sch.REASON_HTTP_STATUS
+    assert "503" in str(raised.value)
+
+
+@pytest.mark.parametrize(
+    "error",
+    [
+        requests.Timeout("too slow"),
+        requests.ConnectionError("no route"),
+    ],
+)
+def test_resolve_whatsup_authenticity_token_reports_a_network_failure(
+    monkeypatch, sch, error
+):
+    def boom(url, headers=None, timeout=None):
+        raise error
+
+    monkeypatch.setattr(sch.requests, "get", boom)
+    with pytest.raises(sch.DataSourceError) as raised:
+        sch.resolve_whatsup_authenticity_token()
+    assert raised.value.reason == sch.REASON_NETWORK_ERROR
+    assert isinstance(raised.value.__cause__, requests.RequestException)
+
+
+def test_no_embedded_whatsup_token_is_left_in_the_sources(sch):
+    # F6: the token must only ever come from the page, never from the source.
+    source = pathlib.Path(sch.__file__).read_text()
+    assert "W5eBzz" not in source
+    assert "_MPC_WHATSUP_AUTH_TOKEN_FALLBACK" not in source

@@ -7,6 +7,7 @@ of the application:
 * :mod:`asteroidpy.configuration`: Configuration management and observatory settings
 * :mod:`asteroidpy.interface`: gettext setup, legacy ``print``/``input`` helpers, Textual screens
 * :mod:`asteroidpy.scheduling`: Observation scheduling and ephemeris calculations
+* :mod:`asteroidpy.errors`: Typed errors carrying the reason a data source was unusable
 
 Submodules
 ----------
@@ -134,7 +135,7 @@ MPC data:
 
 * :func:`observing_target_list`: Build a ``QTable`` from the MPC POST payload
 * :func:`observing_target_list_scraper`: POST the What's Observable form and scrape rows
-* :func:`resolve_whatsup_authenticity_token`: Scrape (and cache) form tokens for What's Observable
+* :func:`resolve_whatsup_authenticity_token`: Scrape a fresh form token for What's Observable, or raise :exc:`~asteroidpy.errors.DataSourceError` (no embedded fallback)
 * :func:`neocp_confirmation`: Blocking NEOcp candidate table
 * :func:`async_neocp_confirmation`: ``asyncio``-friendly NEOcp fetch for Textual
 * :func:`get_neocp_ephemeris`: Scrape MPC confirmation ephemerides for named NEOcp objects
@@ -174,8 +175,32 @@ Module constants:
 * :data:`PLANNER_WEIGHT_OPTIONS`: ``[Planner]`` option holding each factor's weight
 * :data:`CLOUDCOVER_MIDPOINT_PCT`: 7Timer ``cloudcover`` code to percent midpoint
 * :data:`MPC_WHATSUP_INDEX_URL`: MPC "What's Observable" form endpoint
+* :data:`MPC_WHATSUP_SOURCE`: Source name used in :exc:`~asteroidpy.errors.DataSourceError`
 * :data:`DEFAULT_EPHEMERIS_POINTS`: Ephemeris points requested by default
 * :data:`DEFAULT_WEATHER_HOURS`: Forecast horizon in hours used by the weather screen
+
+asteroidpy.errors module
+------------------------
+
+.. currentmodule:: asteroidpy.errors
+
+The errors module carries the reason a remote source could not be used, so the
+screens can tell "the MPC answered something unusable" from "no object found"
+instead of showing an empty table.
+
+.. automodule:: asteroidpy.errors
+    :members:
+    :undoc-members:
+    :show-inheritance:
+
+Key Classes
+~~~~~~~~~~~
+
+* :exc:`DataSourceError`: Unusable data source, with ``source``, ``reason`` and ``detail``
+* :data:`REASON_HTTP_STATUS`: The source answered with an unexpected HTTP status
+* :data:`REASON_NETWORK_ERROR`: The source could not be reached (timeout, DNS, TLS)
+* :data:`REASON_TOKEN_NOT_FOUND`: The page no longer carries the expected token
+* :data:`REASON_MALFORMED_RESPONSE`: The body could not be parsed
 
 asteroidpy package contents
 ---------------------------

@@ -37,6 +37,12 @@ from astroquery.mpc import MPC
 from bs4 import BeautifulSoup
 
 from asteroidpy import configuration
+from asteroidpy.errors import (
+    REASON_HTTP_STATUS,
+    REASON_NETWORK_ERROR,
+    REASON_TOKEN_NOT_FOUND,
+    DataSourceError,
+)
 
 #: 7Timer ``astro`` endpoint queried by the weather and best-night code paths.
 SEVENTIMER_API_URL = "https://www.7timer.info/bin/api.pl"
@@ -124,8 +130,8 @@ MPC_MIN_COLS = 8
 #: MPC "What's Observable" query form endpoint used for target-list POSTs.
 MPC_WHATSUP_INDEX_URL = "https://www.minorplanetcenter.net/whatsup/index"
 
-# Last-resort token if MPC blocks scraping or markup changes (POST may still fail).
-_MPC_WHATSUP_AUTH_TOKEN_FALLBACK = "W5eBzzw9Clj4tJVzkz0z%2F2EK18jvSS%2BffHxZpAshylg%3D"
+#: Name of the What's Observable source, used in :class:`~asteroidpy.errors.DataSourceError`.
+MPC_WHATSUP_SOURCE = "MPC What's Observable"
 
 _MPC_BROWSER_HEADERS = {
     "User-Agent": (
@@ -138,7 +144,15 @@ _MPC_BROWSER_HEADERS = {
 
 
 def _scrape_whatsup_authenticity_token() -> str:
-    """Return '' if scraping did not recover a Rails authenticity_token."""
+    """Return the Rails authenticity token of the What's Observable form.
+
+    Raises
+    ------
+    DataSourceError
+        The page was unreachable, answered with a non-200 status, or no longer
+        carries a form token. The caller must report it: posting without a
+        token only produces a confusing empty result.
+    """
 
     try:
         r = requests.get(
@@ -146,10 +160,18 @@ def _scrape_whatsup_authenticity_token() -> str:
             headers=_MPC_BROWSER_HEADERS,
             timeout=DEFAULT_REQUEST_TIMEOUT_SEC,
         )
-    except requests.RequestException:
-        return ""
+    except requests.RequestException as exc:
+        raise DataSourceError(
+            MPC_WHATSUP_SOURCE,
+            REASON_NETWORK_ERROR,
+            str(exc) or type(exc).__name__,
+        ) from exc
     if r.status_code != 200:
-        return ""
+        raise DataSourceError(
+            MPC_WHATSUP_SOURCE,
+            REASON_HTTP_STATUS,
+            f"HTTP {r.status_code}",
+        )
     soup = BeautifulSoup(r.content, "lxml")
     inp = soup.find("input", attrs={"name": "authenticity_token"})
     if inp and inp.get("value"):
@@ -169,16 +191,20 @@ def _scrape_whatsup_authenticity_token() -> str:
     )
     if meta:
         return meta.group(1)
-    return ""
+    raise DataSourceError(MPC_WHATSUP_SOURCE, REASON_TOKEN_NOT_FOUND)
 
 
-def resolve_whatsup_authenticity_token() -> tuple[str, bool]:
-    """Return ``(authenticity_token, used_fallback)`` for MPC What's Observable POST."""
+def resolve_whatsup_authenticity_token() -> str:
+    """Return a fresh authenticity token for the MPC What's Observable POST.
 
-    scraped = _scrape_whatsup_authenticity_token()
-    if scraped:
-        return scraped, False
-    return _MPC_WHATSUP_AUTH_TOKEN_FALLBACK, True
+    Raises
+    ------
+    DataSourceError
+        When the token cannot be scraped. There is no cached or embedded
+        substitute: an unusable token is reported instead of hidden.
+    """
+
+    return _scrape_whatsup_authenticity_token()
 
 
 # MPC observing-target calendar times, e.g. ``2026 5 24.559 (13:25 UT)``, optional ``UTC``.

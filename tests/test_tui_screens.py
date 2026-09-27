@@ -104,3 +104,21 @@ def test_best_night_night_count_cap_is_documented():
     from asteroidpy.interface._tui_screens import _MAX_BEST_NIGHT_NIGHTS
 
     assert 1 <= _MAX_BEST_NIGHT_NIGHTS <= 30
+
+
+def test_whatsup_error_labels_cover_every_scraping_reason():
+    from asteroidpy.errors import (
+        REASON_HTTP_STATUS,
+        REASON_NETWORK_ERROR,
+        REASON_TOKEN_NOT_FOUND,
+    )
+    from asteroidpy.interface._tui_screens import WHATSUP_ERROR_LABELS
+
+    # Every reason scheduling can raise must have a translated label, or the
+    # notification would fall back to a raw internal identifier.
+    assert set(WHATSUP_ERROR_LABELS) == {
+        REASON_HTTP_STATUS,
+        REASON_NETWORK_ERROR,
+        REASON_TOKEN_NOT_FOUND,
+    }
+    assert all(WHATSUP_ERROR_LABELS.values())
