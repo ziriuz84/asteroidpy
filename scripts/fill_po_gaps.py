@@ -417,7 +417,7 @@ GAP_STRINGS: dict[str, dict[str, str]] = {
         "fr": "Liste des cibles d'observation",
         "pt": "Lista de alvos de observação",
     },
-    "Use observation time \"now\" (UTC)": {
+    'Use observation time "now" (UTC)': {
         "en": "",
         "it": 'Usa orario di osservazione "adesso" (UTC)',
         "de": "Beobachtungszeit „jetzt“ (UTC) verwenden",
@@ -425,7 +425,7 @@ GAP_STRINGS: dict[str, dict[str, str]] = {
         "fr": "Utiliser l'heure d'observation « maintenant » (UTC)",
         "pt": "Usar hora de observação «agora» (UTC)",
     },
-    "Start time (UTC) if not \"now\"": {
+    'Start time (UTC) if not "now"': {
         "en": "",
         "it": 'Orario di inizio (UTC) se non "adesso"',
         "de": "Startzeit (UTC), wenn nicht „jetzt“",
@@ -614,7 +614,9 @@ def _resolve_target(per_lang: dict[str, str], code: str, msgid: str) -> str | No
 
 
 def main() -> None:
-    locale_dirs = sorted(p for p in LOCALES.iterdir() if p.is_dir() and not p.name.startswith("."))
+    locale_dirs = sorted(
+        p for p in LOCALES.iterdir() if p.is_dir() and not p.name.startswith(".")
+    )
     msgfmt_missing_warned = False
     for loc in locale_dirs:
         code = loc.name

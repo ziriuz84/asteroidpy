@@ -1,3 +1,5 @@
+"""Locale directory lookup and gettext bootstrap for the UI."""
+
 import gettext
 from configparser import ConfigParser
 from importlib.resources import files

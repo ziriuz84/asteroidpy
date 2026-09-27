@@ -4,7 +4,6 @@ from __future__ import annotations
 
 import datetime
 from configparser import ConfigParser
-from typing import List
 
 import asteroidpy.configuration as configuration
 import asteroidpy.scheduling as scheduling
@@ -13,7 +12,7 @@ from ._input import get_float, get_integer, prompt_int_in_range, prompt_line
 from ._intl import translate
 
 
-def local_coordinates(config: ConfigParser) -> List[str]:
+def local_coordinates(config: ConfigParser) -> list[str]:
     configuration.load_config(config)
     latitude = config["Observatory"]["latitude"]
     longitude = config["Observatory"]["longitude"]

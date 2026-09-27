@@ -1,8 +1,27 @@
+"""Observation planning: ephemerides, weather, NEOcp, twilight and night ranking.
+
+Public entry points fall into four groups:
+
+* **Weather** — :func:`weather_forecast_raw` (raw 7Timer ``astro`` payload),
+  :func:`weather_forecast_report` (plain-text report used by the TUI) and the
+  legacy stdout helper :func:`weather`.
+* **MPC data** — :func:`observing_target_list` / :func:`observing_target_list_scraper`
+  for the MPC "What's Observable" table, :func:`neocp_confirmation` for
+  Near-Earth Object candidates, and :func:`object_ephemeris` for named objects.
+* **Time and visibility** — :func:`twilight_times`, :func:`sun_moon_ephemeris`,
+  :func:`is_visible` and the shared :func:`earth_location_from_config` helper.
+* **Best-night planner** — :func:`astronomical_night` (per-night twilight window),
+  :func:`best_nights` (ranked scores) and :func:`best_nights_report`.
+
+Observatory settings and planner weights are read from the configuration
+object via :func:`asteroidpy.configuration.load_config`.
+"""
+
 import asyncio
 import datetime
 import re
 from configparser import ConfigParser
-from typing import Any, Dict, List, Literal, Tuple, Union, cast
+from typing import Any, Literal, cast
 
 import httpx
 import requests
@@ -69,6 +88,7 @@ MPC_COL_DEC = 6
 MPC_COL_ALT = 7
 MPC_MIN_COLS = 8
 
+#: MPC "What's Observable" query form endpoint used for target-list POSTs.
 MPC_WHATSUP_INDEX_URL = "https://www.minorplanetcenter.net/whatsup/index"
 
 # Last-resort token if MPC blocks scraping or markup changes (POST may still fail).
@@ -119,7 +139,7 @@ def _scrape_whatsup_authenticity_token() -> str:
     return ""
 
 
-def resolve_whatsup_authenticity_token() -> Tuple[str, bool]:
+def resolve_whatsup_authenticity_token() -> tuple[str, bool]:
     """Return ``(authenticity_token, used_fallback)`` for MPC What's Observable POST."""
 
     scraped = _scrape_whatsup_authenticity_token()
@@ -168,7 +188,7 @@ def mpc_whatsup_table_cell_to_time(timestr: str) -> Time:
                 day,
                 hour,
                 minute,
-                tzinfo=datetime.timezone.utc,
+                tzinfo=datetime.UTC,
             )
         )
 
@@ -269,9 +289,9 @@ def earth_location_from_config(config: ConfigParser) -> EarthLocation:
 
 async def httpx_get(
     url: str,
-    payload: Dict[str, Any],
+    payload: dict[str, Any],
     return_type: Literal["json", "text"],
-) -> Tuple[Union[Dict[str, Any], List[Dict[str, Any]], str], int]:
+) -> tuple[dict[str, Any] | list[dict[str, Any]] | str, int]:
     """Perform an asynchronous HTTP GET request.
 
     Makes an async GET request to the specified URL with the given query
@@ -303,9 +323,7 @@ async def httpx_get(
     except httpx.RequestError:
         # Network/timeouts/unreachable hosts: safe defaults and status 0
         if return_type == "json":
-            return cast(
-                Tuple[Union[Dict[str, Any], List[Dict[str, Any]]], int], ({}, 0)
-            )
+            return cast(tuple[dict[str, Any] | list[dict[str, Any]], int], ({}, 0))
         return ("", 0)
 
     if return_type == "json":
@@ -314,7 +332,7 @@ async def httpx_get(
         except ValueError:
             parsed = {}
         return cast(
-            Tuple[Union[Dict[str, Any], List[Dict[str, Any]]], int],
+            tuple[dict[str, Any] | list[dict[str, Any]], int],
             (parsed, r.status_code),
         )
     else:
@@ -323,9 +341,9 @@ async def httpx_get(
 
 async def httpx_post(
     url: str,
-    payload: Dict[str, Any],
+    payload: dict[str, Any],
     return_type: Literal["json", "text"],
-) -> Tuple[Union[Dict[str, Any], List[Dict[str, Any]], str], int]:
+) -> tuple[dict[str, Any] | list[dict[str, Any]] | str, int]:
     """Perform an asynchronous HTTP POST request.
 
     Makes an async POST request to the specified URL with the given form data
@@ -359,9 +377,7 @@ async def httpx_post(
             )
     except httpx.RequestError:
         if return_type == "json":
-            return cast(
-                Tuple[Union[Dict[str, Any], List[Dict[str, Any]]], int], ({}, 0)
-            )
+            return cast(tuple[dict[str, Any] | list[dict[str, Any]], int], ({}, 0))
         return ("", 0)
 
     if return_type == "json":
@@ -370,7 +386,7 @@ async def httpx_post(
         except ValueError:
             parsed = {}
         return cast(
-            Tuple[Union[Dict[str, Any], List[Dict[str, Any]]], int],
+            tuple[dict[str, Any] | list[dict[str, Any]], int],
             (parsed, r.status_code),
         )
     else:
@@ -477,7 +493,7 @@ def weather_forecast_report(config: ConfigParser) -> str:
         meta={"name": "Weather forecast"},
     )
 
-    def map_or_na(mapping: Dict[int, str], key: Any) -> str:
+    def map_or_na(mapping: dict[int, str], key: Any) -> str:
         return mapping.get(key, "N/A")
 
     for time in weather_forecast.get("dataseries", []):
@@ -625,9 +641,7 @@ def skycoord_format(coord: str, coordid: str) -> str:
     return coord
 
 
-def is_visible(
-    config: ConfigParser, coord: Union[SkyCoord, List[str]], time: Time
-) -> bool:
+def is_visible(config: ConfigParser, coord: SkyCoord | list[str], time: Time) -> bool:
     """Check if an object is visible above the virtual horizon.
 
     Determines whether an object at the given celestial coordinates is
@@ -695,7 +709,7 @@ def is_visible(
     return in_west and altitude_deg >= west_alt_threshold
 
 
-def observing_target_list_scraper(url: str, payload: Dict[str, Any]) -> List[List[str]]:
+def observing_target_list_scraper(url: str, payload: dict[str, Any]) -> list[list[str]]:
     """Scrape observing target list data from a web page.
 
     Performs an ``application/x-www-form-urlencoded`` POST (same as the MPC
@@ -728,7 +742,7 @@ def observing_target_list_scraper(url: str, payload: Dict[str, Any]) -> List[Lis
     Raises nothing: failures return an empty list.
     """
     # MPC Rails form expects a POST body, not query-string parameters.
-    body: Dict[str, Any] = dict(payload)
+    body: dict[str, Any] = dict(payload)
     if body.get("utf8") == "%E2%9C%93":
         body["utf8"] = "\u2713"
 
@@ -780,7 +794,7 @@ def observing_target_list_scraper(url: str, payload: Dict[str, Any]) -> List[Lis
         return []
 
     # Extract non-empty data rows, skipping header rows
-    data: List[List[str]] = []
+    data: list[list[str]] = []
     for row in target_table.find_all("tr"):
         cells = row.find_all("td")
         if not cells:
@@ -791,7 +805,7 @@ def observing_target_list_scraper(url: str, payload: Dict[str, Any]) -> List[Lis
     return data
 
 
-def observing_target_list(config: ConfigParser, payload: Dict[str, Any]) -> QTable:
+def observing_target_list(config: ConfigParser, payload: dict[str, Any]) -> QTable:
     """Generate an observing target list from the Minor Planet Center.
 
     Queries the MPC website for objects visible from the observatory location
@@ -1022,8 +1036,8 @@ async def async_neocp_confirmation(
 
 
 async def get_neocp_ephemeris(
-    config: ConfigParser, object_names: List[str]
-) -> Dict[str, List[str]]:
+    config: ConfigParser, object_names: list[str]
+) -> dict[str, list[str]]:
     """Retrieve ephemeris data for NEOcp objects from the Minor Planet Center.
 
     Queries the MPC confirmation ephemeris service for multiple objects and
@@ -1103,7 +1117,7 @@ async def get_neocp_ephemeris(
 
 async def fetch_neocp_json_and_ephemeris(
     config: ConfigParser,
-) -> Tuple[List[Dict[str, Any]], Dict[str, List[str]], bool]:
+) -> tuple[list[dict[str, Any]], dict[str, list[str]], bool]:
     """Download NEOcp JSON and MPC confirm ephemerides in one event-loop run."""
 
     data_raw, status = await httpx_get(
@@ -1122,7 +1136,7 @@ async def fetch_neocp_json_and_ephemeris(
     return data_raw, response, True
 
 
-def twilight_times(config: ConfigParser) -> Dict[str, Any]:
+def twilight_times(config: ConfigParser) -> dict[str, Any]:
     """Calculate twilight times for the observatory location.
 
     Computes civil, nautical, and astronomical twilight times (both morning
@@ -1168,7 +1182,7 @@ def twilight_times(config: ConfigParser) -> Dict[str, Any]:
     return result
 
 
-def sun_moon_ephemeris(config: ConfigParser) -> Dict[str, Any]:
+def sun_moon_ephemeris(config: ConfigParser) -> dict[str, Any]:
     """Calculate Sun and Moon ephemeris for the observatory location.
 
     Computes sunrise, sunset, moonrise, moonset times and moon illumination
@@ -1252,7 +1266,7 @@ def object_ephemeris(config: ConfigParser, object_name: str, stepping: str) -> Q
     """
     configuration.load_config(config)
     location = earth_location_from_config(config)
-    step: Union[Quantity, str]
+    step: Quantity | str
     if stepping == "m":
         step = 1 * u.minute
     elif stepping == "h":

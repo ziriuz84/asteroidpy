@@ -1,6 +1,6 @@
 import asyncio
 from configparser import ConfigParser
-from typing import Any, Dict, List
+from typing import Any
 
 import httpx
 import pytest
@@ -85,13 +85,13 @@ def test_skycoord_format_invalid_inputs_return_original(sch):
 
 def test_httpx_get_and_post(monkeypatch, sch):
     class DummyResponse:
-        def __init__(self, payload: Dict[str, Any]):
+        def __init__(self, payload: dict[str, Any]):
             self._payload = payload
             self.text = "<ok/>"
             self.status_code = 200
             self.headers = {}
 
-        def json(self) -> Dict[str, Any]:
+        def json(self) -> dict[str, Any]:
             return self._payload
 
     class DummyAsyncClient:
@@ -124,13 +124,13 @@ def test_httpx_get_and_post(monkeypatch, sch):
 
 def test_httpx_get_post_non_200(monkeypatch, sch):
     class DummyResponse:
-        def __init__(self, payload: Dict[str, Any], status_code: int, text: str):
+        def __init__(self, payload: dict[str, Any], status_code: int, text: str):
             self._payload = payload
             self.text = text
             self.status_code = status_code
             self.headers = {}
 
-        def json(self) -> Dict[str, Any]:
+        def json(self) -> dict[str, Any]:
             return self._payload
 
     class DummyAsyncClient:
@@ -255,16 +255,16 @@ def test_is_visible_quadrants_and_boundaries(fresh_config, monkeypatch, sch):
 def test_observing_target_list_scraper_parses_table(monkeypatch, sch):
     # Construct HTML with at least 4 tables, the fourth containing headers and a row
     html = (
-        "<html><body>"
-        "<table></table>"  # 0
-        "<table></table>"  # 1
-        "<table></table>"  # 2
-        "<table>"  # 3
-        "  <tr><th>Designation</th><th>Mag</th><th>t2</th><th>t3</th><th>Time</th><th>RA</th><th>Dec</th><th>Alt</th></tr>"
-        "  <tr><td>2025 AB</td><td>18.2</td><td>x</td><td>y</td><td>2025-01-01T00:00z</td><td>12 00 00</td><td>-30 00 00</td><td>45</td></tr>"
-        "</table>"
-        "</body></html>"
-    ).encode("utf-8")
+        b"<html><body>"
+        b"<table></table>"  # 0
+        b"<table></table>"  # 1
+        b"<table></table>"  # 2
+        b"<table>"  # 3
+        b"  <tr><th>Designation</th><th>Mag</th><th>t2</th><th>t3</th><th>Time</th><th>RA</th><th>Dec</th><th>Alt</th></tr>"
+        b"  <tr><td>2025 AB</td><td>18.2</td><td>x</td><td>y</td><td>2025-01-01T00:00z</td><td>12 00 00</td><td>-30 00 00</td><td>45</td></tr>"
+        b"</table>"
+        b"</body></html>"
+    )
 
     monkeypatch.setattr(
         sch.requests,
@@ -290,7 +290,7 @@ def test_observing_target_list_scraper_parses_table(monkeypatch, sch):
 
 def test_observing_target_list_filters_and_formats(monkeypatch, fresh_config, sch):
     # Provide a deterministic scraper output
-    rows: List[List[str]] = [
+    rows: list[list[str]] = [
         [
             "2025 AB",
             "18.2",
@@ -327,7 +327,7 @@ def test_mpc_whatsup_table_legacy_iso_string(sch):
 def test_observing_target_list_includes_new_mpc_time_strings(
     monkeypatch, fresh_config, sch
 ):
-    rows: List[List[str]] = [
+    rows: list[list[str]] = [
         [
             "(4)",
             "8.3",
@@ -363,11 +363,11 @@ def test_observing_target_list_scraper_tables_without_expected_headers(
 ):
     # Two tables, but none has the expected headers; also fewer than 4 tables
     html = (
-        "<html><body>"
-        "<table><tr><th>A</th><th>B</th></tr><tr><td>1</td><td>2</td></tr></table>"
-        "<table><tr><th>C</th><th>D</th></tr><tr><td>3</td><td>4</td></tr></table>"
-        "</body></html>"
-    ).encode("utf-8")
+        b"<html><body>"
+        b"<table><tr><th>A</th><th>B</th></tr><tr><td>1</td><td>2</td></tr></table>"
+        b"<table><tr><th>C</th><th>D</th></tr><tr><td>3</td><td>4</td></tr></table>"
+        b"</body></html>"
+    )
     monkeypatch.setattr(
         sch.requests,
         "post",
@@ -380,7 +380,7 @@ def test_observing_target_list_scraper_tables_without_expected_headers(
 
 def test_observing_target_list_skips_malformed_rows(monkeypatch, fresh_config, sch):
     # Row with fewer than 8 fields and one with bad time should be skipped
-    rows: List[List[str]] = [
+    rows: list[list[str]] = [
         ["2025 AB", "18.2"],  # malformed short row
         [
             "2025 AC",
@@ -417,7 +417,7 @@ def test_neocp_confirmation_returns_table_even_when_filtering_all(
         }
     ]
 
-    async def fake_httpx_get(url: str, payload: Dict[str, Any], return_type: str):
+    async def fake_httpx_get(url: str, payload: dict[str, Any], return_type: str):
         return [sample, 200]
 
     async def fake_get_neocp_ephemeris(config, object_names):
@@ -701,7 +701,7 @@ def test_sun_moon_ephemeris(monkeypatch, fresh_config, sch):
 
 
 def test_object_ephemeris_monkeypatched_mpc(monkeypatch, fresh_config, sch):
-    calls: Dict[str, Any] = {}
+    calls: dict[str, Any] = {}
 
     def fake_get_ephemeris(name: str, location: Any, step: Any, number: int):
         calls["step"] = step
@@ -740,7 +740,7 @@ def test_object_ephemeris_monkeypatched_mpc(monkeypatch, fresh_config, sch):
 def test_object_ephemeris_invalid_stepping_defaults_to_hour(
     monkeypatch, fresh_config, sch
 ):
-    calls: Dict[str, Any] = {}
+    calls: dict[str, Any] = {}
 
     def fake_get_ephemeris(name: str, location: Any, step: Any, number: int):
         calls["step"] = step

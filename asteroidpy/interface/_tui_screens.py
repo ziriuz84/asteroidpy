@@ -24,7 +24,7 @@ import io
 import os
 from configparser import ConfigParser
 from contextlib import redirect_stdout
-from typing import Any, List, Tuple, cast
+from typing import Any, cast
 
 from textual.binding import Binding
 from textual.containers import Horizontal, ScrollableContainer, Vertical
@@ -56,7 +56,10 @@ def _app_config(screen: Screen) -> ConfigParser:
 
     Expects ``AsteroidApp`` (or compatible) with ``.config``.
     """
-    return cast(ConfigParser, getattr(screen.app, "config"))
+    # ``getattr`` rather than attribute access on purpose: ``screen.app`` is typed as
+    # a plain Textual ``App``, which has no ``config``; this also accepts any
+    # compatible object exposing ``.config``.
+    return cast(ConfigParser, getattr(screen.app, "config"))  # noqa: B009
 
 
 def _refresh_main_menu_after_locale(screen: Screen) -> None:
@@ -93,7 +96,7 @@ _MPC_MAX_OBJECTS_MIN = 1
 _MPC_MAX_OBJECTS_MAX = 1000
 
 
-def _collect_language_codes_and_catalog_warnings() -> Tuple[List[str], List[str]]:
+def _collect_language_codes_and_catalog_warnings() -> tuple[list[str], list[str]]:
     """Return installed UI language codes plus optional catalog backlog messages.
 
     First element: subdirectory names under ``locales/`` whose ``LC_MESSAGES``
@@ -118,8 +121,8 @@ def _collect_language_codes_and_catalog_warnings() -> Tuple[List[str], List[str]
     except FileNotFoundError:
         candidates = ["en"]
 
-    available_langs: List[str] = []
-    backlog: List[str] = []
+    available_langs: list[str] = []
+    backlog: list[str] = []
     for code in candidates:
         lc_dir = os.path.join(locale_dir, code, "LC_MESSAGES")
         mo_path = os.path.join(lc_dir, "base.mo")
@@ -631,7 +634,7 @@ class ObservatoryHorizonScreen(Screen):
 
 
 class SchedulingRootScreen(Screen):
-    """Hub for forecasting, MPC lists, ephemerides, twilight computations."""
+    """Hub for forecasting, MPC lists, ephemerides, twilight and best-night planning."""
 
     BINDINGS = [Binding("escape", "back", "Back")]
 
@@ -830,7 +833,7 @@ class ObservingTargetListScreen(Screen):
             coordinates = await asyncio.to_thread(_local_coordinates, cfg)
             use_now = self.query_one("#use_now", Checkbox).value
             if use_now:
-                utc_now = datetime.datetime.now(datetime.timezone.utc)
+                utc_now = datetime.datetime.now(datetime.UTC)
                 observation_time = datetime.datetime(
                     utc_now.year,
                     utc_now.month,
@@ -1006,7 +1009,7 @@ class ObservingTargetListScreen(Screen):
             btn.disabled = False
 
 
-def _local_coordinates(config: ConfigParser) -> List[str]:
+def _local_coordinates(config: ConfigParser) -> list[str]:
     """Return latitude/longitude strings from the observatory section (after reload)."""
     configuration.load_config(config)
     latitude = config["Observatory"]["latitude"]
@@ -1256,7 +1259,7 @@ class TwilightScreen(Screen):
         btn.disabled = True
         try:
 
-            def _twilight_bundle(cfg: ConfigParser) -> Tuple[Any, Any]:
+            def _twilight_bundle(cfg: ConfigParser) -> tuple[Any, Any]:
                 """Pair twilight and sun/moon results for ``asyncio.to_thread``."""
 
                 return scheduling.twilight_times(cfg), scheduling.sun_moon_ephemeris(
