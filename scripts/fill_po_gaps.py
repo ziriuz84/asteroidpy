@@ -634,6 +634,294 @@ GAP_STRINGS: dict[str, dict[str, str]] = {
         "fr": "Trouver la meilleure nuit",
         "pt": "Encontrar a melhor noite",
     },
+    "Duration of observation (hours, max 12) -> ": {
+        "en": "",
+        "it": "Durata dell'osservazione (ore, max 12) -> ",
+        "de": "Beobachtungsdauer (Stunden, max. 12) -> ",
+        "es": "Duración de la observación (horas, máx. 12) -> ",
+        "fr": "Durée de l'observation (heures, max 12) -> ",
+        "pt": "Duração da observação (horas, máx. 12) -> ",
+    },
+    # Planner editor (PlannerSettingsScreen, _planner_error_message)
+    "3 - Planner": {
+        "en": "",
+        "it": "3 - Pianificatore",
+        "de": "3 - Planer",
+        "es": "3 - Planificador",
+        "fr": "3 - Planificateur",
+        "pt": "3 - Planeador",
+    },
+    "Configuration -> Planner": {
+        "en": "",
+        "it": "Configurazione -> Pianificatore",
+        "de": "Konfiguration -> Planer",
+        "es": "Configuración -> Planificador",
+        "fr": "Configuration -> Planificateur",
+        "pt": "Configuração -> Planeador",
+    },
+    "Weights are relative: they are normalized to sum to 1.": {
+        "en": "",
+        "it": "I pesi sono relativi: vengono normalizzati per sommare a 1.",
+        "de": "Die Gewichte sind relativ: Sie werden so normalisiert, dass sie in Summe 1 ergeben.",
+        "es": "Los pesos son relativos: se normalizan para sumar 1.",
+        "fr": "Les poids sont relatifs : ils sont normalisés pour sommer à 1.",
+        "pt": "Os pesos são relativos: são normalizados para somar 1.",
+    },
+    "Number of nights to rank -> ": {
+        "en": "",
+        "it": "Numero di notti da classificare -> ",
+        "de": "Anzahl der zu bewertenden Nächte -> ",
+        "es": "Número de noches a ordenar -> ",
+        "fr": "Nombre de nuits à classer -> ",
+        "pt": "Número de noites a ordenar -> ",
+    },
+    "Cloud cover weight -> ": {
+        "en": "",
+        "it": "Peso della copertura nuvolosa -> ",
+        "de": "Gewicht der Wolkenbedeckung -> ",
+        "es": "Peso de la cobertura nubosa -> ",
+        "fr": "Poids de la couverture nuageuse -> ",
+        "pt": "Peso da cobertura de nuvens -> ",
+    },
+    "Seeing weight -> ": {
+        "en": "",
+        "it": "Peso della seeing -> ",
+        "de": "Gewicht des Seeing -> ",
+        "es": "Peso del seeing -> ",
+        "fr": "Poids du seeing -> ",
+        "pt": "Peso do seeing -> ",
+    },
+    "Transparency weight -> ": {
+        "en": "",
+        "it": "Peso della trasparenza -> ",
+        "de": "Gewicht der Transparenz -> ",
+        "es": "Peso de la transparencia -> ",
+        "fr": "Poids de la transparence -> ",
+        "pt": "Peso da transparência -> ",
+    },
+    "Moon weight -> ": {
+        "en": "",
+        "it": "Peso della Luna -> ",
+        "de": "Gewicht des Mondes -> ",
+        "es": "Peso de la Luna -> ",
+        "fr": "Poids de la Lune -> ",
+        "pt": "Peso da Lua -> ",
+    },
+    "Preview score": {
+        "en": "",
+        "it": "Anteprima dello score",
+        "de": "Score-Vorschau",
+        "es": "Vista previa de la puntuación",
+        "fr": "Aperçu du score",
+        "pt": "Pré-visualizar pontuação",
+    },
+    "Weights used by the planner (normalized):\n{weights}": {
+        "en": "",
+        "it": "Pesi usati dal pianificatore (normalizzati):\n{weights}",
+        "de": "Vom Planer verwendete Gewichte (normalisiert):\n{weights}",
+        "es": "Pesos que usa el planificador (normalizados):\n{weights}",
+        "fr": "Poids utilisés par le planificateur (normalisés) :\n{weights}",
+        "pt": "Pesos usados pelo planeador (normalizados):\n{weights}",
+    },
+    "Weights used for the score:": {
+        "en": "",
+        "it": "Pesi usati per lo score:",
+        "de": "Gewichte für den Score:",
+        "es": "Pesos usados para la puntuación:",
+        "fr": "Poids utilisés pour le score :",
+        "pt": "Pesos usados para a pontuação:",
+    },
+    "Best nights with these weights:": {
+        "en": "",
+        "it": "Migliori notti con questi pesi:",
+        "de": "Beste Nächte mit diesen Gewichten:",
+        "es": "Mejores noches con estos pesos:",
+        "fr": "Meilleures nuits avec ces poids :",
+        "pt": "Melhores noites com estes pesos:",
+    },
+    "No weather forecast available.": {
+        "en": "",
+        "it": "Nessuna previsione meteo disponibile.",
+        "de": "Keine Wettervorhersage verfügbar.",
+        "es": "No hay previsión meteorológica disponible.",
+        "fr": "Aucune prévision météo disponible.",
+        "pt": "Nenhuma previsão meteorológica disponível.",
+    },
+    "score": {
+        "en": "",
+        "it": "score",
+        "de": "Score",
+        "es": "puntuación",
+        "fr": "score",
+        "pt": "pontuação",
+    },
+    "Cloud cover": {
+        "en": "",
+        "it": "Copertura nuvolosa",
+        "de": "Wolkenbedeckung",
+        "es": "Cobertura nubosa",
+        "fr": "Couverture nuageuse",
+        "pt": "Cobertura de nuvens",
+    },
+    "Seeing": {
+        "en": "",
+        "it": "Seeing",
+        "de": "Seeing",
+        "es": "Seeing",
+        "fr": "Seeing",
+        "pt": "Seeing",
+    },
+    "Transparency": {
+        "en": "",
+        "it": "Trasparenza",
+        "de": "Transparenz",
+        "es": "Transparencia",
+        "fr": "Transparence",
+        "pt": "Transparência",
+    },
+    "Moon": {
+        "en": "",
+        "it": "Luna",
+        "de": "Mond",
+        "es": "Luna",
+        "fr": "Lune",
+        "pt": "Lua",
+    },
+    "Planner weights must be numbers.": {
+        "en": "",
+        "it": "I pesi del pianificatore devono essere numeri.",
+        "de": "Die Planer-Gewichte müssen Zahlen sein.",
+        "es": "Los pesos del planificador deben ser números.",
+        "fr": "Les poids du planificateur doivent être des nombres.",
+        "pt": "Os pesos do planeador devem ser números.",
+    },
+    "The number of nights must be a whole number.": {
+        "en": "",
+        "it": "Il numero di notti deve essere un numero intero.",
+        "de": "Die Anzahl der Nächte muss eine ganze Zahl sein.",
+        "es": "El número de noches debe ser un número entero.",
+        "fr": "Le nombre de nuits doit être un nombre entier.",
+        "pt": "O número de noites deve ser um número inteiro.",
+    },
+    "Planner weights must be zero or greater, and the number of nights at least 1.": {
+        "en": "",
+        "it": (
+            "I pesi devono essere maggiori o uguali a zero e il numero di notti "
+            "almeno 1."
+        ),
+        "de": (
+            "Gewichte müssen größer oder gleich null sein, die Anzahl der Nächte "
+            "mindestens 1."
+        ),
+        "es": (
+            "Los pesos deben ser mayores o iguales que cero y el número de noches "
+            "al menos 1."
+        ),
+        "fr": (
+            "Les poids doivent être positifs ou nuls et le nombre de nuits "
+            "au moins 1."
+        ),
+        "pt": (
+            "Os pesos devem ser maiores ou iguais a zero e o número de noites "
+            "pelo menos 1."
+        ),
+    },
+    "At least one planner weight must be greater than zero.": {
+        "en": "",
+        "it": "Almeno un peso deve essere maggiore di zero.",
+        "de": "Mindestens ein Gewicht muss größer als null sein.",
+        "es": "Al menos un peso debe ser mayor que cero.",
+        "fr": "Au moins un poids doit être supérieur à zéro.",
+        "pt": "Pelo menos um peso deve ser maior que zero.",
+    },
+    # Numeric input limits (ephemeris points, forecast hours, best-night count)
+    "Number of points -> ": {
+        "en": "",
+        "it": "Numero di punti -> ",
+        "de": "Anzahl der Punkte -> ",
+        "es": "Número de puntos -> ",
+        "fr": "Nombre de points -> ",
+        "pt": "Número de pontos -> ",
+    },
+    "The number of points must be a whole number between {low} and {high}.": {
+        "en": "",
+        "it": "Il numero di punti deve essere un numero intero tra {low} e {high}.",
+        "de": "Die Anzahl der Punkte muss eine ganze Zahl zwischen {low} und {high} sein.",
+        "es": "El número de puntos debe ser un número entero entre {low} y {high}.",
+        "fr": "Le nombre de points doit être un nombre entier entre {low} et {high}.",
+        "pt": "O número de pontos deve ser um número inteiro entre {low} e {high}.",
+    },
+    "Forecast hours -> ": {
+        "en": "",
+        "it": "Ore di previsione -> ",
+        "de": "Vorhersagestunden -> ",
+        "es": "Horas de previsión -> ",
+        "fr": "Heures de prévision -> ",
+        "pt": "Horas de previsão -> ",
+    },
+    "The value must be between {low} and {high}; using {value}.": {
+        "en": "",
+        "it": "Il valore deve essere tra {low} e {high}; uso {value}.",
+        "de": "Der Wert muss zwischen {low} und {high} liegen; {value} wird verwendet.",
+        "es": "El valor debe estar entre {low} y {high}; se usa {value}.",
+        "fr": "La valeur doit être comprise entre {low} et {high} ; {value} est utilisé.",
+        "pt": "O valor deve estar entre {low} e {high}; a usar {value}.",
+    },
+    "Number of nights -> ": {
+        "en": "",
+        "it": "Numero di notti -> ",
+        "de": "Anzahl der Nächte -> ",
+        "es": "Número de noches -> ",
+        "fr": "Nombre de nuits -> ",
+        "pt": "Número de noites -> ",
+    },
+    # What's Observable scraping failures (WHATSUP_ERROR_LABELS reasons)
+    "The {source} page could not be used ({reason}); try again later.": {
+        "en": "",
+        "it": "La pagina {source} non è utilizzabile ({reason}); riprova più tardi.",
+        "de": "Die Seite {source} konnte nicht verwendet werden ({reason}); später erneut versuchen.",
+        "es": "No se pudo usar la página {source} ({reason}); inténtalo más tarde.",
+        "fr": "La page {source} est inutilisable ({reason}) ; réessayez plus tard.",
+        "pt": "Não foi possível usar a página {source} ({reason}); tente mais tarde.",
+    },
+    "unexpected page": {
+        "en": "",
+        "it": "risposta inattesa",
+        "de": "unerwartete Antwort",
+        "es": "respuesta inesperada",
+        "fr": "réponse inattendue",
+        "pt": "resposta inesperada",
+    },
+    "page unreachable": {
+        "en": "",
+        "it": "pagina non raggiungibile",
+        "de": "Seite nicht erreichbar",
+        "es": "página inaccesible",
+        "fr": "page inaccessible",
+        "pt": "página inacessível",
+    },
+    "no form token in the page": {
+        "en": "",
+        "it": "nessun token del form nella pagina",
+        "de": "kein Formular-Token auf der Seite",
+        "es": "sin token de formulario en la página",
+        "fr": "aucun jeton de formulaire dans la page",
+        "pt": "sem token do formulário na página",
+    },
+    "Virtual horizon altitudes must be numbers between 0° and 90°.": {
+        "en": "",
+        "it": "Le altitudini dell'orizzonte virtuale devono essere numeri tra 0° e 90°.",
+        "de": "Die Höhen des virtuellen Horizonts müssen Zahlen zwischen 0° und 90° sein.",
+        "es": (
+            "Las alturas del horizonte virtual deben ser números entre 0° y 90°."
+        ),
+        "fr": (
+            "Les altitudes de l'horizon virtuel doivent être des nombres entre 0° et 90°."
+        ),
+        "pt": (
+            "As altitudes do horizonte virtual devem ser números entre 0° e 90°."
+        ),
+    },
 }
 
 
