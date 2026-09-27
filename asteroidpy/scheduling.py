@@ -260,6 +260,19 @@ NEOCP_EPHEM_VELOCITY_IDX = 12
 NEOCP_EPHEM_DIRECTION_IDX = 13
 NEOCP_EPHEM_MIN_LEN = NEOCP_EPHEM_DIRECTION_IDX + 1
 
+#: ``Parallax`` values accepted by the MPC confirmeph2 CGI: the viewing-point
+#: selector, where only one of ``obscode`` and the explicit coordinates counts.
+NEOCP_PARALLAX_GEOCENTRIC = 0
+NEOCP_PARALLAX_OBS_CODE = 1
+NEOCP_PARALLAX_COORDINATES = 2
+
+#: ``[Observatory] mpc_code`` values that name no real observing site, so the
+#: ephemeris site falls back to the explicit coordinates or to the geocenter.
+#: ``500`` is the MPC's own geocentric code; ``XXX`` and ``0`` are placeholders the
+#: MPC refuses as observing sites, kept here so configurations written before the
+#: ``500`` default still produce a usable ephemeris.
+NEOCP_GENERIC_MPC_CODES = frozenset({"", "0", "500", "XXX"})
+
 cloudcover_dict = {
     1: "0%-6%",
     2: "6%-19%",
@@ -1176,6 +1189,61 @@ async def async_neocp_confirmation(
     return table
 
 
+def _neocp_viewing_point_fields(config: ConfigParser) -> str:
+    """Build the ``Parallax``/``obscode``/``long``/``lat``/``alt`` form fields.
+
+    ``Parallax`` selects the MPC confirmeph2 viewing point and the CGI honours only
+    the matching fields, so a real ``mpc_code`` always wins. Otherwise the
+    ``[Observatory]`` coordinates drive the ephemeris when they differ from the
+    shipped defaults, keeping the MPC in step with the coordinates the local
+    altitude and virtual-horizon filters already use; with no usable site or no
+    coordinates, the geocenter is requested.
+
+    ``long``/``lat`` are validated for every ``Parallax`` value, so unparsable or
+    blank coordinates are sent as ``0.0`` rather than failing the whole request.
+    """
+
+    observatory = config["Observatory"]
+    defaults = configuration.SECTION_DEFAULTS["Observatory"]
+
+    def option_float(option: str) -> float | None:
+        raw = observatory.get(option) or defaults.get(option, "")
+        try:
+            return float(raw)
+        except ValueError:
+            return None
+
+    obs_code = (observatory.get("mpc_code") or "").strip()
+    latitude = option_float("latitude")
+    longitude = option_float("longitude")
+    altitude = option_float("altitude")
+
+    generic_code = obs_code.upper() in NEOCP_GENERIC_MPC_CODES
+    coordinates_set = (
+        latitude is not None
+        and longitude is not None
+        and (
+            (latitude, longitude)
+            != (float(defaults["latitude"]), float(defaults["longitude"]))
+        )
+    )
+
+    if not generic_code:
+        parallax = NEOCP_PARALLAX_OBS_CODE
+    elif coordinates_set:
+        parallax = NEOCP_PARALLAX_COORDINATES
+    else:
+        parallax = NEOCP_PARALLAX_GEOCENTRIC
+
+    return (
+        f"Parallax={parallax}"
+        f"&obscode={obs_code}"
+        f"&long={0.0 if latitude is None else latitude}"
+        f"&lat={0.0 if longitude is None else longitude}"
+        f"&alt={0.0 if altitude is None else altitude}"
+    )
+
+
 async def get_neocp_ephemeris(
     config: ConfigParser, object_names: list[str]
 ) -> dict[str, list[str]]:
@@ -1207,19 +1275,15 @@ async def get_neocp_ephemeris(
     and queries the MPC CGI service. The HTML response is parsed using regex
     to extract ephemeris data. Only objects with at least 4 values in their
     ephemeris data are included in the results.
+
+    The viewing point is resolved by :func:`_neocp_viewing_point_fields` from
+    ``[Observatory] mpc_code``, ``latitude``, ``longitude`` and ``altitude``,
+    so the returned velocity and direction are computed for the same site the
+    caller filters on locally.
     """
     configuration.load_config(config)
     object_names_str = ",".join(object_names)
-    obs_code = (
-        config["Observatory"]["mpc_code"] if config["Observatory"]["mpc_code"] else ""
-    )
-    latitude = (
-        config["Observatory"]["latitude"] if config["Observatory"]["latitude"] else ""
-    )
-    longitude = (
-        config["Observatory"]["longitude"] if config["Observatory"]["longitude"] else ""
-    )
-    payload = f"mb=-30&mf=30&dl=-90&du=%2B90&nl=0&nu=100&sort=d&W=j&obj={object_names_str}&Parallax=1&obscode={obs_code}&long={longitude}&lat={latitude}&int=0&start=0&raty=a&mot=m&dmot=p&out=f&sun=x&oalt=20"
+    payload = f"mb=-30&mf=30&dl=-90&du=%2B90&nl=0&nu=100&sort=d&W=j&obj={object_names_str}&{_neocp_viewing_point_fields(config)}&int=0&start=0&raty=a&mot=m&dmot=p&out=f&sun=x&oalt=20"
     url = "https://cgi.minorplanetcenter.net/cgi-bin/confirmeph2.cgi"
     timeout = httpx.Timeout(DEFAULT_REQUEST_TIMEOUT_SEC)
     try:

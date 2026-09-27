@@ -856,6 +856,129 @@ def test_neocp_confirmation_handles_missing_ephemeris_data(
     assert len(tbl) == 0
 
 
+def _observatory_config(**options: str) -> ConfigParser:
+    """A ConfigParser whose ``[Observatory]`` holds exactly *options*."""
+    config = ConfigParser()
+    config["Observatory"] = dict(options)
+    return config
+
+
+@pytest.mark.parametrize(
+    "options, expected",
+    [
+        # A real observatory code always wins, whatever the coordinates say.
+        (
+            {"mpc_code": "589", "latitude": "45.6", "longitude": "9.2"},
+            "Parallax=1&obscode=589&long=45.6&lat=9.2&alt=0.0",
+        ),
+        (
+            {"mpc_code": "589", "latitude": "0.0", "longitude": "0.0"},
+            "Parallax=1&obscode=589&long=0.0&lat=0.0&alt=0.0",
+        ),
+        # Placeholder codes with real coordinates defer to the coordinates.
+        (
+            {
+                "mpc_code": "500",
+                "latitude": "45.6",
+                "longitude": "9.2",
+                "altitude": "120",
+            },
+            "Parallax=2&obscode=500&long=45.6&lat=9.2&alt=120.0",
+        ),
+        (
+            {"mpc_code": "XXX", "latitude": "45.6", "longitude": "9.2"},
+            "Parallax=2&obscode=XXX&long=45.6&lat=9.2&alt=0.0",
+        ),
+        (
+            {"mpc_code": "0", "latitude": "-33.86", "longitude": "-70.6"},
+            "Parallax=2&obscode=0&long=-33.86&lat=-70.6&alt=0.0",
+        ),
+        (
+            {"mpc_code": "", "latitude": "45.6", "longitude": "9.2"},
+            "Parallax=2&obscode=&long=45.6&lat=9.2&alt=0.0",
+        ),
+        # Placeholder codes without coordinates mean the geocenter, not a
+        # fictitious site at 0 E / 0 N.
+        (
+            {"mpc_code": "500", "latitude": "0.0", "longitude": "0.0"},
+            "Parallax=0&obscode=500&long=0.0&lat=0.0&alt=0.0",
+        ),
+        (
+            {"mpc_code": "", "latitude": "0.0", "longitude": "0.0"},
+            "Parallax=0&obscode=&long=0.0&lat=0.0&alt=0.0",
+        ),
+        # Altitude alone is not a site: 0 E / 0 N stays geocentric.
+        (
+            {
+                "mpc_code": "500",
+                "latitude": "0.0",
+                "longitude": "0.0",
+                "altitude": "120",
+            },
+            "Parallax=0&obscode=500&long=0.0&lat=0.0&alt=120.0",
+        ),
+        # The CGI validates long/lat for every Parallax value, so unparsable or
+        # absent coordinates must still produce a valid request.
+        (
+            {"mpc_code": "500", "latitude": "abc", "longitude": "xyz"},
+            "Parallax=0&obscode=500&long=0.0&lat=0.0&alt=0.0",
+        ),
+        (
+            {"mpc_code": "589", "latitude": "abc", "longitude": "xyz"},
+            "Parallax=1&obscode=589&long=0.0&lat=0.0&alt=0.0",
+        ),
+        ({"mpc_code": "500"}, "Parallax=0&obscode=500&long=0.0&lat=0.0&alt=0.0"),
+        (
+            {
+                "mpc_code": "500",
+                "latitude": "45.6",
+                "longitude": "9.2",
+                "altitude": "sea level",
+            },
+            "Parallax=2&obscode=500&long=45.6&lat=9.2&alt=0.0",
+        ),
+        # Surrounding whitespace in a hand-edited INI must not break the request.
+        (
+            {"mpc_code": "  589  ", "latitude": "45.6", "longitude": "9.2"},
+            "Parallax=1&obscode=589&long=45.6&lat=9.2&alt=0.0",
+        ),
+    ],
+)
+def test_neocp_viewing_point_fields(sch, options, expected):
+    """The MPC viewing point follows the code, then the coordinates, then the geocenter."""
+    assert sch._neocp_viewing_point_fields(_observatory_config(**options)) == expected
+
+
+def test_get_neocp_ephemeris_sends_viewing_point_fields(monkeypatch, sch):
+    """The selected viewing point reaches the POST body verbatim."""
+    sent: dict[str, Any] = {}
+
+    class MockResponse:
+        text = ""
+
+    class MockAsyncClient:
+        async def __aenter__(self):
+            return self
+
+        async def __aexit__(self, *args):
+            pass
+
+        async def post(self, *args, **kwargs):
+            sent.update(kwargs)
+            return MockResponse()
+
+    monkeypatch.setattr(sch.httpx, "AsyncClient", lambda *a, **k: MockAsyncClient())
+
+    config = _observatory_config(
+        mpc_code="XXX", latitude="45.6", longitude="9.2", altitude="120"
+    )
+    asyncio.run(sch.get_neocp_ephemeris(config, ["TEST123"]))
+
+    body = sent["content"]
+    assert "Parallax=2&obscode=XXX&long=45.6&lat=9.2&alt=120.0" in body
+    assert "obj=TEST123" in body
+
+
 def test_get_neocp_ephemeris_parses_response_correctly(monkeypatch, fresh_config, sch):
     """Test the regex parsing functionality in get_neocp_ephemeris"""
     sample_html = """
