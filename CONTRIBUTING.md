@@ -101,6 +101,23 @@ virtual environment (recommended).
 - **Docstrings**: every public function needs one, and every autodoc'd module needs a module docstring
 - **Tests**: small, isolated tests; prefer parameterized tests where sensible
 
+## AI-assisted development
+
+AsteroidPy is developed with the assistance of LLM-based coding agents. The
+[agent-facing instructions](AGENTS.md) in the repository root define the rules
+those agents follow, and every change they produce is reviewed and tested by a
+human before it is released.
+
+This describes the *development process*, not the software: AsteroidPy is not an
+AI system, ships no model, and makes no AI-generated claims to its users. The
+lint, test, and build gates above apply to agent-written code exactly as they do
+to any other contribution.
+
+Contributors are **not** required to disclose whether they used AI tooling in a
+pull request. What matters is that the change is reviewable, tested, and
+maintained — see the [pull request checklist](#pull-request-checklist). Mentioning
+it is welcome, never a reason to hold back an otherwise good patch.
+
 ## Project architecture
 
 ```
