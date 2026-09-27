@@ -46,7 +46,7 @@ import asteroidpy.scheduling as scheduling
 from asteroidpy.version import __version__
 
 from ._i18n import get_locale_dir, setup_gettext
-from ._intl import translate
+from ._intl import observatory_labels, translate
 
 
 def _app_config(screen: Screen) -> ConfigParser:
@@ -81,15 +81,12 @@ def _observatory_summary(config: ConfigParser) -> str:
 
     Unlike :func:`~asteroidpy.configuration.print_obs_config`, which is the log-safe
     dump, this view shows latitude, longitude and altitude: the user typed them in
-    and there is no public log to protect. Labels go through :func:`translate` so
-    the summary follows the configured language.
+    and there is no public log to protect. Labels come from
+    :func:`~asteroidpy.interface._intl.observatory_labels`, so the summary follows the
+    configured language.
     """
 
-    labels = {
-        option: translate(default_label)
-        for option, default_label, _sensitive in configuration.OBSERVATORY_FIELD_LABELS
-    }
-    lines = configuration.observatory_summary_lines(config, labels=labels)
+    lines = configuration.observatory_summary_lines(config, labels=observatory_labels())
     return "\n".join(lines)
 
 

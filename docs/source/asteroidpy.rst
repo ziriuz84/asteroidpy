@@ -73,7 +73,10 @@ Layout (private submodules; import only if you extend the UI):
 * ``_main`` — :func:`interface` and the legacy
   :func:`main_menu` text loop
 * ``_i18n`` — packaged ``locales/`` lookup and :func:`setup_gettext`
-* ``_intl`` — ``translate``, a thin wrapper over the gettext-installed ``builtins._``
+* ``_intl`` — ``translate``, a thin wrapper over the gettext-installed ``builtins._``,
+  and ``observatory_labels``, the localized ``[Observatory]`` labels both frontends pass
+  to :func:`~asteroidpy.configuration.observatory_summary_lines` and
+  :func:`~asteroidpy.configuration.print_obs_config`
 * ``_input`` — EOF-safe ``prompt_line`` / ``get_integer`` / ``get_float`` / ``prompt_int_in_range``
 * ``_tui_app`` — root Textual ``App`` subclass and ``style.tcss`` path
 * ``_tui_screens`` — ``Screen`` definitions for menus, forms, and result views

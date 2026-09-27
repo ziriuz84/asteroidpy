@@ -36,6 +36,26 @@ def fresh_config() -> ConfigParser:
     return ConfigParser()
 
 
+@pytest.fixture()
+def italian_catalog(tmp_home, fresh_config, monkeypatch):
+    """Install the packaged ``it`` catalog for the duration of one test.
+
+    ``setup_gettext`` writes ``builtins._``; the fixture removes it beforehand so
+    monkeypatch can restore (i.e. delete) it on teardown and no locale leaks into
+    the next test.
+    """
+    import builtins
+
+    from asteroidpy.interface._i18n import setup_gettext
+
+    write_config_file(
+        config_file_canonical(tmp_home), create_minimal_config_text(lang="it")
+    )
+    monkeypatch.delattr(builtins, "_", raising=False)
+    setup_gettext(fresh_config)
+    return fresh_config
+
+
 def config_file_canonical(home: os.PathLike) -> str:
     return os.fspath(
         home / ".config" / cfg.APP_NAME / cfg.CONFIG_FILENAME,
@@ -387,6 +407,42 @@ def test_tui_observatory_summary_renders_coordinates(tmp_home, fresh_config):
     assert "9.0" in summary
     assert "100.0" in summary
     assert cfg.REDACTED_PLACEHOLDER not in summary
+
+
+def test_observatory_labels_follow_the_active_locale(italian_catalog):
+    from asteroidpy.interface._intl import observatory_labels
+
+    labels = observatory_labels()
+
+    assert labels["place"] == "Località"
+    assert labels["latitude"] == "Latitudine"
+    assert labels["mpc_code"] == "Codice MPC"
+    # Every field must be covered, otherwise the summary falls back to English.
+    assert set(labels) == {
+        option for option, _label, _sensitive in cfg.OBSERVATORY_FIELD_LABELS
+    }
+
+
+def test_legacy_dump_localizes_labels_and_keeps_redaction(italian_catalog, capsys):
+    """The legacy text menu resolves the labels, and still redacts coordinates."""
+    from asteroidpy.interface._intl import observatory_labels
+
+    cfg.print_obs_config(italian_catalog, labels=observatory_labels())
+
+    stdout = capsys.readouterr().out
+    assert "Località: " in stdout
+    assert f"Latitudine: {cfg.REDACTED_PLACEHOLDER}" in stdout
+    assert "Codice MPC: XXX" in stdout
+
+
+def test_tui_observatory_summary_localizes_labels(italian_catalog):
+    pytest.importorskip("textual")
+    from asteroidpy.interface._tui_screens import _observatory_summary
+
+    summary = _observatory_summary(italian_catalog)
+
+    assert "Latitudine: 0.0" in summary
+    assert "Codice MPC: XXX" in summary
 
 
 def test_load_config_reads_existing_file(tmp_home, fresh_config):
