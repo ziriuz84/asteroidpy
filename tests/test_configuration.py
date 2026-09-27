@@ -40,9 +40,9 @@ def fresh_config() -> ConfigParser:
 def italian_catalog(tmp_home, fresh_config, monkeypatch):
     """Install the packaged ``it`` catalog for the duration of one test.
 
-    ``setup_gettext`` writes ``builtins._``; the fixture removes it beforehand so
-    monkeypatch can restore (i.e. delete) it on teardown and no locale leaks into
-    the next test.
+    ``setup_gettext`` writes ``builtins._``, so the fixture drops it before and
+    after the test: no locale may leak into the next one, whose assertions expect
+    untranslated msgids.
     """
     import builtins
 
@@ -53,7 +53,11 @@ def italian_catalog(tmp_home, fresh_config, monkeypatch):
     )
     monkeypatch.delattr(builtins, "_", raising=False)
     setup_gettext(fresh_config)
-    return fresh_config
+    try:
+        yield fresh_config
+    finally:
+        if hasattr(builtins, "_"):
+            del builtins._
 
 
 def config_file_canonical(home: os.PathLike) -> str:
