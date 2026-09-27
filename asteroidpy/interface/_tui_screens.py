@@ -28,6 +28,7 @@ import asyncio
 import datetime
 import math
 import os
+import re
 from collections.abc import Mapping, Sequence
 from configparser import ConfigParser
 from typing import Any, cast
@@ -273,7 +274,50 @@ def _collect_language_codes_and_catalog_warnings() -> tuple[list[str], list[str]
     return available_langs, backlog
 
 
-class MainMenuScreen(Screen):
+class MenuScreen(Screen):
+    """Common base for every screen: adds arrow-key and digit-key navigation.
+
+    On top of Textual's built-in ``Tab``/``Shift+Tab`` focus cycling and mouse
+    clicks, this lets the same menus be driven with the keyboard alone:
+
+    * ``Up``/``Down`` move focus like ``Shift+Tab``/``Tab`` (they reuse the same
+      ``app.focus_previous``/``app.focus_next`` actions Textual already binds to
+      Tab, so behaviour stays identical). ``Input`` fields do not bind these keys,
+      so arrow navigation also works while editing a form.
+    * Digits ``0``-``9`` press the :class:`~textual.widgets.Button` whose label
+      starts with ``"<digit> - "`` (e.g. ``translate("1 - Configuration")``),
+      mirroring the numbers already shown in every menu label. Screens without a
+      button for a given digit simply ignore that key. ``Input`` widgets consume
+      printable characters (digits included) before these bindings are ever
+      checked, so typing numbers into a form field is unaffected.
+
+    Subclasses keep adding their own ``BINDINGS`` (``escape`` to go back, etc.);
+    Textual merges ``BINDINGS`` across the whole class hierarchy, so nothing here
+    needs to be repeated per screen.
+    """
+
+    BINDINGS = [
+        Binding("up", "app.focus_previous", "Focus previous", show=False),
+        Binding("down", "app.focus_next", "Focus next", show=False),
+        *(
+            Binding(str(digit), f"press_numbered('{digit}')", show=False)
+            for digit in range(10)
+        ),
+    ]
+
+    def action_press_numbered(self, digit: str) -> None:
+        """Press the visible, enabled button labelled ``"<digit> - ..."``, if any."""
+
+        pattern = re.compile(rf"^{re.escape(digit)}(?!\d)\s*-")
+        for button in self.query(Button):
+            if button.disabled or not button.display:
+                continue
+            if pattern.match(str(button.label)):
+                button.press()
+                return
+
+
+class MainMenuScreen(MenuScreen):
     """Top-level menu: configuration, scheduling, or exit."""
 
     BINDINGS = [Binding("ctrl+q", "quit", "Quit")]
@@ -304,7 +348,7 @@ class MainMenuScreen(Screen):
             self.app.exit()
 
 
-class ConfigRootScreen(Screen):
+class ConfigRootScreen(MenuScreen):
     """Configuration branch: general options, planner tuning or observatory details."""
 
     BINDINGS = [Binding("escape", "back", "Back")]
@@ -335,7 +379,7 @@ class ConfigRootScreen(Screen):
             self.app.pop_screen()
 
 
-class GeneralConfigScreen(Screen):
+class GeneralConfigScreen(MenuScreen):
     """General settings submenu (currently language selection)."""
 
     BINDINGS = [Binding("escape", "back", "Back")]
@@ -360,7 +404,7 @@ class GeneralConfigScreen(Screen):
             self.app.pop_screen()
 
 
-class LanguageScreen(Screen):
+class LanguageScreen(MenuScreen):
     """Pick UI language from installed gettext catalogs and refresh gettext.
 
     On mount, surfaces one notification per locale directory that has ``base.po`` but
@@ -419,7 +463,7 @@ class LanguageScreen(Screen):
             _refresh_main_menu_after_locale(self)
 
 
-class ObservatoryScreen(Screen):
+class ObservatoryScreen(MenuScreen):
     """Read-only observatory summary plus shortcuts to editable fields.
 
     The summary text is recomputed when the screen mounts and whenever it becomes
@@ -476,7 +520,7 @@ class ObservatoryScreen(Screen):
             self.app.push_screen(pushed[bid]())
 
 
-class ObservatoryCoordsScreen(Screen):
+class ObservatoryCoordsScreen(MenuScreen):
     """Edit locality name and latitude/longitude in the config.
 
     Fields load existing ``Observatory`` values on mount so partial edits do not blank untouched keys.
@@ -543,7 +587,7 @@ class ObservatoryCoordsScreen(Screen):
         self.app.pop_screen()
 
 
-class ObservatoryAltitudeScreen(Screen):
+class ObservatoryAltitudeScreen(MenuScreen):
     """Set observatory altitude (meters) as an integer."""
 
     BINDINGS = [Binding("escape", "back", "Back")]
@@ -583,7 +627,7 @@ class ObservatoryAltitudeScreen(Screen):
         self.app.pop_screen()
 
 
-class ObservatoryObserverScreen(Screen):
+class ObservatoryObserverScreen(MenuScreen):
     """Change the observer name stored in configuration."""
 
     BINDINGS = [Binding("escape", "back", "Back")]
@@ -619,7 +663,7 @@ class ObservatoryObserverScreen(Screen):
         self.app.pop_screen()
 
 
-class ObservatoryObservatoryNameScreen(Screen):
+class ObservatoryObservatoryNameScreen(MenuScreen):
     """Rename the observatory/site string in configuration."""
 
     BINDINGS = [Binding("escape", "back", "Back")]
@@ -655,7 +699,7 @@ class ObservatoryObservatoryNameScreen(Screen):
         self.app.pop_screen()
 
 
-class ObservatoryMpcScreen(Screen):
+class ObservatoryMpcScreen(MenuScreen):
     """Assign MPC observatory code; optionally pull coords/name from MPC data."""
 
     BINDINGS = [Binding("escape", "back", "Back")]
@@ -710,7 +754,7 @@ class ObservatoryMpcScreen(Screen):
         self.app.pop_screen()
 
 
-class ObservatoryHorizonScreen(Screen):
+class ObservatoryHorizonScreen(MenuScreen):
     """Configure cardinal virtual-horizon strings (north/south/east/west).
 
     Fields are prefilled with the stored altitudes (or ``0`` for an option missing
@@ -792,7 +836,7 @@ class ObservatoryHorizonScreen(Screen):
         self.app.pop_screen()
 
 
-class PlannerSettingsScreen(Screen):
+class PlannerSettingsScreen(MenuScreen):
     """Edit the ``[Planner]`` best-night weights and how many nights are ranked.
 
     Fields are prefilled with the stored values, falling back to the built-in
@@ -954,7 +998,7 @@ class PlannerSettingsScreen(Screen):
             button.disabled = False
 
 
-class SchedulingRootScreen(Screen):
+class SchedulingRootScreen(MenuScreen):
     """Hub for forecasting, MPC lists, ephemerides, twilight and best-night planning."""
 
     BINDINGS = [Binding("escape", "back", "Back")]
@@ -993,7 +1037,7 @@ class SchedulingRootScreen(Screen):
             self.app.push_screen(pushed[bid]())
 
 
-class WeatherScreen(Screen):
+class WeatherScreen(MenuScreen):
     """Runs ``weather_forecast_report`` off the UI thread into a Rich log.
 
     The horizon and the temperature unit are choices of this screen only: they
@@ -1079,7 +1123,7 @@ class WeatherScreen(Screen):
             btn.disabled = False
 
 
-class ObservingTargetListScreen(Screen):
+class ObservingTargetListScreen(MenuScreen):
     """What's Observable-style form with scrollable fields and MPC POST payload.
 
     Integer fields are clamped to documented ranges (module ``_MPC_*`` constants) before
@@ -1401,7 +1445,7 @@ def _parse_datetime_inputs(screen: ObservingTargetListScreen) -> datetime.dateti
     return datetime.datetime(year, month, day, hour, minutes, seconds)
 
 
-class ResultLogScreen(Screen):
+class ResultLogScreen(MenuScreen):
     """Modal-ish screen dumping long plaintext into a scrollable Rich log."""
 
     BINDINGS = [Binding("escape", "close", "Close")]
@@ -1449,7 +1493,7 @@ async def _push_result_log_modal(screen: Screen, body: str) -> None:
         raise exc.error from exc
 
 
-class NeocpScreen(Screen):
+class NeocpScreen(MenuScreen):
     """Filter NEOcp confirmation prospects; render table or JS viewer."""
 
     BINDINGS = [Binding("escape", "back", "Back")]
@@ -1527,7 +1571,7 @@ class NeocpScreen(Screen):
             btn.disabled = False
 
 
-class EphemerisScreen(Screen):
+class EphemerisScreen(MenuScreen):
     """Planetarium-style stepping ephemeris for a named solar-system object.
 
     The number of requested points is prefilled with
@@ -1628,7 +1672,7 @@ class EphemerisScreen(Screen):
             btn.disabled = False
 
 
-class TwilightScreen(Screen):
+class TwilightScreen(MenuScreen):
     """Compute twilight windows plus sun/moon rise/set summary for tonight."""
 
     BINDINGS = [Binding("escape", "back", "Back")]
@@ -1700,7 +1744,7 @@ class TwilightScreen(Screen):
             btn.disabled = False
 
 
-class BestNightScreen(Screen):
+class BestNightScreen(MenuScreen):
     """Rank upcoming astronomical nights from the 7Timer forecast.
 
     Combines cloud cover, seeing, transparency and Moon illumination per
