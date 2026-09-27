@@ -29,13 +29,13 @@ AsteroidPy is a command-line tool for astronomers to schedule and manage asteroi
 
 | Feature | Description |
 |--------|-------------|
-| **Weather forecast** | Astronomical weather (cloud cover, seeing, transparency) up to 72 hours via 7Timer |
+| **Weather forecast** | Astronomical weather (cloud cover, seeing, transparency) via 7Timer, over a horizon of 6–168 hours (72 by default) and in °C or °F |
 | **Observation scheduling** | Plan sessions with target lists and visibility windows |
 | **NEOcp candidates** | List and filter Near-Earth Object candidates from the MPC Confirmation Page |
-| **Object ephemeris** | Retrieve detailed ephemeris data for any minor body |
+| **Object ephemeris** | Retrieve detailed ephemeris data for any minor body, from 1 to 10000 points |
 | **Twilight & Sun/Moon** | Civil, nautical, and astronomical twilight; rise/set times |
 | **Best-upcoming-night planner** | Rank the upcoming astronomical nights by observing quality (cloud cover, seeing, transparency, Moon illumination) with configurable weights |
-| **Virtual horizon** | Simulate horizon obstructions for visibility calculations |
+| **Virtual horizon** | Simulate horizon obstructions for visibility calculations (0–90° per cardinal direction) |
 
 ---
 

@@ -54,6 +54,29 @@ DEFAULT_PLANNER_WEIGHTS = {
 #: Maximum number of nights to report when ``[Planner] max_nights`` is missing.
 DEFAULT_PLANNER_MAX_NIGHTS = 5
 
+#: Number of ephemeris points requested from the MPC when none is given.
+DEFAULT_EPHEMERIS_POINTS = 30
+
+#: Fewest ephemeris points that make sense, since one row is already an ephemeris.
+MIN_EPHEMERIS_POINTS = 1
+
+#: Highest ephemeris point count accepted, generous enough for any realistic
+#: session and low enough to keep the MPC from answering with a huge table.
+MAX_EPHEMERIS_POINTS = 10000
+
+#: Forecast horizon, in hours, prefilled by the weather screen (three days).
+DEFAULT_WEATHER_HOURS = 72
+
+#: Shortest forecast horizon the weather screen accepts, in hours.
+MIN_WEATHER_HOURS = 6
+
+#: Longest forecast horizon the weather screen accepts, in hours, and the whole span
+#: of the 7Timer ``astro`` series.
+MAX_WEATHER_HOURS = 168
+
+#: Temperature units accepted by :func:`weather_forecast_report`.
+TEMPERATURE_UNITS: dict[str, str] = {"C": "Celsius", "F": "Fahrenheit"}
+
 #: Midpoint cloud cover (percent) for each 7Timer ``cloudcover`` code (1 = clear, 9 = overcast).
 CLOUDCOVER_MIDPOINT_PCT = {
     1: 3.0,
@@ -466,13 +489,89 @@ def weather_forecast_raw(
     return weather_forecast
 
 
-def weather_forecast_report(config: ConfigParser) -> str:
+def validated_ephemeris_points(number: int | str) -> int:
+    """Return *number* as a whole number of ephemeris points to request.
+
+    Parameters
+    ----------
+    number : int or str
+        The requested count, as typed in the UI or passed by a caller.
+
+    Returns
+    -------
+    int
+        *number* as an ``int``.
+
+    Raises
+    ------
+    ValueError
+        If *number* is not a whole number, or is outside
+        :data:`MIN_EPHEMERIS_POINTS`/:data:`MAX_EPHEMERIS_POINTS`. The UI turns this
+        into a translated message instead of silently asking for another count.
+    """
+    if isinstance(number, bool):
+        raise ValueError(
+            f"number of ephemeris points must be an integer, got {number!r}"
+        )
+    try:
+        points = int(str(number).strip())
+    except (TypeError, ValueError):
+        raise ValueError(
+            f"number of ephemeris points must be an integer, got {number!r}"
+        ) from None
+    if points < MIN_EPHEMERIS_POINTS or points > MAX_EPHEMERIS_POINTS:
+        raise ValueError(
+            f"number of ephemeris points must be between {MIN_EPHEMERIS_POINTS} "
+            f"and {MAX_EPHEMERIS_POINTS}, got {points}"
+        )
+    return points
+
+
+def weather_temperature(celsius: Any, unit: str = "C") -> str:
+    """Return *celsius* rendered for *unit* (``"C"`` or ``"F"``), or ``"N/A"``.
+
+    7Timer reports ``temp2m`` in Celsius; the Fahrenheit rendering keeps one
+    decimal, the Celsius one keeps the value as the service reported it.
+    """
+
+    if celsius is None:
+        return "N/A"
+    if unit == "F":
+        try:
+            return f"{float(celsius) * 9 / 5 + 32:.1f} F"
+        except (TypeError, ValueError):
+            return "N/A"
+    return f"{celsius} C"
+
+
+def weather_forecast_report(
+    config: ConfigParser, hours: int | None = None, temperature_unit: str = "C"
+) -> str:
     """Fetch and format the 7Timer astronomical forecast as plain text.
 
     Returns a user-visible error message when the HTTP request fails or the body
     is not valid JSON; otherwise returns the plaintext rendering of the formatted table.
+
+    Parameters
+    ----------
+    config : ConfigParser
+        Observatory settings, used to build the request URL.
+    hours : int, optional
+        Show only the timepoints within this many hours of the forecast start
+        (7Timer ``astro`` steps are 3-hourly). ``None`` shows the whole series.
+    temperature_unit : str
+        ``"C"`` (default) or ``"F"``: unit of the ``Temp`` column.
+
+    Raises
+    ------
+    ValueError
+        If *hours* is not a whole number of hours.
     """
 
+    if hours is not None:
+        hours = int(hours)
+        if hours < 0:
+            raise ValueError(f"hours must not be negative, got {hours}")
     configuration.load_config(config)
     weather_forecast = weather_forecast_raw(config)
     if not weather_forecast:
@@ -498,6 +597,12 @@ def weather_forecast_report(config: ConfigParser) -> str:
         return mapping.get(key, "N/A")
 
     for time in weather_forecast.get("dataseries", []):
+        if not isinstance(time, dict):
+            continue
+        if hours is not None:
+            timepoint = time.get("timepoint", 0)
+            if not isinstance(timepoint, int) or timepoint > hours:
+                continue
         try:
             when = weather_time(
                 weather_forecast.get("init", ""),
@@ -510,7 +615,7 @@ def weather_forecast_report(config: ConfigParser) -> str:
         seeing = map_or_na(seeing_dict, time.get("seeing"))
         transp = map_or_na(transparency_dict, time.get("transparency"))
         lifted = map_or_na(liftedIndex_dict, time.get("lifted_index"))
-        temp = f"{time.get('temp2m', 'N/A')} C" if "temp2m" in time else "N/A"
+        temp = weather_temperature(time.get("temp2m"), temperature_unit)
         rh = map_or_na(rh2m_dict, time.get("rh2m"))
         wind = time.get("wind10m") or {}
         wind_dir = wind.get("direction", "N/A")
@@ -1225,7 +1330,12 @@ def sun_moon_ephemeris(config: ConfigParser) -> dict[str, Any]:
     return result
 
 
-def object_ephemeris(config: ConfigParser, object_name: str, stepping: str) -> QTable:
+def object_ephemeris(
+    config: ConfigParser,
+    object_name: str,
+    stepping: str,
+    number: int | str = DEFAULT_EPHEMERIS_POINTS,
+) -> QTable:
     """Retrieve ephemeris data for a specific object from the Minor Planet Center.
 
     Queries the MPC database for ephemeris data of the specified object,
@@ -1246,11 +1356,13 @@ def object_ephemeris(config: ConfigParser, object_name: str, stepping: str) -> Q
         - 'd': 1 day
         - 'w': 1 week
         Defaults to '1h' if an unknown value is provided.
+    number : int, optional
+        How many points to request, :data:`DEFAULT_EPHEMERIS_POINTS` by default.
 
     Returns
     -------
     QTable
-        An astropy QTable containing 30 ephemeris points with columns:
+        An astropy QTable with *number* ephemeris points and columns:
         - Date: Observation date/time
         - RA: Right ascension
         - Dec: Declination
@@ -1260,11 +1372,19 @@ def object_ephemeris(config: ConfigParser, object_name: str, stepping: str) -> Q
         - Proper motion: Angular motion
         - Direction: Motion direction
 
+    Raises
+    ------
+    ValueError
+        If *number* is not a whole number within
+        :data:`MIN_EPHEMERIS_POINTS`/:data:`MAX_EPHEMERIS_POINTS`, checked by
+        :func:`validated_ephemeris_points`.
+
     Notes
     -----
     The function uses astroquery.mpc.MPC to query the Minor Planet Center
     database. Ephemeris is calculated for the configured observatory location.
     """
+    points = validated_ephemeris_points(number)
     configuration.load_config(config)
     location = earth_location_from_config(config)
     step: Quantity | str
@@ -1280,7 +1400,7 @@ def object_ephemeris(config: ConfigParser, object_name: str, stepping: str) -> Q
         # Default to 1 hour if unknown stepping value
         step = "1h"
     eph = MPC.get_ephemeris(
-        str(object_name).upper(), location=location, step=step, number=30
+        str(object_name).upper(), location=location, step=step, number=points
     )
     ephemeris = eph[
         "Date", "RA", "Dec", "Elongation", "V", "Altitude", "Proper motion", "Direction"

@@ -20,6 +20,7 @@ from __future__ import annotations
 
 import asyncio
 import datetime
+import math
 import os
 from configparser import ConfigParser
 from typing import Any, cast
@@ -98,6 +99,47 @@ _MPC_MIN_ALT_DEG_MIN = 0
 _MPC_MIN_ALT_DEG_MAX = 90
 _MPC_MAX_OBJECTS_MIN = 1
 _MPC_MAX_OBJECTS_MAX = 1000
+
+#: Lowest and highest virtual-horizon altitude, in degrees above the horizon.
+_HORIZON_DEG_MIN = 0.0
+_HORIZON_DEG_MAX = 90.0
+
+#: Highest number of nights the best-night screen ranks: the 7Timer ``astro``
+#: series spans eight days, so anything longer can only return empty tail.
+_MAX_BEST_NIGHT_NIGHTS = 30
+
+
+def _clamped_int(raw: str, low: int, high: int) -> tuple[int, bool] | None:
+    """Return ``(value, clamped)`` for *raw* forced into ``[low, high]``.
+
+    ``None`` when *raw* is not a whole number, so the caller can tell a typo (which
+    is rejected) from a value merely out of range (which is adjusted and reported,
+    as :class:`ObservingTargetListScreen` does for the MPC form).
+    """
+
+    try:
+        value = int(raw.strip())
+    except (AttributeError, TypeError, ValueError):
+        return None
+    clamped = value < low or value > high
+    return max(low, min(value, high)), clamped
+
+
+def _validate_horizon_degrees(raw: str) -> float | None:
+    """Return *raw* as a virtual-horizon altitude, or ``None`` when unusable.
+
+    Altitudes are degrees above the horizon, so anything outside
+    ``[_HORIZON_DEG_MIN, _HORIZON_DEG_MAX]`` or not a number is refused instead of
+    being clamped: a typo here would silently hide or fake part of the sky.
+    """
+
+    try:
+        value = float(raw.strip())
+    except (AttributeError, TypeError, ValueError):
+        return None
+    if not math.isfinite(value) or not _HORIZON_DEG_MIN <= value <= _HORIZON_DEG_MAX:
+        return None
+    return value
 
 
 def _collect_language_codes_and_catalog_warnings() -> tuple[list[str], list[str]]:
@@ -582,7 +624,12 @@ class ObservatoryMpcScreen(Screen):
 
 
 class ObservatoryHorizonScreen(Screen):
-    """Configure cardinal virtual-horizon strings (north/south/east/west)."""
+    """Configure cardinal virtual-horizon strings (north/south/east/west).
+
+    Fields are prefilled with the stored altitudes (or ``0`` for an option missing
+    from the INI file) and validated on save: each direction must be a number
+    between 0° and 90°.
+    """
 
     BINDINGS = [Binding("escape", "back", "Back")]
 
@@ -618,6 +665,15 @@ class ObservatoryHorizonScreen(Screen):
             id="panel",
         )
 
+    def on_mount(self) -> None:
+        """Prefill the four directions from the ``[Observatory]`` section."""
+
+        section = _app_config(self)["Observatory"]
+        for option in ("nord", "south", "east", "west"):
+            self.query_one(f"#{option}", Input).value = str(
+                section.get(f"{option}_altitude", "") or "0"
+            )
+
     def action_back(self) -> None:
         self.app.pop_screen()
 
@@ -633,7 +689,20 @@ class ObservatoryHorizonScreen(Screen):
             "east": self.query_one("#east", Input).value.strip(),
             "west": self.query_one("#west", Input).value.strip(),
         }
-        configuration.virtual_horizon_configuration(_app_config(self), horizon)
+        altitudes: dict[str, str] = {}
+        for option, raw in horizon.items():
+            value = _validate_horizon_degrees(raw)
+            if value is None:
+                self.app.notify(
+                    translate(
+                        "Virtual horizon altitudes must be numbers between 0° and 90°."
+                    ),
+                    severity="warning",
+                )
+                return
+            altitudes[option] = str(value)
+        configuration.virtual_horizon_configuration(_app_config(self), altitudes)
+        self.app.pop_screen()
         self.app.pop_screen()
 
 
@@ -677,7 +746,11 @@ class SchedulingRootScreen(Screen):
 
 
 class WeatherScreen(Screen):
-    """Runs ``weather_forecast_report`` off the UI thread into a Rich log."""
+    """Runs ``weather_forecast_report`` off the UI thread into a Rich log.
+
+    The horizon and the temperature unit are choices of this screen only: they
+    shape the report and are not written to the configuration file.
+    """
 
     BINDINGS = [Binding("escape", "back", "Back")]
 
@@ -686,6 +759,24 @@ class WeatherScreen(Screen):
         yield Footer()
         yield Vertical(
             Label(translate("Weather forecast")),
+            Horizontal(
+                Label(translate("Forecast hours -> ")),
+                Input(
+                    value=str(scheduling.DEFAULT_WEATHER_HOURS),
+                    placeholder="",
+                    id="hours",
+                ),
+                classes="input-row",
+            ),
+            Select(
+                (
+                    ("C — Celsius", "C"),
+                    ("F — Fahrenheit", "F"),
+                ),
+                allow_blank=False,
+                value="C",
+                id="unit",
+            ),
             Button(translate("Fetch forecast"), id="run", variant="primary"),
             RichLog(id="log", wrap=True, highlight=True),
             Button(translate("0 - Back"), id="back"),
@@ -703,6 +794,27 @@ class WeatherScreen(Screen):
 
     async def _do_fetch(self) -> None:
         """Load forecast text asynchronously so the worker cannot block repaint."""
+        requested = _clamped_int(
+            self.query_one("#hours", Input).value,
+            scheduling.MIN_WEATHER_HOURS,
+            scheduling.MAX_WEATHER_HOURS,
+        )
+        if requested is None:
+            self.app.notify(translate("You must enter an integer."), severity="warning")
+            return
+        hours, clamped = requested
+        if clamped:
+            self.app.notify(
+                translate(
+                    "The value must be between {low} and {high}; using {value}."
+                ).format(
+                    low=scheduling.MIN_WEATHER_HOURS,
+                    high=scheduling.MAX_WEATHER_HOURS,
+                    value=hours,
+                ),
+                severity="warning",
+            )
+        unit = cast(str, self.query_one("#unit", Select).value)
         log = self.query_one("#log", RichLog)
         btn = self.query_one("#run", Button)
         log.clear()
@@ -711,6 +823,8 @@ class WeatherScreen(Screen):
             report = await asyncio.to_thread(
                 scheduling.weather_forecast_report,
                 _app_config(self),
+                hours,
+                unit,
             )
             log.write(report)
         finally:
@@ -1159,7 +1273,12 @@ class NeocpScreen(Screen):
 
 
 class EphemerisScreen(Screen):
-    """Planetarium-style stepping ephemeris for a named solar-system object."""
+    """Planetarium-style stepping ephemeris for a named solar-system object.
+
+    The number of requested points is prefilled with
+    :data:`~asteroidpy.scheduling.DEFAULT_EPHEMERIS_POINTS` and validated by the
+    scheduling layer, so an unusable count is reported instead of being replaced.
+    """
 
     BINDINGS = [Binding("escape", "back", "Back")]
 
@@ -1191,6 +1310,15 @@ class EphemerisScreen(Screen):
                 id="step",
             ),
             Horizontal(
+                Label(translate("Number of points -> ")),
+                Input(
+                    value=str(scheduling.DEFAULT_EPHEMERIS_POINTS),
+                    placeholder="",
+                    id="points",
+                ),
+                classes="input-row",
+            ),
+            Horizontal(
                 Button(translate("Run"), id="run", variant="primary"),
                 Button(translate("0 - Back"), id="back"),
             ),
@@ -1208,6 +1336,20 @@ class EphemerisScreen(Screen):
 
     async def _do_run(self) -> None:
         """Run blocking ephemeris and push the textual table overlay."""
+        raw_points = self.query_one("#points", Input).value
+        try:
+            points = scheduling.validated_ephemeris_points(raw_points)
+        except ValueError:
+            self.app.notify(
+                translate(
+                    "The number of points must be a whole number between {low} and {high}."
+                ).format(
+                    low=scheduling.MIN_EPHEMERIS_POINTS,
+                    high=scheduling.MAX_EPHEMERIS_POINTS,
+                ),
+                severity="warning",
+            )
+            return
         btn = self.query_one("#run", Button)
         btn.disabled = True
         try:
@@ -1224,6 +1366,7 @@ class EphemerisScreen(Screen):
                 _app_config(self),
                 name,
                 step,
+                points,
             )
             await _push_result_log_modal(self, str(table))
         finally:
@@ -1306,8 +1449,12 @@ class BestNightScreen(Screen):
     """Rank upcoming astronomical nights from the 7Timer forecast.
 
     Combines cloud cover, seeing, transparency and Moon illumination per
-    astronomical (bright-limit) night; precipitation excludes a night. Tuning
-    defaults mirror the ``[Planner]`` INI section (see ``configuration``).
+    astronomical (bright-limit) night; precipitation excludes a night. The number
+    of nights is prefilled with ``[Planner] max_nights`` and clamped to
+    ``[1, _MAX_BEST_NIGHT_NIGHTS]``, the documented input range of this screen: the
+    7Timer ``astro`` series only spans eight days, so a longer request can never
+    return more nights than that. Changing the value here does not rewrite
+    ``[Planner]``; use **Configuration → Planner** for that.
     """
 
     BINDINGS = [Binding("escape", "back", "Back")]
@@ -1317,10 +1464,22 @@ class BestNightScreen(Screen):
         yield Footer()
         yield Vertical(
             Label(translate("Best upcoming night")),
+            Horizontal(
+                Label(translate("Number of nights -> ")),
+                Input(placeholder="", id="nights"),
+                classes="input-row",
+            ),
             Button(translate("Find best night"), id="run", variant="primary"),
             RichLog(id="log", wrap=True, highlight=True),
             Button(translate("0 - Back"), id="back"),
             id="panel",
+        )
+
+    def on_mount(self) -> None:
+        """Prefill the night count with the ``[Planner]`` value for this run."""
+
+        self.query_one("#nights", Input).value = str(
+            _app_config(self)["Planner"].get("max_nights", "")
         )
 
     def action_back(self) -> None:
@@ -1334,6 +1493,20 @@ class BestNightScreen(Screen):
 
     async def _do_run(self) -> None:
         """Compute the ranked night list off the UI thread into the Rich log."""
+        requested = _clamped_int(
+            self.query_one("#nights", Input).value, 1, _MAX_BEST_NIGHT_NIGHTS
+        )
+        if requested is None:
+            self.app.notify(translate("You must enter an integer."), severity="warning")
+            return
+        nights, clamped = requested
+        if clamped:
+            self.app.notify(
+                translate(
+                    "The value must be between {low} and {high}; using {value}."
+                ).format(low=1, high=_MAX_BEST_NIGHT_NIGHTS, value=nights),
+                severity="warning",
+            )
         log = self.query_one("#log", RichLog)
         btn = self.query_one("#run", Button)
         log.clear()
@@ -1342,6 +1515,7 @@ class BestNightScreen(Screen):
             report = await asyncio.to_thread(
                 scheduling.best_nights_report,
                 _app_config(self),
+                nights,
             )
             log.write(report)
         finally:

@@ -16,14 +16,14 @@ configuration helpers.
 Features
 --------
 
-* **Weather Forecast**: Astronomical forecasts (seeing, clouds, transparency) up to 72 hours via 7Timer
+* **Weather Forecast**: Astronomical forecasts (seeing, clouds, transparency) via 7Timer, over a horizon of 6–168 hours (72 by default) and in °C or °F
 * **Observation Scheduling**: Plan observing sessions with target lists
 * **NEOcp Candidates**: List and filter near-Earth object candidates
-* **Object Ephemeris**: Retrieve detailed ephemeris data for any object
+* **Object Ephemeris**: Retrieve detailed ephemeris data for any object, from 1 to 10000 points
 * **Twilight Times**: Calculate civil, nautical, and astronomical twilight
 * **Sun/Moon Ephemeris**: Get sunrise, sunset, moonrise, and moonset times
 * **Best Upcoming Night**: Rank upcoming astronomical nights by observing quality
-* **Virtual Horizon**: Simulate horizon obstructions for visibility calculations
+* **Virtual Horizon**: Simulate horizon obstructions for visibility calculations (0–90° per cardinal direction)
 
 Requirements
 ------------

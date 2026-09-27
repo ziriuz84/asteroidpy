@@ -124,7 +124,9 @@ Key Functions
 Weather:
 
 * :func:`weather_forecast_raw`: Raw 7Timer ``astro`` JSON payload
-* :func:`weather_forecast_report`: Plain-text 7Timer report (used by the TUI)
+* :func:`weather_forecast_report`: Plain-text 7Timer report (used by the TUI), with an optional hour horizon and temperature unit
+* :func:`validated_ephemeris_points`: Check a requested ephemeris point count
+* :func:`weather_temperature`: Render a Celsius value in the requested unit
 * :func:`weather`: Legacy helper that prints the forecast to stdout
 * :func:`weather_time`: Shift a 7Timer ``timeinit`` stamp by ``deltaT`` hours
 
@@ -137,7 +139,7 @@ MPC data:
 * :func:`async_neocp_confirmation`: ``asyncio``-friendly NEOcp fetch for Textual
 * :func:`get_neocp_ephemeris`: Scrape MPC confirmation ephemerides for named NEOcp objects
 * :func:`fetch_neocp_json_and_ephemeris`: Fetch NEOcp JSON and confirm ephemerides in one run
-* :func:`object_ephemeris`: Ephemeris table for a named object
+* :func:`object_ephemeris`: Ephemeris table for a named object, with a validated point count
 
 Time, coordinates and visibility:
 
@@ -166,6 +168,8 @@ Module constants:
 * :data:`DEFAULT_PLANNER_MAX_NIGHTS`: Fallback number of ranked nights
 * :data:`CLOUDCOVER_MIDPOINT_PCT`: 7Timer ``cloudcover`` code to percent midpoint
 * :data:`MPC_WHATSUP_INDEX_URL`: MPC "What's Observable" form endpoint
+* :data:`DEFAULT_EPHEMERIS_POINTS`: Ephemeris points requested by default
+* :data:`DEFAULT_WEATHER_HOURS`: Forecast horizon in hours used by the weather screen
 
 asteroidpy package contents
 ---------------------------
