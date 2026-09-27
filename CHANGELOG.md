@@ -1,3 +1,32 @@
+## [1.4.0](https://github.com/ziriuz84/asteroidpy/releases/tag/v1.4.0) (2026-09-27)
+
+### Added
+
+- feat(planner): rank observing nights by weighted sky conditions ([10c28d9](https://github.com/ziriuz84/asteroidpy/commit/10c28d992aa77713fb91b7cb5da1147ce4bac817))
+
+### Changed
+
+- refactor(planner): split best_nights into single-purpose helpers ([69cd74a](https://github.com/ziriuz84/asteroidpy/commit/69cd74a1e0820209ebebc8266c2d1990f4588150))
+- build(release): enforce the release branch and unify the release scripts ([9acb45f](https://github.com/ziriuz84/asteroidpy/commit/9acb45fc5a61dc76df79f961606f8119e027d6f2))
+- refactor: modernize typing and document the public API ([753b6e8](https://github.com/ziriuz84/asteroidpy/commit/753b6e805dfc3d8b8281b12142a7157ed1956a69))
+- build: require Python 3.11+ and configure the lint and format gates ([d0dae21](https://github.com/ziriuz84/asteroidpy/commit/d0dae219f9df8a485eb59ca710e4347bfd2b68bc))
+
+### Fixed
+
+- fix(planner): reject negative and non-finite weights in the [Planner] section ([0e011cf](https://github.com/ziriuz84/asteroidpy/commit/0e011cf9e3dafb4822af57f26a6ca4ee504de207))
+- fix(planner): skip non-mapping items in the 7Timer forecast series ([42f3c33](https://github.com/ziriuz84/asteroidpy/commit/42f3c3369f432cd05f6657371f91a8fc79b03323))
+
+### Documentation
+
+- docs: declare the use of LLM agents in the contributor guide ([55b2eea](https://github.com/ziriuz84/asteroidpy/commit/55b2eeab8877b73e4e02b69c3023f8f6e0a585b8))
+- docs: document the configuration, the planner and the contributor workflow ([8474e98](https://github.com/ziriuz84/asteroidpy/commit/8474e9891b979cc30abbed17824443290ee1bbfa))
+
+### Chores
+
+- chore(docs): remove obsolete conf.py backup ([345f373](https://github.com/ziriuz84/asteroidpy/commit/345f3737998d28dcdb3c12fb88164b2b7765942e))
+---
+
+
 ## [1.3.2](https://github.com/ziriuz84/asteroidpy/releases/tag/v1.3.2) (2026-05-27)
 
 ### Changed
