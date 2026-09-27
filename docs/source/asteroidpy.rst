@@ -5,7 +5,7 @@ AsteroidPy is organized into several modules, each handling a specific aspect
 of the application:
 
 * :mod:`asteroidpy.configuration`: Configuration management and observatory settings
-* :mod:`asteroidpy.interface`: gettext setup, legacy ``print``/``input`` helpers, Textual screens
+* :mod:`asteroidpy.interface`: gettext setup and the Textual screens
 * :mod:`asteroidpy.scheduling`: Observation scheduling and ephemeris calculations
 * :mod:`asteroidpy.errors`: Typed errors carrying the reason a data source was unusable
 
@@ -66,19 +66,16 @@ asteroidpy.interface module
 
 The ``interface`` package boots GNU gettext from the persisted config and
 launches :func:`interface`, which runs the Textual
-full-screen terminal UI. Legacy ``print``/``input`` helpers remain for scripting
-or tooling.
+full-screen terminal UI.
 
 Layout (private submodules; import only if you extend the UI):
 
-* ``_main`` — :func:`interface` and the legacy
-  :func:`main_menu` text loop
+* ``_main`` — :func:`interface`, the entry point of the Textual app
 * ``_i18n`` — packaged ``locales/`` lookup and :func:`setup_gettext`
 * ``_intl`` — ``translate``, a thin wrapper over the gettext-installed ``builtins._``,
-  and ``observatory_labels``, the localized ``[Observatory]`` labels both frontends pass
+  and ``observatory_labels``, the localized ``[Observatory]`` labels the screens pass
   to :func:`~asteroidpy.configuration.observatory_summary_lines` and
   :func:`~asteroidpy.configuration.print_obs_config`
-* ``_input`` — EOF-safe ``prompt_line`` / ``get_integer`` / ``get_float`` / ``prompt_int_in_range``
 * ``_tui_app`` — root Textual ``App`` subclass and ``style.tcss`` path
 * ``_tui_screens`` — ``Screen`` definitions for menus, forms, and result views
   (refreshes the observatory summary when resuming from child editors, showing
@@ -98,12 +95,7 @@ Key Functions
 ~~~~~~~~~~~~~
 
 * :func:`interface`: Spin up gettext and start the Textual application
-* :func:`main_menu`: Legacy text loop (not invoked by ``interface()`` today)
 * :func:`setup_gettext`: Prime gettext from the active config
-
-Configuration and scheduling legacy menus live in ``interface._config_menus`` and
-``interface._schedule_menus``; import them explicitly if you embed those flows
-outside the default entry point.
 
 asteroidpy.scheduling module
 -----------------------------

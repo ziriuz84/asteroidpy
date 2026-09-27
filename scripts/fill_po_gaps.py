@@ -76,14 +76,6 @@ GAP_STRINGS: dict[str, dict[str, str]] = {
         "fr": "Code MPC",
         "pt": "Código MPC",
     },
-    "Update coordinates? (y/N) -> ": {
-        "en": "",
-        "it": "Aggiornare le coordinate? (s/N) -> ",
-        "de": "Koordinaten aktualisieren? (j/N) -> ",
-        "es": "¿Actualizar las coordenadas? (s/N) -> ",
-        "fr": "Mettre à jour les coordonnées ? (o/N) -> ",
-        "pt": "Atualizar as coordenadas? (s/N) -> ",
-    },
     (
         "Could not fetch observatory coordinates from the MPC "
         "(check the code and your network connection)."
@@ -110,14 +102,6 @@ GAP_STRINGS: dict[str, dict[str, str]] = {
             "(verifique o código e a ligação de rede)."
         ),
     },
-    "End of input (EOF); exiting.": {
-        "en": "",
-        "it": "Fine input (EOF); uscita.",
-        "de": "Ende der Eingabe (EOF); Programm wird beendet.",
-        "es": "Fin de entrada (EOF); saliendo.",
-        "fr": "Fin de saisie (EOF) ; arrêt.",
-        "pt": "Fim da entrada (EOF); a terminar.",
-    },
     "You must enter an integer.": {
         "en": "",
         "it": "Devi inserire un numero intero.",
@@ -133,14 +117,6 @@ GAP_STRINGS: dict[str, dict[str, str]] = {
         "es": "Debe introducir un número.",
         "fr": "Vous devez saisir un nombre.",
         "pt": "Tem de introduzir um número.",
-    },
-    "Enter an integer between {low} and {high}.": {
-        "en": "",
-        "it": "Inserisci un intero tra {low} e {high}.",
-        "de": "Geben Sie eine ganze Zahl zwischen {low} und {high} ein.",
-        "es": "Introduzca un entero entre {low} y {high}.",
-        "fr": "Saisissez un entier entre {low} et {high}.",
-        "pt": "Introduza um inteiro entre {low} e {high}.",
     },
     (
         "Could not load a fresh MPC form token from the What's Observable page; "
