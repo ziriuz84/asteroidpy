@@ -194,13 +194,13 @@ class ConfigurationTests(unittest.TestCase):
             cfg.print_obs_config(self.new_config())
         stdout = buf.getvalue()
 
-        self.assertIn("Località: City", stdout)
-        self.assertIn("Latitudine: ***REDACTED***", stdout)
-        self.assertIn("Longitudine: ***REDACTED***", stdout)
-        self.assertIn("Altitudine: ***REDACTED***", stdout)
-        self.assertIn("Osservatore: John", stdout)
-        self.assertIn("Nome Osservatorio: MainObs", stdout)
-        self.assertIn("Codice MPC: A12", stdout)
+        self.assertIn("Locality: City", stdout)
+        self.assertIn("Latitude: ***REDACTED***", stdout)
+        self.assertIn("Longitude: ***REDACTED***", stdout)
+        self.assertIn("Altitude: ***REDACTED***", stdout)
+        self.assertIn("Observer name: John", stdout)
+        self.assertIn("Observatory name: MainObs", stdout)
+        self.assertIn("MPC code: A12", stdout)
 
     def test_print_obs_config_shows_values_when_show_sensitive_true(self):
         write_config_file(
@@ -221,13 +221,13 @@ class ConfigurationTests(unittest.TestCase):
             cfg.print_obs_config(self.new_config(), show_sensitive=True)
         stdout = buf.getvalue()
 
-        self.assertIn("Località: City", stdout)
-        self.assertIn("Latitudine: 45.0", stdout)
-        self.assertIn("Longitudine: 9.0", stdout)
-        self.assertIn("Altitudine: 100.0", stdout)
-        self.assertIn("Osservatore: John", stdout)
-        self.assertIn("Nome Osservatorio: MainObs", stdout)
-        self.assertIn("Codice MPC: A12", stdout)
+        self.assertIn("Locality: City", stdout)
+        self.assertIn("Latitude: 45.0", stdout)
+        self.assertIn("Longitude: 9.0", stdout)
+        self.assertIn("Altitude: 100.0", stdout)
+        self.assertIn("Observer name: John", stdout)
+        self.assertIn("Observatory name: MainObs", stdout)
+        self.assertIn("MPC code: A12", stdout)
 
     def test_load_config_reads_existing_file(self):
         write_config_file(

@@ -10,7 +10,7 @@ import asteroidpy.configuration as configuration
 
 from ._i18n import get_locale_dir
 from ._input import get_float, get_integer, prompt_int_in_range, prompt_line
-from ._intl import translate
+from ._intl import observatory_labels, translate
 
 
 def change_obs_coords_menu(config: ConfigParser) -> None:
@@ -71,7 +71,7 @@ def observatory_config_menu(config: ConfigParser) -> None:
     while choice != 0:
         print(translate("Configuration -> Observatory"))
         print("==============================\n")
-        configuration.print_obs_config(config)
+        configuration.print_obs_config(config, labels=observatory_labels())
         print_observatory_config_menu()
         choice = prompt_int_in_range(translate("choice -> "), 0, 6)
         print("\n\n\n\n\n")

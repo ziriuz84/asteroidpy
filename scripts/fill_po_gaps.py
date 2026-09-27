@@ -19,6 +19,63 @@ LOCALES = REPO_ROOT / "asteroidpy" / "locales"
 
 # msgid → per-locale msgstr (empty "en" means use msgid unless "en" override is set)
 GAP_STRINGS: dict[str, dict[str, str]] = {
+    # Observatory summary labels (configuration.OBSERVATORY_FIELD_LABELS)
+    "Locality": {
+        "en": "",
+        "it": "Località",
+        "de": "Ort",
+        "es": "Localidad",
+        "fr": "Localité",
+        "pt": "Localidade",
+    },
+    "Latitude": {
+        "en": "",
+        "it": "Latitudine",
+        "de": "Breitengrad",
+        "es": "Latitud",
+        "fr": "Latitude",
+        "pt": "Latitude",
+    },
+    "Longitude": {
+        "en": "",
+        "it": "Longitudine",
+        "de": "Längengrad",
+        "es": "Longitud",
+        "fr": "Longitude",
+        "pt": "Longitude",
+    },
+    "Altitude": {
+        "en": "",
+        "it": "Altitudine",
+        "de": "Höhe",
+        "es": "Altitud",
+        "fr": "Altitude",
+        "pt": "Altitude",
+    },
+    "Observer name": {
+        "en": "",
+        "it": "Nome dell'osservatore",
+        "de": "Name des Beobachters",
+        "es": "Nombre del observador",
+        "fr": "Nom de l'observateur",
+        "pt": "Nome do observador",
+    },
+    "Observatory name": {
+        "en": "",
+        "it": "Nome dell'osservatorio",
+        "de": "Name des Observatoriums",
+        "es": "Nombre del observatorio",
+        "fr": "Nom de l'observatoire",
+        "pt": "Nome do observatório",
+    },
+    "MPC code": {
+        "en": "",
+        "it": "Codice MPC",
+        "de": "MPC-Code",
+        "es": "Código MPC",
+        "fr": "Code MPC",
+        "pt": "Código MPC",
+    },
     "Update coordinates? (y/N) -> ": {
         "en": "",
         "it": "Aggiornare le coordinate? (s/N) -> ",

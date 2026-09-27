@@ -595,3 +595,31 @@ msgstr ""
 #: asteroidpy/interface/_tui_screens.py:1313
 msgid "Find best night"
 msgstr ""
+#: asteroidpy/configuration.py:43
+msgid "Locality"
+msgstr ""
+
+#: asteroidpy/configuration.py:44
+msgid "Latitude"
+msgstr ""
+
+#: asteroidpy/configuration.py:45
+msgid "Longitude"
+msgstr ""
+
+#: asteroidpy/configuration.py:46
+msgid "Altitude"
+msgstr ""
+
+#: asteroidpy/configuration.py:47
+msgid "Observer name"
+msgstr ""
+
+#: asteroidpy/configuration.py:48
+msgid "Observatory name"
+msgstr ""
+
+#: asteroidpy/configuration.py:49
+msgid "MPC code"
+msgstr ""
+
