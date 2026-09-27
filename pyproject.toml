@@ -8,7 +8,7 @@ dynamic = ["version"]
 authors=[{name="Sirio Negri",email="ziriuz84@gmail.com"}]
 description="A tool for asteroid observation scheduling and analysis"
 readme="README.md"
-requires-python=">=3.9"
+requires-python=">=3.11"
 license="GPL-3.0"
 dependencies=[
     "textual>=8.0,<9",
@@ -28,6 +28,12 @@ classifiers=[
 "Operating System :: OS Independent",
 "Operating System :: Microsoft :: Windows",
 "Programming Language :: Python :: 3",
+"Programming Language :: Python :: 3.11",
+"Programming Language :: Python :: 3.12",
+"Programming Language :: Python :: 3.13",
+"Programming Language :: Python :: 3.14",
+"Programming Language :: Python :: 3 :: Only",
+"Topic :: Scientific/Engineering :: Astronomy",
 ]
 license-files=["LICENSE"]
 
@@ -61,7 +67,37 @@ Homepage="https://github.com/ziriuz84/asteroidpy"
 Issues="https://github.com/ziriuz84/asteroidpy/issues"
 
 [tool.black]
-target-version = ["py39"]
+target-version = ["py311"]
+# `docs/` holds Sphinx configuration, which is not black-formatted; the pipeline
+# only checks the shipped package and its tests.
+extend-exclude = '''
+/(
+    docs
+)/
+'''
 
 [tool.isort]
 profile = "black"
+# Respect .gitignore so a local virtualenv inside the repo (e.g. `env/`) is
+# not scanned. Without this, `isort --check .` reports third-party files.
+skip_gitignore = true
+
+[tool.ruff]
+# Match the interpreter floor declared in [project] and [tool.black].
+target-version = "py311"
+line-length = 88
+# `lint.select` is pinned explicitly: ruff's implicit default set widens between
+# releases, which silently broke the Jenkins lint stage when ruff picked up a
+# broader default. Keep this a correctness gate (pycodestyle, pyflakes, bugbear,
+# comprehensions) plus pyupgrade, and leave the rest out:
+#   * naming (N) and complexity (PL/C90/RET/ARG) would need a codebase-wide rewrite;
+#   * import order (I) is owned by isort, which the pipeline runs separately;
+#   * annotation rules (ANN) duplicate what mypy already enforces.
+# `UP` is safe because `requires-python` is >=3.11, so PEP 585/604 always hold.
+lint.select = ["E", "F", "W", "B", "C4", "UP"]
+lint.ignore = [
+    # Black owns formatting and cannot reflow long URLs, string literals or
+    # prose, so E501 would only report what black deliberately left alone.
+    "E501",
+]
+
