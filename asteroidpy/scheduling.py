@@ -22,7 +22,7 @@ import datetime
 import math
 import re
 from configparser import ConfigParser
-from typing import Any, Literal, cast
+from typing import Any, Literal, NamedTuple, cast
 
 import httpx
 import requests
@@ -1371,6 +1371,151 @@ def astronomical_night(config: ConfigParser, date: datetime.date) -> tuple[Time,
     return evening, morning
 
 
+def _forecast_start(init: str) -> datetime.datetime | None:
+    """Parse the 7Timer ``init`` stamp (``YYYYMMDDHHMM``) into a datetime.
+
+    Returns ``None`` when the stamp is missing or malformed, so the caller can
+    report an unusable forecast instead of raising.
+    """
+    try:
+        return datetime.datetime(
+            int(init[0:4]),
+            int(init[4:6]),
+            int(init[6:8]),
+            int(init[8:10]),
+        )
+    except (ValueError, TypeError):
+        return None
+
+
+def _forecast_points(
+    dataseries: Any, time_start: datetime.datetime
+) -> list[tuple[Time, dict[str, Any]]]:
+    """Turn 7Timer timepoints (hours since ``init``) into absolute astropy times.
+
+    Entries that are not mappings, or that carry no usable ``timepoint``, are
+    skipped: 7Timer occasionally returns a partially malformed series and one
+    bad entry must not invalidate the whole forecast.
+    """
+    points: list[tuple[Time, dict[str, Any]]] = []
+    for item in dataseries:
+        if not isinstance(item, dict):
+            continue
+        timepoint = item.get("timepoint")
+        if timepoint is None:
+            continue
+        try:
+            hours = int(timepoint)
+        except (TypeError, ValueError):
+            continue
+        points.append((Time(time_start + datetime.timedelta(hours=hours)), item))
+    return points
+
+
+def _night_windows(
+    config: ConfigParser, first_date: datetime.date, last_date: datetime.date
+) -> list[dict[str, Any]]:
+    """Return the astronomical twilight window of every night in the forecast span.
+
+    Dates whose twilight cannot be resolved are skipped, and inverted windows
+    (polar day or polar night) are dropped because no timepoint can fall in them.
+    """
+    windows: list[dict[str, Any]] = []
+    date = first_date
+    one_day = datetime.timedelta(days=1)
+    while date <= last_date:
+        try:
+            evening, morning = astronomical_night(config, date)
+        except Exception:
+            date += one_day
+            continue
+        if evening < morning:
+            windows.append({"date": date, "start": evening, "end": morning})
+        date += one_day
+    return windows
+
+
+class _NightConditions(NamedTuple):
+    """Forecast values collected from the timepoints falling inside one night."""
+
+    clouds: list[float]
+    seeing: list[int]
+    transparency: list[int]
+    precipitation: bool
+
+
+def _night_conditions(
+    night: dict[str, Any], points: list[tuple[Time, dict[str, Any]]]
+) -> _NightConditions:
+    """Aggregate the forecast codes of every timepoint inside a night window."""
+    clouds: list[float] = []
+    seeing: list[int] = []
+    transparency: list[int] = []
+    precipitation = False
+    for t, item in points:
+        if not (night["start"] <= t < night["end"]):
+            continue
+        cloudcover = item.get("cloudcover")
+        if isinstance(cloudcover, int):
+            clouds.append(CLOUDCOVER_MIDPOINT_PCT.get(cloudcover, float(cloudcover)))
+        seeing_code = item.get("seeing")
+        if isinstance(seeing_code, int):
+            seeing.append(seeing_code)
+        transparency_code = item.get("transparency")
+        if isinstance(transparency_code, int):
+            transparency.append(transparency_code)
+        if str(item.get("prec_type") or "none").lower() in _PRECIPITATION_CODES:
+            precipitation = True
+    return _NightConditions(clouds, seeing, transparency, precipitation)
+
+
+def _night_summary(
+    night: dict[str, Any],
+    points: list[tuple[Time, dict[str, Any]]],
+    observer: Observer,
+) -> dict[str, Any] | None:
+    """Summarize one night window, or ``None`` when the night is not usable.
+
+    A night is discarded when it reports any precipitation, or when no
+    cloud-cover timepoint falls inside the window (the score cannot be computed).
+    """
+    clouds, seeing, transparency, precipitation = _night_conditions(night, points)
+    if not clouds or precipitation:
+        return None
+    middle = night["start"] + (night["end"] - night["start"]) / 2
+    return {
+        "date": night["date"],
+        "start": night["start"],
+        "end": night["end"],
+        "length_h": float((night["end"] - night["start"]).to_value(u.hour)),
+        "avg_cloud_pct": sum(clouds) / len(clouds),
+        "avg_seeing": (sum(seeing) / len(seeing)) if seeing else 6.0,
+        "avg_transparency": (
+            (sum(transparency) / len(transparency)) if transparency else 2.0
+        ),
+        "moon_illum": float(observer.moon_illumination(middle)),
+        "score": 0.0,
+    }
+
+
+def _score_night(entry: dict[str, Any], weights: dict[str, float]) -> None:
+    """Fill in ``entry["score"]`` (0-100, 100 = ideal) from the night conditions.
+
+    Each factor is mapped to a 0-1 quality first, then combined with the
+    ``[Planner]`` weights.
+    """
+    cloud_quality = 1.0 - entry["avg_cloud_pct"] / 100.0
+    seeing_quality = 1.0 - (entry["avg_seeing"] - 1.0) / 7.0
+    transparency_quality = (entry["avg_transparency"] - 1.0) / 7.0
+    moon_quality = 1.0 - entry["moon_illum"]
+    entry["score"] = 100.0 * (
+        weights["cloud"] * cloud_quality
+        + weights["seeing"] * seeing_quality
+        + weights["transparency"] * transparency_quality
+        + weights["moon"] * moon_quality
+    )
+
+
 def best_nights(
     config: ConfigParser, max_nights: int | None = None
 ) -> list[dict[str, Any]]:
@@ -1401,113 +1546,33 @@ def best_nights(
 
     configuration.load_config(config)
     data = weather_forecast_raw(config)
-    dataseries = data.get("dataseries", [])
-    init = data.get("init") or ""
-    try:
-        time_start = datetime.datetime(
-            int(init[0:4]),
-            int(init[4:6]),
-            int(init[6:8]),
-            int(init[8:10]),
-        )
-    except (ValueError, TypeError):
+    time_start = _forecast_start(data.get("init") or "")
+    if time_start is None:
         return []
-
-    points: list[tuple[Time, dict[str, Any]]] = []
-    for item in dataseries:
-        if not isinstance(item, dict):
-            continue
-        timepoint = item.get("timepoint")
-        if timepoint is None:
-            continue
-        try:
-            hours = int(timepoint)
-        except (TypeError, ValueError):
-            continue
-        points.append((Time(time_start + datetime.timedelta(hours=hours)), item))
+    points = _forecast_points(data.get("dataseries", []), time_start)
     if not points:
         return []
 
-    first_date = points[0][0].datetime.date()
-    last_date = points[-1][0].datetime.date()
-    one_day = datetime.timedelta(days=1)
-
-    windows: list[dict[str, Any]] = []
-    date = first_date
-    while date <= last_date:
-        try:
-            evening, morning = astronomical_night(config, date)
-        except Exception:
-            date += one_day
-            continue
-        if evening < morning:
-            windows.append({"date": date, "start": evening, "end": morning})
-        date += one_day
-
-    location = earth_location_from_config(config)
-    observer = Observer(name=config["Observatory"]["obs_name"], location=location)
+    windows = _night_windows(
+        config, points[0][0].datetime.date(), points[-1][0].datetime.date()
+    )
+    observer = Observer(
+        name=config["Observatory"]["obs_name"],
+        location=earth_location_from_config(config),
+    )
 
     results: list[dict[str, Any]] = []
     for night in windows:
-        clouds: list[float] = []
-        seeing: list[int] = []
-        transparency: list[int] = []
-        precipitation = False
-        for t, item in points:
-            if night["start"] <= t and t < night["end"]:
-                cloudcover = item.get("cloudcover")
-                if isinstance(cloudcover, int):
-                    clouds.append(
-                        CLOUDCOVER_MIDPOINT_PCT.get(cloudcover, float(cloudcover))
-                    )
-                seeing_code = item.get("seeing")
-                if isinstance(seeing_code, int):
-                    seeing.append(seeing_code)
-                transparency_code = item.get("transparency")
-                if isinstance(transparency_code, int):
-                    transparency.append(transparency_code)
-                if str(item.get("prec_type") or "none").lower() in _PRECIPITATION_CODES:
-                    precipitation = True
-        if not clouds or precipitation:
-            continue
+        entry = _night_summary(night, points, observer)
+        if entry is not None:
+            results.append(entry)
 
-        middle = night["start"] + (night["end"] - night["start"]) / 2
-        avg_cloud = sum(clouds) / len(clouds)
-        avg_seeing = (sum(seeing) / len(seeing)) if seeing else 6.0
-        avg_transparency = (
-            (sum(transparency) / len(transparency)) if transparency else 2.0
-        )
-        length_h = float((night["end"] - night["start"]).to_value(u.hour))
-        results.append(
-            {
-                "date": night["date"],
-                "start": night["start"],
-                "end": night["end"],
-                "length_h": length_h,
-                "avg_cloud_pct": avg_cloud,
-                "avg_seeing": avg_seeing,
-                "avg_transparency": avg_transparency,
-                "moon_illum": float(observer.moon_illumination(middle)),
-                "score": 0.0,
-            }
-        )
-
-    weights = _planner_settings(config)["weights"]
+    settings = _planner_settings(config)
     for entry in results:
-        cloud_quality = 1.0 - entry["avg_cloud_pct"] / 100.0
-        seeing_quality = 1.0 - (entry["avg_seeing"] - 1.0) / 7.0
-        transparency_quality = (entry["avg_transparency"] - 1.0) / 7.0
-        moon_quality = 1.0 - entry["moon_illum"]
-        entry["score"] = 100.0 * (
-            weights["cloud"] * cloud_quality
-            + weights["seeing"] * seeing_quality
-            + weights["transparency"] * transparency_quality
-            + weights["moon"] * moon_quality
-        )
-
+        _score_night(entry, settings["weights"])
     results.sort(key=lambda entry: entry["score"], reverse=True)
     if max_nights is None:
-        max_nights = _planner_settings(config)["max_nights"]
+        max_nights = settings["max_nights"]
     return results[: max(1, max_nights)]
 
 
