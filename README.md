@@ -224,14 +224,14 @@ e comandi di verifica.
 ### Debito tecnico
 
 - [x] **F1** Schermata Osservatorio: coordinate mostrate in chiaro via `observatory_summary_lines`, etichette di `print_obs_config` passate da gettext e presenti in tutti i cataloghi
-- [ ] **F2** Rimozione del frontend legacy orfano (`_config_menus.py`, `_schedule_menus.py`, `_input.py`), irraggiungibile e già divergente dalla TUI
+- [x] **F2** Rimossi il frontend legacy orfano (`_config_menus.py`, `_schedule_menus.py`, `_input.py`) e `main_menu`, irraggiungibili e già divergenti dalla TUI
 - [ ] **F3** Test della TUI: oggi le 19 schermate non hanno nessun test
 - [ ] **F4** Deduplicazione di `test_configuration.py` e `test_configuration_unittest.py`
 - [ ] **F5** Stage docs e matrix Python 3.11–3.14 nel `Jenkinsfile`
-- [ ] **F6** Rimozione del token CSRF fallback hardcodato in `scheduling.py` e segnalazione esplicita del fallimento
-- [ ] **F7** Parametri mancanti: numero di punti di efemeride, numero di notti, prefill dell'orizzonte virtuale
+- [x] **F6** Rimozione del token CSRF fallback hardcodato in `scheduling.py` e segnalazione esplicita del fallimento
+- [x] **F7** Parametri mancanti: `object_ephemeris(number=…)` con validazione, numero di punti e di notti nelle schermate, ore e unità di temperatura sulla schermata meteo, prefill e validazione 0–90° dell'orizzonte virtuale
 - [ ] **F8** Retry con backoff e gestione tipizzata degli errori di rete
-- [ ] **F9** Editor in-app dei pesi del planner: `[Planner] w_cloud`, `w_seeing`, `w_transparency`, `w_moon` e `max_nights` sono oggi modificabili solo editando l'INI a mano
+- [x] **F9** Editor in-app dei pesi del planner: schermata **Configurazione → Pianificatore** con `max_nights` e i quattro pesi, validazione condivisa con il loader, pesi normalizzati mostrati e anteprima dello score
 
 Ordine di esecuzione suggerito:
 
