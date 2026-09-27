@@ -192,11 +192,51 @@ See [CHANGELOG.md](CHANGELOG.md).
 
 ## TODO
 
-- [ ] NEOcp alert integration
-- [ ] Observation registration
-- [ ] In-app editor for the `[Planner]` best-night weights (currently INI-only)
-- [ ] Build the Sphinx docs in CI (the `Jenkinsfile` has no docs stage, so doc drift goes unnoticed)
-- [ ] A CI matrix that actually exercises every claimed supported Python (3.11–3.14); the `Jenkinsfile` currently runs a single unpinned `python3`
+Le feature mancanti, raggruppate per area. Ogni voce ha un prompt pronto
+all'esecuzione in [`PROMPTS.md`](PROMPTS.md), con contesto, criteri di accettazione
+e comandi di verifica.
+
+### Dati e output
+
+- [ ] **A1** Cache persistente delle risposte di rete con TTL, con cache del token del form MPC e hit/miss/failover distinti
+- [ ] **A2** Export CSV/JSON/testo su file da tutte le schermate tabellari, con percorso esplicito e copia negli appunti
+- [ ] **A3** Modalità offline: fallback su cache, banner di stato e distinzione tra dato fresco, dato in cache ed errore
+
+### Interfaccia a riga di comando
+
+- [ ] **B1** Subcommand `argparse` (`weather`, `neocp`, `ephemeris`, `targets`, `twilight`, `best-night`), `--version`, `--json`, `python -m asteroidpy`
+
+### Watchlist e registro osservazioni
+
+- [ ] **C1** Watchlist oggetti persistente, con aggiunta da ogni tabella dei risultati
+- [ ] **C2** Piani di sessione salvati e ripresi, con collegamento al punteggio meteo della notte
+- [ ] **C3** Registro delle osservazioni ed export nel formato accettato dal MPC
+
+### Grafici
+
+- [ ] **D1** Curva di altitudine nel tempo, sky plot della notte con orizzonte virtuale, barre del punteggio delle notti candidate
+
+### Alert
+
+- [ ] **E1** Alert programmati e persistenti: notifica interna, email SMTP, webhook, con deduplica
+
+### Debito tecnico
+
+- [ ] **F1** La schermata Osservatorio mostra le coordinate come `***REDACTED***`; etichette di `print_obs_config` hardcoded in italiano e non traducibili
+- [ ] **F2** Rimozione del frontend legacy orfano (`_config_menus.py`, `_schedule_menus.py`, `_input.py`), irraggiungibile e già divergente dalla TUI
+- [ ] **F3** Test della TUI: oggi le 19 schermate non hanno nessun test
+- [ ] **F4** Deduplicazione di `test_configuration.py` e `test_configuration_unittest.py`
+- [ ] **F5** Stage docs e matrix Python 3.11–3.14 nel `Jenkinsfile`
+- [ ] **F6** Rimozione del token CSRF fallback hardcodato in `scheduling.py` e segnalazione esplicita del fallimento
+- [ ] **F7** Parametri mancanti: numero di punti di efemeride, numero di notti, prefill dell'orizzonte virtuale
+- [ ] **F8** Retry con backoff e gestione tipizzata degli errori di rete
+- [ ] **F9** Editor in-app dei pesi del planner: `[Planner] w_cloud`, `w_seeing`, `w_transparency`, `w_moon` e `max_nights` sono oggi modificabili solo editando l'INI a mano
+
+Ordine di esecuzione suggerito:
+
+```
+F1 → F9 → F7 → F2 → F6 → A1 → A2 → A3 → B1 → D1 → C1 → C2 → C3 → E1 → F3 → F4 → F5 → F8
+```
 
 ---
 
