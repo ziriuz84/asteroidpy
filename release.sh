@@ -6,6 +6,17 @@
 
 set -e
 
+# The release branch. Single source of truth: the help text, validate_repo and
+# push_changes all read this, so they can no longer drift apart.
+#
+# Why this must be enforced rather than merely suggested: the release commit
+# (version bump + CHANGELOG) is created on whatever branch is checked out, but
+# the push below targets RELEASE_BRANCH. Releasing from any other branch
+# therefore leaves the release commit unpushed while still publishing the tag,
+# so PyPI would receive a release whose version bump never reached the release
+# branch.
+RELEASE_BRANCH="main"
+
 # Colors
 RED='\033[0;31m'
 GREEN='\033[0;32m'
@@ -58,7 +69,8 @@ Options:
   --help           Show this help message
   --dry-run        Show what would be done without making changes
   --no-tag         Create release but don't push the tag
-  --push-only      Only push existing tag (for recovery)
+  --push-only      Only push an existing tag (for recovery)
+  --github-release Only create the GitHub release for the current CHANGELOG entry
 
 Files modified:
   - asteroidpy/version.py (__version__; pyproject.toml reads it via setuptools dynamic)
@@ -66,10 +78,17 @@ Files modified:
   - CHANGELOG.md (new section prepended): built from commits after the tag for the version in version.py prior to bump (vX.Y.Z..HEAD); feat/fix/docs map to Added/Fixed/etc.; merges, chore: release*, __version__ bumps ignored.
 
 Requirements:
-  - git
-  - grep/sed
-  - msgfmt (gettext; optional but recommended so PyPI wheels ship fresh .mo catalogs)
-  - Current branch: main (or development)
+  - git, sed, grep, awk, cat, head, date, tr  (checked up front; missing = abort)
+  - msgfmt (gettext; optional — if absent the script only warns, but PyPI wheels
+    may ship stale .mo catalogs)
+  - gh (GitHub CLI, only for --github-release) — https://cli.github.com,
+    plus a completed 'gh auth login'
+  - Current branch: $RELEASE_BRANCH (enforced; see the note in release.sh)
+  - Clean working tree (no uncommitted changes to tracked files)
+
+preflight_base() runs before the banner and before argument parsing, so a
+missing tool is always reported as such rather than as a later, unrelated
+failure. See preflight_base() and preflight_github().
 
 EOF
 }
@@ -115,7 +134,112 @@ increment_version() {
     echo "$major.$minor.$patch"
 }
 
-# Validate repo is ready for release
+# Assert a required executable is present.
+#
+# Blocking on purpose: every tool below is used to compute or validate the
+# release, so a missing one either aborts the script or, worse, lets it get
+# partway through — after the release commit already exists locally. Missing
+# tools are accumulated instead of aborting on the first, so a bare environment
+# is reported in full rather than fixed one run at a time.
+MISSING_TOOLS=()
+
+require_tool() {
+    local tool=$1
+    local hint=$2
+    if ! command -v "$tool" >/dev/null 2>&1; then
+        MISSING_TOOLS+=("$tool — $hint")
+    fi
+}
+
+# Non-blocking: its absence degrades the result but does not invalidate it.
+require_tool_optional() {
+    local tool=$1
+    local consequence=$2
+    if ! command -v "$tool" >/dev/null 2>&1; then
+        warning "'$tool' not found: $consequence"
+    fi
+}
+
+# Abort with an explicit, complete explanation if anything required is missing.
+assert_no_missing_tools() {
+    if [ "${#MISSING_TOOLS[@]}" -gt 0 ]; then
+        local list=""
+        local entry
+        for entry in "${MISSING_TOOLS[@]}"; do
+            list="$list
+  - $entry"
+        done
+        error "Aborting before making any change: required tool(s) missing from PATH:$list"
+    fi
+}
+
+# Tools every mode needs. Called as the first statement of main(), before the
+# banner and before argument parsing — parsing already calls get_current_version(),
+# which shells out to grep, and print_banner() to cat, so a missing tool has to
+# be reported here rather than as an unrelated failure further down.
+preflight_base() {
+    MISSING_TOOLS=()
+
+    require_tool git "install git; this script also must run inside a git repository"
+    require_tool sed "install GNU sed (e.g. 'apt-get install sed')"
+    require_tool grep "install grep (e.g. 'apt-get install grep')"
+    require_tool awk "install gawk/mawk (e.g. 'apt-get install gawk')"
+
+    # Plain coreutils, used by print_banner(), the changelog builder and the
+    # conventional-commit classifier. Missing on a stripped-down container, and
+    # previously only noticed as a bare "cat: command not found" mid-run.
+    local coreutils_hint="install coreutils (e.g. 'apt-get install coreutils')"
+    require_tool cat "$coreutils_hint"
+    require_tool head "$coreutils_hint"
+    require_tool date "$coreutils_hint"
+    require_tool tr "$coreutils_hint"
+
+    assert_no_missing_tools
+
+    # Optional: the release stays valid, only the compiled catalogs can go stale.
+    require_tool_optional msgfmt "locale catalogs will NOT be recompiled, so the built wheel may ship stale .mo files. Install gettext (e.g. 'apt-get install gettext')."
+}
+
+# Extra tools for --github-release, checked once the mode is known but still
+# before any state is read or written.
+preflight_github() {
+    MISSING_TOOLS=()
+
+    require_tool gh "install the GitHub CLI: https://cli.github.com"
+
+    assert_no_missing_tools
+
+    # Presence is not enough: an unauthenticated gh only fails once the release
+    # notes have been assembled, which is a confusing way to find out.
+    if ! gh auth status >/dev/null 2>&1; then
+        error "The GitHub CLI is installed but not authenticated.
+Run: gh auth login
+(required to check for and create the release)"
+    fi
+}
+
+# Validate the current branch is the release branch.
+# The optional reason is appended to the error, because the consequences of
+# running from the wrong branch differ per mode and a generic message would be
+# misleading in at least one of them.
+validate_branch() {
+    local current_branch
+    current_branch=$(git rev-parse --abbrev-ref HEAD)
+    if [ "$current_branch" != "$RELEASE_BRANCH" ]; then
+        local reason=${1:-"This script creates the release commit on the current branch yet pushes to
+'$RELEASE_BRANCH'. Running it here would publish the tag while leaving the
+version bump and CHANGELOG entry unpushed."}
+        error "Releases must be cut from '$RELEASE_BRANCH', but HEAD is on '$current_branch'.
+$reason
+
+Run:  git checkout $RELEASE_BRANCH
+Then:  git status --short   # must be empty"
+    fi
+}
+
+# Validate repo is ready for release.
+# The optional argument is a mode-specific explanation for the branch rule,
+# forwarded to validate_branch().
 validate_repo() {
     info "Validating repository state..."
     
@@ -124,20 +248,25 @@ validate_repo() {
         error "Not a git repository"
     fi
     
-    # Warn if not on default branch
-    current_branch=$(git rev-parse --abbrev-ref HEAD)
-    if [ "$current_branch" != "main" ] && [ "$current_branch" != "master" ]; then
-        warning "Current branch is '$current_branch' (expected 'main' or 'master')"
-        read -p "Continue anyway? (y/n) " -n 1 -r
-        echo
-        if [[ ! $REPLY =~ ^[Yy]$ ]]; then
-            error "Aborted by user"
-        fi
-    fi
+    # Hard requirement: release from the release branch.
+    #
+    # This is deliberately fatal rather than a y/N prompt. The release commit is
+    # created on whatever branch is checked out, but push_changes() targets
+    # RELEASE_BRANCH, so continuing from another branch would publish the tag
+    # while silently dropping the version bump and CHANGELOG entry from the
+    # remote. That state is not recoverable by re-running this script.
+    validate_branch "${1:-}"
     
-    # Check working tree
-    if ! git diff-index --quiet HEAD --; then
-        error "Working directory has uncommitted changes. Please commit first."
+    # Check working tree.
+    #
+    # `git status --porcelain` rather than `git diff-index --quiet HEAD --`:
+    # diff-index reads the index stat cache and can report a dirty tree that
+    # git status considers clean, blocking a legitimate release. Untracked
+    # files are excluded on purpose — release.sh stages an explicit path list,
+    # so scratch files do not affect the release, but tracked edits do.
+    if [ -n "$(git status --porcelain --untracked-files=no)" ]; then
+        error "Working directory has uncommitted changes. Please commit first.
+Run: git status --short"
     fi
     
     # Check remote
@@ -146,6 +275,88 @@ validate_repo() {
     fi
     
     success "Repository validation passed"
+}
+
+# Read the top released version from the CHANGELOG heading.
+# Matches both shapes update_changelog() emits:
+#   ## [1.2.3](https://.../releases/tag/v1.2.3) (2026-05-27)
+#   ## [1.2.3] (2026-05-27)
+changelog_version() {
+    sed -n 's/^## \[\([^]]*\)\].*/\1/p' CHANGELOG.md | head -1
+}
+
+# Create the GitHub release for the top CHANGELOG entry.
+#
+# The notes are parsed from the *working tree* while the release is attached to
+# a *tag*. Those two only agree if the checkout is the one that produced the
+# tag, which is why this is refused off $RELEASE_BRANCH. Without that, a stale
+# feature branch would silently publish release notes that exist in no commit
+# and in no tag.
+github_release() {
+    local version=$1
+    local dry_run=$2
+
+    if [ ! -f CHANGELOG.md ]; then
+        error "CHANGELOG.md not found"
+    fi
+
+    if [[ ! "$version" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
+        error "Invalid version in CHANGELOG.md: '$version'"
+    fi
+
+    # The notes come from the checked-out tree: refuse to publish them if the
+    # tree carries uncommitted edits, or if version.py disagrees, so the notes
+    # always describe the commit the tag points at.
+    if [ -f asteroidpy/version.py ]; then
+        local py_version
+        py_version=$(get_current_version)
+        if [ -n "$py_version" ] && [ "$py_version" != "$version" ]; then
+            error "CHANGELOG version ($version) does not match asteroidpy/version.py ($py_version)"
+        fi
+    fi
+
+    local notes
+    notes=$(awk -v v="$version" '
+      $0 ~ "^## \\[" v "\\]" { in_section=1; next }
+      in_section && /^## \[/ { exit }
+      in_section && /^---$/ { next }
+      in_section {
+        sub(/---$/, "", $0)
+        if ($0 != "") print
+      }
+    ' CHANGELOG.md)
+
+    if [ -z "${notes//[[:space:]]/}" ]; then
+        error "Release notes for v$version are empty in CHANGELOG.md"
+    fi
+
+    local tag="v$version"
+    if ! git rev-parse "$tag^{commit}" >/dev/null 2>&1; then
+        error "Git tag $tag not found locally. Fetch tags (git fetch --tags) or create it before running this."
+    fi
+
+    # New invariant: the tag must actually be part of the release branch.
+    # This is precisely the invariant a release cut from the wrong branch
+    # violated, and it is the only place it can still be caught.
+    if ! git merge-base --is-ancestor "$tag^{commit}" "$RELEASE_BRANCH"; then
+        error "Tag $tag is not reachable from '$RELEASE_BRANCH'.
+The release commit must be merged into the release branch before the GitHub
+release is created, otherwise the notes would describe a commit that main
+does not contain."
+    fi
+
+    if gh release view "$tag" >/dev/null 2>&1; then
+        error "GitHub release $tag already exists"
+    fi
+
+    if [ "$dry_run" = "true" ]; then
+        info "Would run:"
+        echo "  gh release create $tag --title 'AsteroidPy $version' --notes <CHANGELOG entry>"
+        return 0
+    fi
+
+    gh release create "$tag" --title "AsteroidPy $version" --notes "$notes"
+    success "GitHub release created: $tag"
 }
 
 # Bump version in tracked files
@@ -411,7 +622,7 @@ create_tag() {
     if [ "$dry_run" = "true" ]; then
         echo "Would run:"
         echo "  git tag -a v$version -m 'Release version $version'"
-        echo "  git push origin main v$version"
+        echo "  (pushing is handled by push_changes)"
     else
         # Annotated tag points at release commit (__version__)
         git tag -a "v$version" -m "Release version $version"
@@ -429,12 +640,12 @@ push_changes() {
     
     if [ "$dry_run" = "true" ]; then
         echo "Would run:"
-        echo "  git push origin main"
+        echo "  git push origin $RELEASE_BRANCH"
         if [ "$no_tag" != "true" ]; then
             echo "  git push origin v$version"
         fi
     else
-        git push origin main
+        git push origin "$RELEASE_BRANCH"
         if [ "$no_tag" != "true" ]; then
             git push origin "v$version"
         fi
@@ -444,12 +655,19 @@ push_changes() {
 
 # Main
 main() {
+    # First statement on purpose: argument parsing itself calls
+    # get_current_version(), which shells out to grep, and --github-release calls
+    # git. Verifying the tools before any of that guarantees a missing
+    # dependency is reported as such, instead of as a confusing failure later.
+    preflight_base
+
     print_banner
     
     local new_version=""
     local dry_run=false
     local no_tag=false
     local push_only=false
+    local github_only=false
     
     # Parse arguments
     while [[ $# -gt 0 ]]; do
@@ -470,6 +688,10 @@ main() {
                 push_only=true
                 shift
                 ;;
+            --github-release)
+                github_only=true
+                shift
+                ;;
             --patch|--minor|--major)
                 current_version=$(get_current_version)
                 increment_type=${1#--}
@@ -482,6 +704,29 @@ main() {
                 ;;
         esac
     done
+    
+    # GitHub-release-only mode: the version is whatever the CHANGELOG says, so
+    # it is derived instead of required. Handled before the "no version
+    # specified" check, which would otherwise reject the bare flag.
+    if [ "$github_only" = "true" ]; then
+        preflight_github
+        validate_repo "The release notes are parsed from the working tree while the release is
+attached to a tag, so the two only agree if this checkout is the one that
+produced the tag. Publishing from here would ship notes that exist in no
+commit and in no tag."
+        info "GitHub release mode: skipping version bump, changelog, commit and tag"
+        if [ "$dry_run" = "true" ]; then
+            warning "DRY RUN MODE - no changes will be made"
+        fi
+        local changelog_ver
+        changelog_ver=$(changelog_version)
+        if [ -z "$changelog_ver" ]; then
+            error "Could not parse a release version from CHANGELOG.md"
+        fi
+        info "CHANGELOG version: $changelog_ver"
+        github_release "$changelog_ver" "$dry_run"
+        return 0
+    fi
     
     # Require explicit version (--patch|--minor|--major handled above)
     if [ -z "$new_version" ]; then
@@ -501,9 +746,15 @@ main() {
         warning "DRY RUN MODE - no changes will be made"
     fi
     
-    # Push-only: skip changelog/version steps
+    # Push-only: skip changelog/version steps, but still refuse to push from a
+    # branch other than RELEASE_BRANCH — the recovery path is exactly where a
+    # stray `git push origin main` would do real damage.
     if [ "$push_only" = "true" ]; then
-        info "Push-only mode: skipping validation and updates"
+        info "Push-only mode: skipping version bump, changelog and tag creation"
+        if ! git rev-parse --git-dir > /dev/null 2>&1; then
+            error "Not a git repository"
+        fi
+        validate_branch
         push_changes "$new_version" "$dry_run" "$no_tag"
         success "Tag pushed"
         return 0

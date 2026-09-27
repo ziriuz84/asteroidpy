@@ -5,7 +5,6 @@ from __future__ import annotations
 import os
 import warnings
 from configparser import ConfigParser
-from typing import Dict
 
 import asteroidpy.configuration as configuration
 
@@ -113,7 +112,8 @@ def change_language(config: ConfigParser) -> None:
         elif os.path.exists(po_path):
             warnings.warn(
                 f"Locale '{code}' has a base.po but no compiled base.mo. "
-                "Translation may not be available until compiled."
+                "Translation may not be available until compiled.",
+                stacklevel=2,
             )
 
     native_names = {
@@ -174,8 +174,8 @@ def config_menu(config: ConfigParser) -> None:
             observatory_config_menu(config)
 
 
-def prompt_virtual_horizon_thresholds() -> Dict[str, str]:
-    horizon: Dict[str, str] = {}
+def prompt_virtual_horizon_thresholds() -> dict[str, str]:
+    horizon: dict[str, str] = {}
     horizon["nord"] = prompt_line(translate("Nord Altitude -> "))
     horizon["south"] = prompt_line(translate("South Altitude -> "))
     horizon["east"] = prompt_line(translate("East Altitude -> "))

@@ -1,5 +1,4 @@
 #!/usr/bin/env python3
-# -*- coding: utf-8 -*-
 """AsteroidPy - A tool for asteroid observation scheduling and analysis.
 
 AsteroidPy is a Python application designed to help astronomers schedule

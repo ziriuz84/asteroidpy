@@ -417,7 +417,7 @@ GAP_STRINGS: dict[str, dict[str, str]] = {
         "fr": "Liste des cibles d'observation",
         "pt": "Lista de alvos de observação",
     },
-    "Use observation time \"now\" (UTC)": {
+    'Use observation time "now" (UTC)': {
         "en": "",
         "it": 'Usa orario di osservazione "adesso" (UTC)',
         "de": "Beobachtungszeit „jetzt“ (UTC) verwenden",
@@ -425,7 +425,7 @@ GAP_STRINGS: dict[str, dict[str, str]] = {
         "fr": "Utiliser l'heure d'observation « maintenant » (UTC)",
         "pt": "Usar hora de observação «agora» (UTC)",
     },
-    "Start time (UTC) if not \"now\"": {
+    'Start time (UTC) if not "now"': {
         "en": "",
         "it": 'Orario di inizio (UTC) se non "adesso"',
         "de": "Startzeit (UTC), wenn nicht „jetzt“",
@@ -577,6 +577,30 @@ GAP_STRINGS: dict[str, dict[str, str]] = {
         "fr": "Calculer",
         "pt": "Calcular",
     },
+    "6 - Best night": {
+        "en": "",
+        "it": "6 - Migliore notte",
+        "de": "6 - Beste Nacht",
+        "es": "6 - Mejor noche",
+        "fr": "6 - Meilleure nuit",
+        "pt": "6 - Melhor noite",
+    },
+    "Best upcoming night": {
+        "en": "",
+        "it": "Migliore notte in arrivo",
+        "de": "Beste kommende Nacht",
+        "es": "Mejor noche próxima",
+        "fr": "Meilleure nuit à venir",
+        "pt": "Melhor noite vindoura",
+    },
+    "Find best night": {
+        "en": "",
+        "it": "Trova la notte migliore",
+        "de": "Beste Nacht finden",
+        "es": "Buscar la mejor noche",
+        "fr": "Trouver la meilleure nuit",
+        "pt": "Encontrar a melhor noite",
+    },
 }
 
 
@@ -590,7 +614,9 @@ def _resolve_target(per_lang: dict[str, str], code: str, msgid: str) -> str | No
 
 
 def main() -> None:
-    locale_dirs = sorted(p for p in LOCALES.iterdir() if p.is_dir() and not p.name.startswith("."))
+    locale_dirs = sorted(
+        p for p in LOCALES.iterdir() if p.is_dir() and not p.name.startswith(".")
+    )
     msgfmt_missing_warned = False
     for loc in locale_dirs:
         code = loc.name

@@ -583,3 +583,15 @@ msgstr ""
 #: asteroidpy/interface/_tui_screens.py:973
 msgid "Compute"
 msgstr ""
+
+#: asteroidpy/interface/_tui_screens.py:648
+msgid "6 - Best night"
+msgstr ""
+
+#: asteroidpy/interface/_tui_screens.py:1312
+msgid "Best upcoming night"
+msgstr ""
+
+#: asteroidpy/interface/_tui_screens.py:1313
+msgid "Find best night"
+msgstr ""

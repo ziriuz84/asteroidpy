@@ -2,7 +2,7 @@
 
 ## Supported Versions
 
-Security fixes land on the `main` development branch and are released as tagged versions on GitHub/PyPI. Prefer upgrading to the **latest stable release**.
+Security fixes land on `main`, the release branch, and are published as tagged versions on GitHub/PyPI. Prefer upgrading to the **latest stable release**.
 
 There is no long-term branch matrix: use the newest `v*` tag you can reasonably deploy.
 
@@ -25,4 +25,6 @@ You should receive an initial acknowledgement within a few business days. We wil
 
 ## Scope Notes
 
-AsteroidPy performs network requests to third-party services (e.g. MPC, 7Timer). Treat credentials, API keys, and local config under `~/.asteroidpy` as sensitive.
+AsteroidPy performs network requests to third-party services (e.g. MPC, 7Timer). Treat credentials, API keys, and the local config directory as sensitive.
+
+That config directory is the [`platformdirs`](https://github.com/platformdirs/platformdirs) user config dir for `asteroidpy` — e.g. `~/.config/asteroidpy/` on Linux, `~/Library/Application Support/asteroidpy/` on macOS, `%LOCALAPPDATA%\asteroidpy\` on Windows. It may contain a `.mo`-compiled copy of the very same `CODE_OF_CONDUCT.md` and `SECURITY.md` you are reading. Legacy installs migrated a `~/.asteroidpy` file into that directory on first run, so check both locations when hunting for leaked material.

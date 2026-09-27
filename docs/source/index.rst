@@ -7,10 +7,11 @@ Welcome to AsteroidPy's documentation!
 ======================================
 
 AsteroidPy is a Python command-line application for observing minor planets:
-ephemerides, MPC “What's Observable” payloads, weather (7Timer), NEO Confirmation
-Page views, twilight summaries, and a configurable virtual horizon. The primary
-experience is an interactive terminal UI built with `Textual`_, layered on shared
-gettext and configuration helpers (`~/.asteroidpy`).
+ephemerides, MPC “What's Observable” target lists, weather (7Timer), NEO
+Confirmation Page views, twilight and Sun/Moon summaries, a ranked best-night
+planner, and a configurable virtual horizon. The primary experience is an
+interactive terminal UI built with `Textual`_, layered on shared gettext and
+configuration helpers.
 
 Features
 --------
@@ -21,7 +22,22 @@ Features
 * **Object Ephemeris**: Retrieve detailed ephemeris data for any object
 * **Twilight Times**: Calculate civil, nautical, and astronomical twilight
 * **Sun/Moon Ephemeris**: Get sunrise, sunset, moonrise, and moonset times
+* **Best Upcoming Night**: Rank upcoming astronomical nights by observing quality
 * **Virtual Horizon**: Simulate horizon obstructions for visibility calculations
+
+Requirements
+------------
+
+* **Python** 3.11 or later (supported: 3.11, 3.12, 3.13 and 3.14)
+* **pip** (or another Python package manager)
+
+AsteroidPy runs on Linux, macOS, and Windows. On Windows, use Windows Terminal
+or another modern terminal for the Textual UI.
+
+The 3.11 floor comes from the dependency stack rather than the application code:
+``astropy`` 7 and later require Python 3.11+, and ``platformdirs`` and ``requests``
+require 3.10. Pinning the floor at 3.11 means every supported interpreter resolves
+the same versions of the scientific stack.
 
 Quick Start
 -----------
@@ -30,9 +46,51 @@ Install AsteroidPy::
 
     pip install asteroidpy
 
-Run the application::
+Run the application with the ``asteroidpy`` console script::
 
     asteroidpy
+
+The main menu offers **Configuration** (general settings and observatory
+details) and **Observation scheduling** (weather, target lists, NEOcp,
+ephemeris, twilight, best night).
+
+Configuration
+-------------
+
+Settings live in a single INI file named ``.asteroidpy`` inside the
+application configuration directory returned by
+`platformdirs <https://github.com/platformdirs/platformdirs>`_ — for example
+``~/.config/asteroidpy/`` on Linux, ``~/Library/Application Support/asteroidpy/``
+on macOS, and ``%LOCALAPPDATA%\asteroidpy\`` on Windows. Legacy installs with a
+copy at ``~/.asteroidpy`` are migrated automatically on first run.
+
+The file has three sections:
+
+.. list-table::
+   :header-rows: 1
+   :widths: 22 78
+
+   * - Section
+     - Options
+   * - ``[General]``
+     - ``lang`` — interface language (``en``, ``it``, ``de``, ``fr``, ``es``, ``pt``)
+   * - ``[Planner]``
+     - ``max_nights`` — how many nights the best-night planner ranks;
+       ``w_cloud``, ``w_seeing``, ``w_transparency``, ``w_moon`` — relative
+       weights, normalized to sum to 1. Clouds, seeing, transparency and Moon
+       illumination are the only inputs to the score.
+   * - ``[Observatory]``
+     - ``place``, ``latitude``, ``longitude``, ``altitude`` — site description;
+       ``obs_name``, ``observer_name`` — labels for reports;
+       ``mpc_code`` — MPC observatory code;
+       ``nord_altitude``, ``east_altitude``, ``south_altitude``,
+       ``west_altitude`` — virtual horizon minima in degrees
+
+Missing options are filled from the defaults declared in
+:data:`asteroidpy.configuration.SECTION_DEFAULTS` on every load, so a partial
+or older file stays usable. ``[General] lang``, the ``[Observatory]`` fields and
+the virtual horizon are editable from the in-app **Configuration** menu; the
+``[Planner]`` weights are read from the file only.
 
 Documentation
 -------------

@@ -47,7 +47,7 @@ def config_file_legacy(home: os.PathLike) -> str:
 
 
 def read_config_file(path: os.PathLike) -> str:
-    with open(path, "r", encoding="utf-8") as f:
+    with open(path, encoding="utf-8") as f:
         return f.read()
 
 

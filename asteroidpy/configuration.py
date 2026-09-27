@@ -7,19 +7,11 @@ import math
 import os
 import shutil
 import tempfile
+from collections.abc import Callable, Mapping, MutableMapping
 from configparser import ConfigParser
 from configparser import Error as ConfigParserError
 from pathlib import Path
-from typing import (
-    Callable,
-    Dict,
-    Mapping,
-    MutableMapping,
-    TextIO,
-    Tuple,
-    TypedDict,
-    Union,
-)
+from typing import TextIO, TypedDict
 
 import platformdirs
 from astroquery.mpc import MPC
@@ -39,8 +31,17 @@ class VirtualHorizonDegrees(TypedDict):
     west: str
 
 
-SECTION_DEFAULTS: Dict[str, Dict[str, str]] = {
+#: Default value of every known INI section/option, applied by
+#: :func:`merge_missing_defaults` so partial or older config files stay usable.
+SECTION_DEFAULTS: dict[str, dict[str, str]] = {
     "General": {"lang": "en"},
+    "Planner": {
+        "max_nights": "5",
+        "w_cloud": "0.4",
+        "w_seeing": "0.25",
+        "w_transparency": "0.15",
+        "w_moon": "0.2",
+    },
     "Observatory": {
         "place": "",
         "latitude": "0.0",
@@ -203,6 +204,8 @@ def load_config(config: ConfigParser) -> None:
 
 
 def change_language(config: ConfigParser, lang: str) -> None:
+    """Persist the ``[General] lang`` UI language code (for example ``"it"``)."""
+
     load_config(config)
     config["General"]["lang"] = lang
     save_config(config)
@@ -211,6 +214,8 @@ def change_language(config: ConfigParser, lang: str) -> None:
 def change_obs_coords(
     config: ConfigParser, place: str, lat: float, longitude: float
 ) -> None:
+    """Persist observatory ``place``, ``latitude`` and ``longitude`` (decimal degrees)."""
+
     load_config(config)
     config["Observatory"]["place"] = place
     config["Observatory"]["latitude"] = str(lat)
@@ -219,18 +224,22 @@ def change_obs_coords(
 
 
 def change_obs_altitude(config: ConfigParser, alt: int) -> None:
+    """Persist the observatory ``altitude`` in metres."""
+
     load_config(config)
     config["Observatory"]["altitude"] = str(alt)
     save_config(config)
 
 
 def change_mpc_code(config: ConfigParser, code: str) -> None:
+    """Persist the MPC observatory code used for MPC queries."""
+
     load_config(config)
     config["Observatory"]["mpc_code"] = str(code)
     save_config(config)
 
 
-def get_observatory_coordinates(code: str) -> Tuple[float, float, float, str]:
+def get_observatory_coordinates(code: str) -> tuple[float, float, float, str]:
     """Look up MPC observatory longitude, latitude (deg), nominal altitude (0), and name.
 
     Raises exceptions from astroquery/network or ``ValueError`` for invalid codes.
@@ -250,18 +259,28 @@ def get_observatory_coordinates(code: str) -> Tuple[float, float, float, str]:
 
 
 def change_obs_name(config: ConfigParser, name: str) -> None:
+    """Persist the observatory site name shown in reports and headers."""
+
     load_config(config)
     config["Observatory"]["obs_name"] = str(name)
     save_config(config)
 
 
 def change_observer_name(config: ConfigParser, name: str) -> None:
+    """Persist the observer name shown in reports and headers."""
+
     load_config(config)
     config["Observatory"]["observer_name"] = str(name)
     save_config(config)
 
 
 def print_obs_config(config: ConfigParser, show_sensitive: bool = False) -> None:
+    """Print the ``[Observatory]`` section to stdout.
+
+    Coordinates and altitude are redacted unless *show_sensitive* is true, so
+    the default output is safe to paste into public logs.
+    """
+
     load_config(config)
     if not config.has_section("Observatory"):
         return
@@ -272,9 +291,9 @@ def print_obs_config(config: ConfigParser, show_sensitive: bool = False) -> None
             return
         value = obs[option]
         if show_sensitive or not redact_when_private:
-            print("%s: %s" % (label, value))
+            print(f"{label}: {value}")
         else:
-            print("%s: %s" % (label, "***REDACTED***"))
+            print(f"{label}: ***REDACTED***")
 
     _print_field("place", "Località", redact_when_private=False)
     _print_field("latitude", "Latitudine", redact_when_private=True)
@@ -287,7 +306,7 @@ def print_obs_config(config: ConfigParser, show_sensitive: bool = False) -> None
 
 def virtual_horizon_configuration(
     config: ConfigParser,
-    horizon: Union[Mapping[str, str], VirtualHorizonDegrees],
+    horizon: Mapping[str, str] | VirtualHorizonDegrees,
 ) -> None:
     """Persist virtual horizon minima; ``horizon`` keys map to ``*_altitude`` entries.
 

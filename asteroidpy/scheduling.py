@@ -1,8 +1,28 @@
+"""Observation planning: ephemerides, weather, NEOcp, twilight and night ranking.
+
+Public entry points fall into four groups:
+
+* **Weather** — :func:`weather_forecast_raw` (raw 7Timer ``astro`` payload),
+  :func:`weather_forecast_report` (plain-text report used by the TUI) and the
+  legacy stdout helper :func:`weather`.
+* **MPC data** — :func:`observing_target_list` / :func:`observing_target_list_scraper`
+  for the MPC "What's Observable" table, :func:`neocp_confirmation` for
+  Near-Earth Object candidates, and :func:`object_ephemeris` for named objects.
+* **Time and visibility** — :func:`twilight_times`, :func:`sun_moon_ephemeris`,
+  :func:`is_visible` and the shared :func:`earth_location_from_config` helper.
+* **Best-night planner** — :func:`astronomical_night` (per-night twilight window),
+  :func:`best_nights` (ranked scores) and :func:`best_nights_report`.
+
+Observatory settings and planner weights are read from the configuration
+object via :func:`asteroidpy.configuration.load_config`.
+"""
+
 import asyncio
 import datetime
+import math
 import re
 from configparser import ConfigParser
-from typing import Any, Dict, List, Literal, Tuple, Union, cast
+from typing import Any, Literal, NamedTuple, cast
 
 import httpx
 import requests
@@ -17,8 +37,48 @@ from bs4 import BeautifulSoup
 
 from asteroidpy import configuration
 
+#: 7Timer ``astro`` endpoint queried by the weather and best-night code paths.
 SEVENTIMER_API_URL = "https://www.7timer.info/bin/api.pl"
+
+#: Default HTTP timeout, in seconds, for 7Timer and MPC requests.
 DEFAULT_REQUEST_TIMEOUT_SEC = 30.0
+
+#: Best-night planner weights (fallback when ``[Planner]`` is absent or unreadable).
+DEFAULT_PLANNER_WEIGHTS = {
+    "cloud": 0.4,
+    "seeing": 0.25,
+    "transparency": 0.15,
+    "moon": 0.2,
+}
+
+#: Maximum number of nights to report when ``[Planner] max_nights`` is missing.
+DEFAULT_PLANNER_MAX_NIGHTS = 5
+
+#: Midpoint cloud cover (percent) for each 7Timer ``cloudcover`` code (1 = clear, 9 = overcast).
+CLOUDCOVER_MIDPOINT_PCT = {
+    1: 3.0,
+    2: 12.5,
+    3: 25.0,
+    4: 37.5,
+    5: 50.0,
+    6: 62.5,
+    7: 75.0,
+    8: 87.5,
+    9: 97.0,
+}
+
+# 7Timer ``prec_type`` codes that make a night unsuitable for observation.
+_PRECIPITATION_CODES = {
+    "rain",
+    "snow",
+    "sleet",
+    "fzsnow",
+    "fzra",
+    "tsnow",
+    "tsra",
+    "tsp",
+    "tsleet",
+}
 
 # MPC whats-up HTML table columns (minimum 8 cells per data row).
 MPC_COL_DESIGNATION = 0
@@ -29,6 +89,7 @@ MPC_COL_DEC = 6
 MPC_COL_ALT = 7
 MPC_MIN_COLS = 8
 
+#: MPC "What's Observable" query form endpoint used for target-list POSTs.
 MPC_WHATSUP_INDEX_URL = "https://www.minorplanetcenter.net/whatsup/index"
 
 # Last-resort token if MPC blocks scraping or markup changes (POST may still fail).
@@ -79,7 +140,7 @@ def _scrape_whatsup_authenticity_token() -> str:
     return ""
 
 
-def resolve_whatsup_authenticity_token() -> Tuple[str, bool]:
+def resolve_whatsup_authenticity_token() -> tuple[str, bool]:
     """Return ``(authenticity_token, used_fallback)`` for MPC What's Observable POST."""
 
     scraped = _scrape_whatsup_authenticity_token()
@@ -128,7 +189,7 @@ def mpc_whatsup_table_cell_to_time(timestr: str) -> Time:
                 day,
                 hour,
                 minute,
-                tzinfo=datetime.timezone.utc,
+                tzinfo=datetime.UTC,
             )
         )
 
@@ -229,9 +290,9 @@ def earth_location_from_config(config: ConfigParser) -> EarthLocation:
 
 async def httpx_get(
     url: str,
-    payload: Dict[str, Any],
+    payload: dict[str, Any],
     return_type: Literal["json", "text"],
-) -> Tuple[Union[Dict[str, Any], List[Dict[str, Any]], str], int]:
+) -> tuple[dict[str, Any] | list[dict[str, Any]] | str, int]:
     """Perform an asynchronous HTTP GET request.
 
     Makes an async GET request to the specified URL with the given query
@@ -263,9 +324,7 @@ async def httpx_get(
     except httpx.RequestError:
         # Network/timeouts/unreachable hosts: safe defaults and status 0
         if return_type == "json":
-            return cast(
-                Tuple[Union[Dict[str, Any], List[Dict[str, Any]]], int], ({}, 0)
-            )
+            return cast(tuple[dict[str, Any] | list[dict[str, Any]], int], ({}, 0))
         return ("", 0)
 
     if return_type == "json":
@@ -274,7 +333,7 @@ async def httpx_get(
         except ValueError:
             parsed = {}
         return cast(
-            Tuple[Union[Dict[str, Any], List[Dict[str, Any]]], int],
+            tuple[dict[str, Any] | list[dict[str, Any]], int],
             (parsed, r.status_code),
         )
     else:
@@ -283,9 +342,9 @@ async def httpx_get(
 
 async def httpx_post(
     url: str,
-    payload: Dict[str, Any],
+    payload: dict[str, Any],
     return_type: Literal["json", "text"],
-) -> Tuple[Union[Dict[str, Any], List[Dict[str, Any]], str], int]:
+) -> tuple[dict[str, Any] | list[dict[str, Any]] | str, int]:
     """Perform an asynchronous HTTP POST request.
 
     Makes an async POST request to the specified URL with the given form data
@@ -319,9 +378,7 @@ async def httpx_post(
             )
     except httpx.RequestError:
         if return_type == "json":
-            return cast(
-                Tuple[Union[Dict[str, Any], List[Dict[str, Any]]], int], ({}, 0)
-            )
+            return cast(tuple[dict[str, Any] | list[dict[str, Any]], int], ({}, 0))
         return ("", 0)
 
     if return_type == "json":
@@ -330,7 +387,7 @@ async def httpx_post(
         except ValueError:
             parsed = {}
         return cast(
-            Tuple[Union[Dict[str, Any], List[Dict[str, Any]]], int],
+            tuple[dict[str, Any] | list[dict[str, Any]], int],
             (parsed, r.status_code),
         )
     else:
@@ -370,16 +427,28 @@ def weather_time(time_init: str, deltaT: int) -> str:
     return time.strftime("%d/%m %H:%M")
 
 
-def weather_forecast_report(config: ConfigParser) -> str:
-    """Fetch and format the 7Timer astronomical forecast as plain text.
+def weather_forecast_raw(
+    config: ConfigParser, product: str = "astro"
+) -> dict[str, Any]:
+    """Fetch the 7Timer JSON forecast for the configured observatory.
 
-    Returns user-visible error messages when the HTTP request fails or the body
-    is not JSON; otherwise returns the plaintext rendering of the formatted table.
+    Parameters
+    ----------
+    config : ConfigParser
+        Observatory latitude/longitude under the ``[Observatory]`` section.
+    product : str
+        7Timer product name (default ``"astro"``, the astronomical forecast).
+
+    Returns
+    -------
+    dict
+        Parsed JSON body, or ``{}`` when the request fails, times out, the
+        server returns an error status, or the body is not valid JSON.
     """
 
     configuration.load_config(config)
     lat, long = config["Observatory"]["latitude"], config["Observatory"]["longitude"]
-    payload = {"lon": long, "lat": lat, "product": "astro", "output": "json"}
+    payload = {"lon": long, "lat": lat, "product": product, "output": "json"}
     try:
         r = requests.get(
             SEVENTIMER_API_URL,
@@ -388,10 +457,26 @@ def weather_forecast_report(config: ConfigParser) -> str:
         )
         r.raise_for_status()
         weather_forecast = r.json()
-    except requests.RequestException as exc:
-        return f"Weather forecast request failed ({exc})."
+    except requests.RequestException:
+        return {}
     except ValueError:
-        return "Weather forecast response was not valid JSON."
+        return {}
+    if not isinstance(weather_forecast, dict):
+        return {}
+    return weather_forecast
+
+
+def weather_forecast_report(config: ConfigParser) -> str:
+    """Fetch and format the 7Timer astronomical forecast as plain text.
+
+    Returns a user-visible error message when the HTTP request fails or the body
+    is not valid JSON; otherwise returns the plaintext rendering of the formatted table.
+    """
+
+    configuration.load_config(config)
+    weather_forecast = weather_forecast_raw(config)
+    if not weather_forecast:
+        return "Weather forecast request failed or the response was not valid JSON."
 
     table = QTable(
         [[""], [""], [""], [""], [""], [""], [""], [""], [""]],
@@ -409,7 +494,7 @@ def weather_forecast_report(config: ConfigParser) -> str:
         meta={"name": "Weather forecast"},
     )
 
-    def map_or_na(mapping: Dict[int, str], key: Any) -> str:
+    def map_or_na(mapping: dict[int, str], key: Any) -> str:
         return mapping.get(key, "N/A")
 
     for time in weather_forecast.get("dataseries", []):
@@ -557,9 +642,7 @@ def skycoord_format(coord: str, coordid: str) -> str:
     return coord
 
 
-def is_visible(
-    config: ConfigParser, coord: Union[SkyCoord, List[str]], time: Time
-) -> bool:
+def is_visible(config: ConfigParser, coord: SkyCoord | list[str], time: Time) -> bool:
     """Check if an object is visible above the virtual horizon.
 
     Determines whether an object at the given celestial coordinates is
@@ -627,7 +710,7 @@ def is_visible(
     return in_west and altitude_deg >= west_alt_threshold
 
 
-def observing_target_list_scraper(url: str, payload: Dict[str, Any]) -> List[List[str]]:
+def observing_target_list_scraper(url: str, payload: dict[str, Any]) -> list[list[str]]:
     """Scrape observing target list data from a web page.
 
     Performs an ``application/x-www-form-urlencoded`` POST (same as the MPC
@@ -660,7 +743,7 @@ def observing_target_list_scraper(url: str, payload: Dict[str, Any]) -> List[Lis
     Raises nothing: failures return an empty list.
     """
     # MPC Rails form expects a POST body, not query-string parameters.
-    body: Dict[str, Any] = dict(payload)
+    body: dict[str, Any] = dict(payload)
     if body.get("utf8") == "%E2%9C%93":
         body["utf8"] = "\u2713"
 
@@ -712,7 +795,7 @@ def observing_target_list_scraper(url: str, payload: Dict[str, Any]) -> List[Lis
         return []
 
     # Extract non-empty data rows, skipping header rows
-    data: List[List[str]] = []
+    data: list[list[str]] = []
     for row in target_table.find_all("tr"):
         cells = row.find_all("td")
         if not cells:
@@ -723,7 +806,7 @@ def observing_target_list_scraper(url: str, payload: Dict[str, Any]) -> List[Lis
     return data
 
 
-def observing_target_list(config: ConfigParser, payload: Dict[str, Any]) -> QTable:
+def observing_target_list(config: ConfigParser, payload: dict[str, Any]) -> QTable:
     """Generate an observing target list from the Minor Planet Center.
 
     Queries the MPC website for objects visible from the observatory location
@@ -954,8 +1037,8 @@ async def async_neocp_confirmation(
 
 
 async def get_neocp_ephemeris(
-    config: ConfigParser, object_names: List[str]
-) -> Dict[str, List[str]]:
+    config: ConfigParser, object_names: list[str]
+) -> dict[str, list[str]]:
     """Retrieve ephemeris data for NEOcp objects from the Minor Planet Center.
 
     Queries the MPC confirmation ephemeris service for multiple objects and
@@ -1035,7 +1118,7 @@ async def get_neocp_ephemeris(
 
 async def fetch_neocp_json_and_ephemeris(
     config: ConfigParser,
-) -> Tuple[List[Dict[str, Any]], Dict[str, List[str]], bool]:
+) -> tuple[list[dict[str, Any]], dict[str, list[str]], bool]:
     """Download NEOcp JSON and MPC confirm ephemerides in one event-loop run."""
 
     data_raw, status = await httpx_get(
@@ -1054,7 +1137,7 @@ async def fetch_neocp_json_and_ephemeris(
     return data_raw, response, True
 
 
-def twilight_times(config: ConfigParser) -> Dict[str, Any]:
+def twilight_times(config: ConfigParser) -> dict[str, Any]:
     """Calculate twilight times for the observatory location.
 
     Computes civil, nautical, and astronomical twilight times (both morning
@@ -1100,7 +1183,7 @@ def twilight_times(config: ConfigParser) -> Dict[str, Any]:
     return result
 
 
-def sun_moon_ephemeris(config: ConfigParser) -> Dict[str, Any]:
+def sun_moon_ephemeris(config: ConfigParser) -> dict[str, Any]:
     """Calculate Sun and Moon ephemeris for the observatory location.
 
     Computes sunrise, sunset, moonrise, moonset times and moon illumination
@@ -1184,7 +1267,7 @@ def object_ephemeris(config: ConfigParser, object_name: str, stepping: str) -> Q
     """
     configuration.load_config(config)
     location = earth_location_from_config(config)
-    step: Union[Quantity, str]
+    step: Quantity | str
     if stepping == "m":
         step = 1 * u.minute
     elif stepping == "h":
@@ -1203,3 +1286,330 @@ def object_ephemeris(config: ConfigParser, object_name: str, stepping: str) -> Q
         "Date", "RA", "Dec", "Elongation", "V", "Altitude", "Proper motion", "Direction"
     ]
     return ephemeris
+
+
+def _planner_settings(config: ConfigParser) -> dict[str, Any]:
+    """Return planner tuning from the ``[Planner]`` INI section with hardcoded fallback.
+
+    ``max_nights`` is clamped to at least 1; weights are normalized to sum to 1.
+    Any missing or non-numeric value falls back to :data:`DEFAULT_PLANNER_WEIGHTS`
+    / :data:`DEFAULT_PLANNER_MAX_NIGHTS`.
+
+    Weights must be finite and non-negative: a negative weight would invert a
+    quality factor (a negative ``w_moon`` would reward a brighter Moon) and let
+    the score leave the 0-100 range, so such a value is rejected in favour of
+    its default.
+    """
+
+    if not config.has_section("Planner"):
+        return {
+            "max_nights": DEFAULT_PLANNER_MAX_NIGHTS,
+            "weights": dict(DEFAULT_PLANNER_WEIGHTS),
+        }
+    section = config["Planner"]
+
+    def _float(key: str, default: float) -> float:
+        try:
+            value = float(section.get(key, str(default)))
+        except (TypeError, ValueError):
+            return default
+        if not math.isfinite(value) or value < 0:
+            return default
+        return value
+
+    weights = {
+        "cloud": _float("w_cloud", DEFAULT_PLANNER_WEIGHTS["cloud"]),
+        "seeing": _float("w_seeing", DEFAULT_PLANNER_WEIGHTS["seeing"]),
+        "transparency": _float(
+            "w_transparency", DEFAULT_PLANNER_WEIGHTS["transparency"]
+        ),
+        "moon": _float("w_moon", DEFAULT_PLANNER_WEIGHTS["moon"]),
+    }
+    total = sum(weights.values())
+    if total <= 0:
+        weights = dict(DEFAULT_PLANNER_WEIGHTS)
+        total = 1.0
+    try:
+        max_nights = int(section.get("max_nights", ""))
+        if max_nights < 1:
+            raise ValueError
+    except (ValueError, TypeError):
+        max_nights = DEFAULT_PLANNER_MAX_NIGHTS
+    return {
+        "max_nights": max_nights,
+        "weights": {key: value / total for key, value in weights.items()},
+    }
+
+
+def astronomical_night(config: ConfigParser, date: datetime.date) -> tuple[Time, Time]:
+    """Return ``(evening, morning)`` astronomical twilight for the night of *date*.
+
+    The bright-limit is the evening astronomical twilight after *date* and the
+    end is the following morning's astronomical twilight. Twilight is searched
+    from local solar noon (approximated as ``12:00 - longitude/15`` UTC) so both
+    horizons are resolved for any longitude.
+
+    Returns
+    -------
+    tuple
+        ``(evening, morning)`` astropy :class:`~astropy.time.Time` in UTC.
+    """
+
+    location = earth_location_from_config(config)
+    observer = Observer(name=config["Observatory"]["obs_name"], location=location)
+    try:
+        longitude = float(config["Observatory"]["longitude"])
+    except (KeyError, ValueError):
+        longitude = 0.0
+    solar_noon_hour = 12.0 - longitude / 15.0
+    reference = Time(
+        datetime.datetime(date.year, date.month, date.day)
+        + datetime.timedelta(hours=solar_noon_hour)
+    )
+    evening = observer.twilight_evening_astronomical(reference, which="next")
+    morning = observer.twilight_morning_astronomical(reference, which="next")
+    return evening, morning
+
+
+def _forecast_start(init: str) -> datetime.datetime | None:
+    """Parse the 7Timer ``init`` stamp (``YYYYMMDDHHMM``) into a datetime.
+
+    Returns ``None`` when the stamp is missing or malformed, so the caller can
+    report an unusable forecast instead of raising.
+    """
+    try:
+        return datetime.datetime(
+            int(init[0:4]),
+            int(init[4:6]),
+            int(init[6:8]),
+            int(init[8:10]),
+        )
+    except (ValueError, TypeError):
+        return None
+
+
+def _forecast_points(
+    dataseries: Any, time_start: datetime.datetime
+) -> list[tuple[Time, dict[str, Any]]]:
+    """Turn 7Timer timepoints (hours since ``init``) into absolute astropy times.
+
+    Entries that are not mappings, or that carry no usable ``timepoint``, are
+    skipped: 7Timer occasionally returns a partially malformed series and one
+    bad entry must not invalidate the whole forecast.
+    """
+    points: list[tuple[Time, dict[str, Any]]] = []
+    for item in dataseries:
+        if not isinstance(item, dict):
+            continue
+        timepoint = item.get("timepoint")
+        if timepoint is None:
+            continue
+        try:
+            hours = int(timepoint)
+        except (TypeError, ValueError):
+            continue
+        points.append((Time(time_start + datetime.timedelta(hours=hours)), item))
+    return points
+
+
+def _night_windows(
+    config: ConfigParser, first_date: datetime.date, last_date: datetime.date
+) -> list[dict[str, Any]]:
+    """Return the astronomical twilight window of every night in the forecast span.
+
+    Dates whose twilight cannot be resolved are skipped, and inverted windows
+    (polar day or polar night) are dropped because no timepoint can fall in them.
+    """
+    windows: list[dict[str, Any]] = []
+    date = first_date
+    one_day = datetime.timedelta(days=1)
+    while date <= last_date:
+        try:
+            evening, morning = astronomical_night(config, date)
+        except Exception:
+            date += one_day
+            continue
+        if evening < morning:
+            windows.append({"date": date, "start": evening, "end": morning})
+        date += one_day
+    return windows
+
+
+class _NightConditions(NamedTuple):
+    """Forecast values collected from the timepoints falling inside one night."""
+
+    clouds: list[float]
+    seeing: list[int]
+    transparency: list[int]
+    precipitation: bool
+
+
+def _night_conditions(
+    night: dict[str, Any], points: list[tuple[Time, dict[str, Any]]]
+) -> _NightConditions:
+    """Aggregate the forecast codes of every timepoint inside a night window."""
+    clouds: list[float] = []
+    seeing: list[int] = []
+    transparency: list[int] = []
+    precipitation = False
+    for t, item in points:
+        if not (night["start"] <= t < night["end"]):
+            continue
+        cloudcover = item.get("cloudcover")
+        if isinstance(cloudcover, int):
+            clouds.append(CLOUDCOVER_MIDPOINT_PCT.get(cloudcover, float(cloudcover)))
+        seeing_code = item.get("seeing")
+        if isinstance(seeing_code, int):
+            seeing.append(seeing_code)
+        transparency_code = item.get("transparency")
+        if isinstance(transparency_code, int):
+            transparency.append(transparency_code)
+        if str(item.get("prec_type") or "none").lower() in _PRECIPITATION_CODES:
+            precipitation = True
+    return _NightConditions(clouds, seeing, transparency, precipitation)
+
+
+def _night_summary(
+    night: dict[str, Any],
+    points: list[tuple[Time, dict[str, Any]]],
+    observer: Observer,
+) -> dict[str, Any] | None:
+    """Summarize one night window, or ``None`` when the night is not usable.
+
+    A night is discarded when it reports any precipitation, or when no
+    cloud-cover timepoint falls inside the window (the score cannot be computed).
+    """
+    clouds, seeing, transparency, precipitation = _night_conditions(night, points)
+    if not clouds or precipitation:
+        return None
+    middle = night["start"] + (night["end"] - night["start"]) / 2
+    return {
+        "date": night["date"],
+        "start": night["start"],
+        "end": night["end"],
+        "length_h": float((night["end"] - night["start"]).to_value(u.hour)),
+        "avg_cloud_pct": sum(clouds) / len(clouds),
+        "avg_seeing": (sum(seeing) / len(seeing)) if seeing else 6.0,
+        "avg_transparency": (
+            (sum(transparency) / len(transparency)) if transparency else 2.0
+        ),
+        "moon_illum": float(observer.moon_illumination(middle)),
+        "score": 0.0,
+    }
+
+
+def _score_night(entry: dict[str, Any], weights: dict[str, float]) -> None:
+    """Fill in ``entry["score"]`` (0-100, 100 = ideal) from the night conditions.
+
+    Each factor is mapped to a 0-1 quality first, then combined with the
+    ``[Planner]`` weights.
+    """
+    cloud_quality = 1.0 - entry["avg_cloud_pct"] / 100.0
+    seeing_quality = 1.0 - (entry["avg_seeing"] - 1.0) / 7.0
+    transparency_quality = (entry["avg_transparency"] - 1.0) / 7.0
+    moon_quality = 1.0 - entry["moon_illum"]
+    entry["score"] = 100.0 * (
+        weights["cloud"] * cloud_quality
+        + weights["seeing"] * seeing_quality
+        + weights["transparency"] * transparency_quality
+        + weights["moon"] * moon_quality
+    )
+
+
+def best_nights(
+    config: ConfigParser, max_nights: int | None = None
+) -> list[dict[str, Any]]:
+    """Rank upcoming astronomical nights from the 7Timer astro forecast.
+
+    Each forecast timepoint is assigned to the night whose [evening, morning)
+    astronomical twilight window contains it. Per night, the mean cloud cover
+    (percent), seeing and transparency indices, and the Moon illumination at the
+    middle of the night are combined into a 0–100 score using the ``[Planner]``
+    weights (see ``_planner_settings``).
+
+    Nights containing any precipitation timepoint are discarded.
+
+    Parameters
+    ----------
+    config : ConfigParser
+        Observatory settings and optional ``[Planner]`` tuning.
+    max_nights : int, optional
+        Override ``[Planner] max_nights``; defaults to the configured value.
+
+    Returns
+    -------
+    list of dict
+        Each entry has ``date`` (start date), ``start``/``end`` (astropy Time),
+        ``length_h``, ``avg_cloud_pct``, ``avg_seeing``, ``avg_transparency``,
+        ``moon_illum`` and ``score`` (100 = ideal). Empty when no forecast data.
+    """
+
+    configuration.load_config(config)
+    data = weather_forecast_raw(config)
+    time_start = _forecast_start(data.get("init") or "")
+    if time_start is None:
+        return []
+    points = _forecast_points(data.get("dataseries", []), time_start)
+    if not points:
+        return []
+
+    windows = _night_windows(
+        config, points[0][0].datetime.date(), points[-1][0].datetime.date()
+    )
+    observer = Observer(
+        name=config["Observatory"]["obs_name"],
+        location=earth_location_from_config(config),
+    )
+
+    results: list[dict[str, Any]] = []
+    for night in windows:
+        entry = _night_summary(night, points, observer)
+        if entry is not None:
+            results.append(entry)
+
+    settings = _planner_settings(config)
+    for entry in results:
+        _score_night(entry, settings["weights"])
+    results.sort(key=lambda entry: entry["score"], reverse=True)
+    if max_nights is None:
+        max_nights = settings["max_nights"]
+    return results[: max(1, max_nights)]
+
+
+def best_nights_report(config: ConfigParser, max_nights: int | None = None) -> str:
+    """Render :func:`best_nights` as a plain-text ranking table.
+
+    Returns a short error message when no forecast data is available.
+    """
+
+    settings = _planner_settings(config)
+    if max_nights is None:
+        max_nights = settings["max_nights"]
+    nights = best_nights(config, max_nights)
+    if not nights:
+        return "No weather forecast available."
+
+    lines = ["Best upcoming nights"]
+    for entry in nights:
+        lines.append(
+            f"{entry['date']}  "
+            f"{entry['start'].strftime('%H:%M')} - {entry['end'].strftime('%H:%M')} UTC  "
+            f"{entry['length_h']:>5.1f}h  "
+            f"{entry['avg_cloud_pct']:>5.0f}%  "
+            f"{entry['avg_seeing']:>4.1f}  "
+            f"{entry['avg_transparency']:>5.2f}  "
+            f"{entry['moon_illum']:>4.2f}  "
+            f"{entry['score']:>5.1f}"
+        )
+    labels = "Date  Night (UTC)  Hours  Clouds  Seeing  Transp  Moon  Score".split()
+    lines.insert(1, "  ".join(labels))
+    lines.insert(2, "-" * len(lines[1]))
+    weights = settings["weights"]
+    weights_note = (
+        f"Score weights: clouds {weights['cloud']:.2f}, "
+        f"seeing {weights['seeing']:.2f}, "
+        f"transparency {weights['transparency']:.2f}, "
+        f"moon {weights['moon']:.2f} (higher is better)."
+    )
+    lines.append(weights_note)
+    return "\n".join(lines)
