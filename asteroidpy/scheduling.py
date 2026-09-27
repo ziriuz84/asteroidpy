@@ -17,8 +17,48 @@ from bs4 import BeautifulSoup
 
 from asteroidpy import configuration
 
+#: 7Timer ``astro`` endpoint queried by the weather and best-night code paths.
 SEVENTIMER_API_URL = "https://www.7timer.info/bin/api.pl"
+
+#: Default HTTP timeout, in seconds, for 7Timer and MPC requests.
 DEFAULT_REQUEST_TIMEOUT_SEC = 30.0
+
+#: Best-night planner weights (fallback when ``[Planner]`` is absent or unreadable).
+DEFAULT_PLANNER_WEIGHTS = {
+    "cloud": 0.4,
+    "seeing": 0.25,
+    "transparency": 0.15,
+    "moon": 0.2,
+}
+
+#: Maximum number of nights to report when ``[Planner] max_nights`` is missing.
+DEFAULT_PLANNER_MAX_NIGHTS = 5
+
+#: Midpoint cloud cover (percent) for each 7Timer ``cloudcover`` code (1 = clear, 9 = overcast).
+CLOUDCOVER_MIDPOINT_PCT = {
+    1: 3.0,
+    2: 12.5,
+    3: 25.0,
+    4: 37.5,
+    5: 50.0,
+    6: 62.5,
+    7: 75.0,
+    8: 87.5,
+    9: 97.0,
+}
+
+# 7Timer ``prec_type`` codes that make a night unsuitable for observation.
+_PRECIPITATION_CODES = {
+    "rain",
+    "snow",
+    "sleet",
+    "fzsnow",
+    "fzra",
+    "tsnow",
+    "tsra",
+    "tsp",
+    "tsleet",
+}
 
 # MPC whats-up HTML table columns (minimum 8 cells per data row).
 MPC_COL_DESIGNATION = 0
@@ -370,16 +410,28 @@ def weather_time(time_init: str, deltaT: int) -> str:
     return time.strftime("%d/%m %H:%M")
 
 
-def weather_forecast_report(config: ConfigParser) -> str:
-    """Fetch and format the 7Timer astronomical forecast as plain text.
+def weather_forecast_raw(
+    config: ConfigParser, product: str = "astro"
+) -> dict[str, Any]:
+    """Fetch the 7Timer JSON forecast for the configured observatory.
 
-    Returns user-visible error messages when the HTTP request fails or the body
-    is not JSON; otherwise returns the plaintext rendering of the formatted table.
+    Parameters
+    ----------
+    config : ConfigParser
+        Observatory latitude/longitude under the ``[Observatory]`` section.
+    product : str
+        7Timer product name (default ``"astro"``, the astronomical forecast).
+
+    Returns
+    -------
+    dict
+        Parsed JSON body, or ``{}`` when the request fails, times out, the
+        server returns an error status, or the body is not valid JSON.
     """
 
     configuration.load_config(config)
     lat, long = config["Observatory"]["latitude"], config["Observatory"]["longitude"]
-    payload = {"lon": long, "lat": lat, "product": "astro", "output": "json"}
+    payload = {"lon": long, "lat": lat, "product": product, "output": "json"}
     try:
         r = requests.get(
             SEVENTIMER_API_URL,
@@ -388,10 +440,26 @@ def weather_forecast_report(config: ConfigParser) -> str:
         )
         r.raise_for_status()
         weather_forecast = r.json()
-    except requests.RequestException as exc:
-        return f"Weather forecast request failed ({exc})."
+    except requests.RequestException:
+        return {}
     except ValueError:
-        return "Weather forecast response was not valid JSON."
+        return {}
+    if not isinstance(weather_forecast, dict):
+        return {}
+    return weather_forecast
+
+
+def weather_forecast_report(config: ConfigParser) -> str:
+    """Fetch and format the 7Timer astronomical forecast as plain text.
+
+    Returns a user-visible error message when the HTTP request fails or the body
+    is not valid JSON; otherwise returns the plaintext rendering of the formatted table.
+    """
+
+    configuration.load_config(config)
+    weather_forecast = weather_forecast_raw(config)
+    if not weather_forecast:
+        return "Weather forecast request failed or the response was not valid JSON."
 
     table = QTable(
         [[""], [""], [""], [""], [""], [""], [""], [""], [""]],
@@ -1203,3 +1271,252 @@ def object_ephemeris(config: ConfigParser, object_name: str, stepping: str) -> Q
         "Date", "RA", "Dec", "Elongation", "V", "Altitude", "Proper motion", "Direction"
     ]
     return ephemeris
+
+
+def _planner_settings(config: ConfigParser) -> dict[str, Any]:
+    """Return planner tuning from the ``[Planner]`` INI section with hardcoded fallback.
+
+    ``max_nights`` is clamped to at least 1; weights are normalized to sum to 1.
+    Any missing or non-numeric value falls back to :data:`DEFAULT_PLANNER_WEIGHTS`
+    / :data:`DEFAULT_PLANNER_MAX_NIGHTS`.
+    """
+
+    if not config.has_section("Planner"):
+        return {
+            "max_nights": DEFAULT_PLANNER_MAX_NIGHTS,
+            "weights": dict(DEFAULT_PLANNER_WEIGHTS),
+        }
+    section = config["Planner"]
+
+    def _float(key: str, default: float) -> float:
+        try:
+            return float(section.get(key, str(default)))
+        except (TypeError, ValueError):
+            return default
+
+    weights = {
+        "cloud": _float("w_cloud", DEFAULT_PLANNER_WEIGHTS["cloud"]),
+        "seeing": _float("w_seeing", DEFAULT_PLANNER_WEIGHTS["seeing"]),
+        "transparency": _float(
+            "w_transparency", DEFAULT_PLANNER_WEIGHTS["transparency"]
+        ),
+        "moon": _float("w_moon", DEFAULT_PLANNER_WEIGHTS["moon"]),
+    }
+    total = sum(weights.values())
+    if total <= 0:
+        weights = dict(DEFAULT_PLANNER_WEIGHTS)
+        total = 1.0
+    try:
+        max_nights = int(section.get("max_nights", ""))
+        if max_nights < 1:
+            raise ValueError
+    except (ValueError, TypeError):
+        max_nights = DEFAULT_PLANNER_MAX_NIGHTS
+    return {
+        "max_nights": max_nights,
+        "weights": {key: value / total for key, value in weights.items()},
+    }
+
+
+def astronomical_night(config: ConfigParser, date: datetime.date) -> tuple[Time, Time]:
+    """Return ``(evening, morning)`` astronomical twilight for the night of *date*.
+
+    The bright-limit is the evening astronomical twilight after *date* and the
+    end is the following morning's astronomical twilight. Twilight is searched
+    from local solar noon (approximated as ``12:00 - longitude/15`` UTC) so both
+    horizons are resolved for any longitude.
+
+    Returns
+    -------
+    tuple
+        ``(evening, morning)`` astropy :class:`~astropy.time.Time` in UTC.
+    """
+
+    location = earth_location_from_config(config)
+    observer = Observer(name=config["Observatory"]["obs_name"], location=location)
+    try:
+        longitude = float(config["Observatory"]["longitude"])
+    except (KeyError, ValueError):
+        longitude = 0.0
+    solar_noon_hour = 12.0 - longitude / 15.0
+    reference = Time(
+        datetime.datetime(date.year, date.month, date.day)
+        + datetime.timedelta(hours=solar_noon_hour)
+    )
+    evening = observer.twilight_evening_astronomical(reference, which="next")
+    morning = observer.twilight_morning_astronomical(reference, which="next")
+    return evening, morning
+
+
+def best_nights(
+    config: ConfigParser, max_nights: int | None = None
+) -> list[dict[str, Any]]:
+    """Rank upcoming astronomical nights from the 7Timer astro forecast.
+
+    Each forecast timepoint is assigned to the night whose [evening, morning)
+    astronomical twilight window contains it. Per night, the mean cloud cover
+    (percent), seeing and transparency indices, and the Moon illumination at the
+    middle of the night are combined into a 0–100 score using the ``[Planner]``
+    weights (see ``_planner_settings``).
+
+    Nights containing any precipitation timepoint are discarded.
+
+    Parameters
+    ----------
+    config : ConfigParser
+        Observatory settings and optional ``[Planner]`` tuning.
+    max_nights : int, optional
+        Override ``[Planner] max_nights``; defaults to the configured value.
+
+    Returns
+    -------
+    list of dict
+        Each entry has ``date`` (start date), ``start``/``end`` (astropy Time),
+        ``length_h``, ``avg_cloud_pct``, ``avg_seeing``, ``avg_transparency``,
+        ``moon_illum`` and ``score`` (100 = ideal). Empty when no forecast data.
+    """
+
+    configuration.load_config(config)
+    data = weather_forecast_raw(config)
+    dataseries = data.get("dataseries", [])
+    init = data.get("init") or ""
+    try:
+        time_start = datetime.datetime(
+            int(init[0:4]),
+            int(init[4:6]),
+            int(init[6:8]),
+            int(init[8:10]),
+        )
+    except (ValueError, TypeError):
+        return []
+
+    points: list[tuple[Time, dict[str, Any]]] = []
+    for item in dataseries:
+        try:
+            hours = int(item.get("timepoint"))
+        except (TypeError, ValueError):
+            continue
+        points.append((Time(time_start + datetime.timedelta(hours=hours)), item))
+    if not points:
+        return []
+
+    first_date = points[0][0].datetime.date()
+    last_date = points[-1][0].datetime.date()
+    one_day = datetime.timedelta(days=1)
+
+    windows: list[dict[str, Any]] = []
+    date = first_date
+    while date <= last_date:
+        try:
+            evening, morning = astronomical_night(config, date)
+        except Exception:
+            date += one_day
+            continue
+        if evening < morning:
+            windows.append({"date": date, "start": evening, "end": morning})
+        date += one_day
+
+    location = earth_location_from_config(config)
+    observer = Observer(name=config["Observatory"]["obs_name"], location=location)
+
+    results: list[dict[str, Any]] = []
+    for night in windows:
+        clouds: list[float] = []
+        seeing: list[int] = []
+        transparency: list[int] = []
+        precipitation = False
+        for t, item in points:
+            if night["start"] <= t and t < night["end"]:
+                cloudcover = item.get("cloudcover")
+                if isinstance(cloudcover, int):
+                    clouds.append(
+                        CLOUDCOVER_MIDPOINT_PCT.get(cloudcover, float(cloudcover))
+                    )
+                seeing_code = item.get("seeing")
+                if isinstance(seeing_code, int):
+                    seeing.append(seeing_code)
+                transparency_code = item.get("transparency")
+                if isinstance(transparency_code, int):
+                    transparency.append(transparency_code)
+                if str(item.get("prec_type") or "none").lower() in _PRECIPITATION_CODES:
+                    precipitation = True
+        if not clouds or precipitation:
+            continue
+
+        middle = night["start"] + (night["end"] - night["start"]) / 2
+        avg_cloud = sum(clouds) / len(clouds)
+        avg_seeing = (sum(seeing) / len(seeing)) if seeing else 6.0
+        avg_transparency = (
+            (sum(transparency) / len(transparency)) if transparency else 2.0
+        )
+        length_h = float((night["end"] - night["start"]).to_value(u.hour))
+        results.append(
+            {
+                "date": night["date"],
+                "start": night["start"],
+                "end": night["end"],
+                "length_h": length_h,
+                "avg_cloud_pct": avg_cloud,
+                "avg_seeing": avg_seeing,
+                "avg_transparency": avg_transparency,
+                "moon_illum": float(observer.moon_illumination(middle)),
+                "score": 0.0,
+            }
+        )
+
+    weights = _planner_settings(config)["weights"]
+    for entry in results:
+        cloud_quality = 1.0 - entry["avg_cloud_pct"] / 100.0
+        seeing_quality = 1.0 - (entry["avg_seeing"] - 1.0) / 7.0
+        transparency_quality = (entry["avg_transparency"] - 1.0) / 7.0
+        moon_quality = 1.0 - entry["moon_illum"]
+        entry["score"] = 100.0 * (
+            weights["cloud"] * cloud_quality
+            + weights["seeing"] * seeing_quality
+            + weights["transparency"] * transparency_quality
+            + weights["moon"] * moon_quality
+        )
+
+    results.sort(key=lambda entry: entry["score"], reverse=True)
+    if max_nights is None:
+        max_nights = _planner_settings(config)["max_nights"]
+    return results[: max(1, max_nights)]
+
+
+def best_nights_report(config: ConfigParser, max_nights: int | None = None) -> str:
+    """Render :func:`best_nights` as a plain-text ranking table.
+
+    Returns a short error message when no forecast data is available.
+    """
+
+    settings = _planner_settings(config)
+    if max_nights is None:
+        max_nights = settings["max_nights"]
+    nights = best_nights(config, max_nights)
+    if not nights:
+        return "No weather forecast available."
+
+    lines = ["Best upcoming nights"]
+    for entry in nights:
+        lines.append(
+            f"{entry['date']}  "
+            f"{entry['start'].strftime('%H:%M')} - {entry['end'].strftime('%H:%M')} UTC  "
+            f"{entry['length_h']:>5.1f}h  "
+            f"{entry['avg_cloud_pct']:>5.0f}%  "
+            f"{entry['avg_seeing']:>4.1f}  "
+            f"{entry['avg_transparency']:>5.2f}  "
+            f"{entry['moon_illum']:>4.2f}  "
+            f"{entry['score']:>5.1f}"
+        )
+    labels = "Date  Night (UTC)  Hours  Clouds  Seeing  Transp  Moon  Score".split()
+    lines.insert(1, "  ".join(labels))
+    lines.insert(2, "-" * len(lines[1]))
+    weights = settings["weights"]
+    weights_note = (
+        f"Score weights: clouds {weights['cloud']:.2f}, "
+        f"seeing {weights['seeing']:.2f}, "
+        f"transparency {weights['transparency']:.2f}, "
+        f"moon {weights['moon']:.2f} (higher is better)."
+    )
+    lines.append(weights_note)
+    return "\n".join(lines)

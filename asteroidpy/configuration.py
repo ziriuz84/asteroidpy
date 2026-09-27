@@ -39,8 +39,17 @@ class VirtualHorizonDegrees(TypedDict):
     west: str
 
 
-SECTION_DEFAULTS: Dict[str, Dict[str, str]] = {
+#: Default value of every known INI section/option, applied by
+#: :func:`merge_missing_defaults` so partial or older config files stay usable.
+SECTION_DEFAULTS: dict[str, dict[str, str]] = {
     "General": {"lang": "en"},
+    "Planner": {
+        "max_nights": "5",
+        "w_cloud": "0.4",
+        "w_seeing": "0.25",
+        "w_transparency": "0.15",
+        "w_moon": "0.2",
+    },
     "Observatory": {
         "place": "",
         "latitude": "0.0",

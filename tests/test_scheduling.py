@@ -950,3 +950,246 @@ def test_get_neocp_ephemeris_handles_insufficient_data(monkeypatch, fresh_config
 
     # Should return empty dict because insufficient data is skipped
     assert result == {}
+
+
+class FakeWeatherJsonResponse:
+    """Minimal ``requests.get`` result for ``weather_forecast_raw`` mocks."""
+
+    def __init__(self, payload: Any, status_code: int = 200) -> None:
+        self._payload = payload
+        self.status_code = status_code
+
+    def raise_for_status(self) -> None:
+        if self.status_code >= 400:
+            raise requests.HTTPError(response=None)
+
+    def json(self) -> Any:
+        return self._payload
+
+
+def test_weather_forecast_raw_success(monkeypatch, fresh_config, sch):
+    payload = {"init": "2026092500", "dataseries": [{"timepoint": 3, "cloudcover": 1}]}
+    monkeypatch.setattr(
+        sch.requests,
+        "get",
+        lambda url, params=None, **kwargs: FakeWeatherJsonResponse(payload),
+    )
+    assert sch.weather_forecast_raw(fresh_config) == payload
+
+
+def test_weather_forecast_raw_request_failure(monkeypatch, fresh_config, sch):
+    def boom(url, params=None, **kwargs):
+        raise requests.RequestException("net down")
+
+    monkeypatch.setattr(sch.requests, "get", boom)
+    assert sch.weather_forecast_raw(fresh_config) == {}
+
+
+def test_weather_forecast_raw_non_json(monkeypatch, fresh_config, sch):
+    class NonJsonResponse:
+        def raise_for_status(self) -> None:
+            pass
+
+        def json(self) -> Any:
+            raise ValueError("no json")
+
+    monkeypatch.setattr(
+        sch.requests, "get", lambda url, params=None, **kwargs: NonJsonResponse()
+    )
+    assert sch.weather_forecast_raw(fresh_config) == {}
+
+
+def test_weather_forecast_report_on_empty_raw(monkeypatch, fresh_config, sch):
+    monkeypatch.setattr(sch, "weather_forecast_raw", lambda config, product="astro": {})
+    assert (
+        sch.weather_forecast_report(fresh_config)
+        == "Weather forecast request failed or the response was not valid JSON."
+    )
+
+
+def test_astronomical_night_uses_local_solar_noon(monkeypatch, fresh_config, sch):
+    calls: dict[str, Any] = {}
+
+    class FakeObserver:
+        def __init__(self, name: str, location: Any):
+            self.name = name
+            self.location = location
+
+        def twilight_evening_astronomical(self, t, which="next"):
+            calls["evening_ref"] = t
+            return sch.Time("2026-09-26 17:30:00")
+
+        def twilight_morning_astronomical(self, t, which="next"):
+            calls["morning_ref"] = t
+            return sch.Time("2026-09-27 04:30:00")
+
+    monkeypatch.setattr(sch, "Observer", FakeObserver)
+
+    # fresh_config longitude == 9.0 => local solar noon at 11:24 UTC
+    evening, morning = sch.astronomical_night(
+        fresh_config, sch.datetime.date(2026, 9, 26)
+    )
+    assert str(evening) == "2026-09-26 17:30:00.000"
+    assert str(morning) == "2026-09-27 04:30:00.000"
+    assert calls["evening_ref"].iso.startswith("2026-09-26 11:24")
+    assert calls["morning_ref"].iso.startswith("2026-09-26 11:24")
+
+
+def _planner_three_night_forecast() -> list[dict[str, Any]]:
+    """3-hourly 7Timer-style forecast spanning three nights (26/27 clear, 28 rainy)."""
+
+    def tp(hours: int, cloud: int, seeing: int, transp: int, prec: str = "none"):
+        return {
+            "timepoint": hours,
+            "cloudcover": cloud,
+            "seeing": seeing,
+            "transparency": transp,
+            "prec_type": prec,
+        }
+
+    return [
+        # night of 2026-09-26, window [26 17:30, 27 04:30)
+        tp(18, 1, 1, 8),
+        tp(21, 1, 1, 8),
+        tp(24, 1, 1, 8),
+        tp(27, 1, 1, 8),
+        # daytime 27
+        tp(30, 1, 1, 8),
+        tp(33, 1, 1, 8),
+        tp(36, 1, 1, 8),
+        tp(39, 1, 1, 8),
+        # night of 2026-09-27, window [27 17:30, 28 04:30)
+        tp(42, 5, 4, 4),
+        tp(45, 5, 4, 4),
+        tp(48, 5, 4, 4),
+        tp(51, 5, 4, 4),
+        # daytime 28
+        tp(54, 5, 4, 4),
+        tp(57, 5, 4, 4),
+        tp(60, 5, 4, 4),
+        tp(63, 5, 4, 4),
+        # night of 2026-09-28, window [28 17:30, 29 04:30) -> rainy
+        tp(66, 1, 1, 8, prec="rain"),
+        tp(69, 1, 1, 8, prec="rain"),
+    ]
+
+
+def _planner_mock_fakes(sch):
+    """Return ``(raw, astronomical_night, FakeObserver)`` for the 3-night forecast."""
+
+    def fake_raw(config: ConfigParser, product: str = "astro") -> dict[str, Any]:
+        return {"init": "2026092600", "dataseries": _planner_three_night_forecast()}
+
+    def fake_astronomical_night(config: ConfigParser, date: Any):
+        windows = {
+            sch.datetime.date(2026, 9, 26): (
+                "2026-09-26 17:30:00",
+                "2026-09-27 04:30:00",
+            ),
+            sch.datetime.date(2026, 9, 27): (
+                "2026-09-27 17:30:00",
+                "2026-09-28 04:30:00",
+            ),
+            sch.datetime.date(2026, 9, 28): (
+                "2026-09-28 17:30:00",
+                "2026-09-29 04:30:00",
+            ),
+        }
+        start, end = windows[date]
+        return (sch.Time(start), sch.Time(end))
+
+    class FakeObserver:
+        def __init__(self, name: str, location: Any):
+            self.name = name
+            self.location = location
+
+        def moon_illumination(self, t):
+            return 0.1
+
+    return fake_raw, fake_astronomical_night, FakeObserver
+
+
+def test_best_nights_ranks_nights_and_excludes_precipitation(
+    monkeypatch, fresh_config, sch
+):
+    raw, astro, observer_cls = _planner_mock_fakes(sch)
+    monkeypatch.setattr(sch, "weather_forecast_raw", raw)
+    monkeypatch.setattr(sch, "astronomical_night", astro)
+    monkeypatch.setattr(sch, "Observer", observer_cls)
+
+    nights = sch.best_nights(fresh_config)
+
+    # Rainy night (28) is excluded; clear night ranks above the cloudy one.
+    assert [n["date"] for n in nights] == [
+        sch.datetime.date(2026, 9, 26),
+        sch.datetime.date(2026, 9, 27),
+    ]
+    assert nights[0]["score"] > nights[1]["score"]
+    assert nights[0]["avg_cloud_pct"] == pytest.approx(3.0)
+    assert nights[0]["moon_illum"] == pytest.approx(0.1)
+
+
+def test_best_nights_respects_max_nights_override(monkeypatch, fresh_config, sch):
+    raw, astro, observer_cls = _planner_mock_fakes(sch)
+    monkeypatch.setattr(sch, "weather_forecast_raw", raw)
+    monkeypatch.setattr(sch, "astronomical_night", astro)
+    monkeypatch.setattr(sch, "Observer", observer_cls)
+
+    nights = sch.best_nights(fresh_config, max_nights=1)
+    assert len(nights) == 1
+    assert nights[0]["date"] == sch.datetime.date(2026, 9, 26)
+
+
+def test_best_nights_no_forecast(monkeypatch, fresh_config, sch):
+    monkeypatch.setattr(sch, "weather_forecast_raw", lambda config, product="astro": {})
+    assert sch.best_nights(fresh_config) == []
+    assert "No weather forecast available." in sch.best_nights_report(fresh_config)
+
+
+def test_best_nights_report_renders_ranked_table(monkeypatch, fresh_config, sch):
+    raw, astro, observer_cls = _planner_mock_fakes(sch)
+    monkeypatch.setattr(sch, "weather_forecast_raw", raw)
+    monkeypatch.setattr(sch, "astronomical_night", astro)
+    monkeypatch.setattr(sch, "Observer", observer_cls)
+
+    report = sch.best_nights_report(fresh_config)
+    assert "Best upcoming nights" in report
+    assert "2026-09-26" in report
+    assert "2026-09-27" in report
+    assert "Score weights:" in report
+    # The rainy night must not be listed.
+    assert "2026-09-28" not in report
+
+
+def test_planner_settings_fallback_and_normalization(monkeypatch, fresh_config, sch):
+    settings = sch._planner_settings(fresh_config)
+    assert settings["max_nights"] == sch.DEFAULT_PLANNER_MAX_NIGHTS
+    assert settings["weights"]["cloud"] == pytest.approx(
+        sch.DEFAULT_PLANNER_WEIGHTS["cloud"]
+    )
+    assert sum(settings["weights"].values()) == pytest.approx(1.0)
+
+    fresh_config["Planner"] = {
+        "max_nights": "3",
+        "w_cloud": "1.0",
+        "w_seeing": "1.0",
+        "w_transparency": "1.0",
+        "w_moon": "1.0",
+    }
+    settings = sch._planner_settings(fresh_config)
+    assert settings["max_nights"] == 3
+    assert all(v == pytest.approx(0.25) for v in settings["weights"].values())
+
+    fresh_config["Planner"] = {
+        "max_nights": "0",
+        "w_cloud": "not-a-number",
+        "w_seeing": "2.0",
+        "w_transparency": "1.0",
+        "w_moon": "-1.0",
+    }
+    settings = sch._planner_settings(fresh_config)
+    assert settings["max_nights"] == sch.DEFAULT_PLANNER_MAX_NIGHTS
+    total = sch.DEFAULT_PLANNER_WEIGHTS["cloud"] + 2.0 + 1.0 - 1.0
+    assert settings["weights"]["cloud"] == pytest.approx(
+        sch.DEFAULT_PLANNER_WEIGHTS["cloud"] / total
+    )

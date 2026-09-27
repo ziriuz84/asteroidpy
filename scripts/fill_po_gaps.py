@@ -577,6 +577,30 @@ GAP_STRINGS: dict[str, dict[str, str]] = {
         "fr": "Calculer",
         "pt": "Calcular",
     },
+    "6 - Best night": {
+        "en": "",
+        "it": "6 - Migliore notte",
+        "de": "6 - Beste Nacht",
+        "es": "6 - Mejor noche",
+        "fr": "6 - Meilleure nuit",
+        "pt": "6 - Melhor noite",
+    },
+    "Best upcoming night": {
+        "en": "",
+        "it": "Migliore notte in arrivo",
+        "de": "Beste kommende Nacht",
+        "es": "Mejor noche próxima",
+        "fr": "Meilleure nuit à venir",
+        "pt": "Melhor noite vindoura",
+    },
+    "Find best night": {
+        "en": "",
+        "it": "Trova la notte migliore",
+        "de": "Beste Nacht finden",
+        "es": "Buscar la mejor noche",
+        "fr": "Trouver la meilleure nuit",
+        "pt": "Encontrar a melhor noite",
+    },
 }
 
 

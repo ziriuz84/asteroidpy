@@ -645,6 +645,7 @@ class SchedulingRootScreen(Screen):
             Button(translate("3 - NEOcp list"), id="neocp"),
             Button(translate("4 - Object Ephemeris"), id="eph"),
             Button(translate("5 - Twilight Times"), id="twilight"),
+            Button(translate("6 - Best night"), id="best", variant="primary"),
             Button(translate("0 - Back to main menu"), id="back"),
             id="panel",
         )
@@ -659,6 +660,7 @@ class SchedulingRootScreen(Screen):
             "neocp": NeocpScreen,
             "eph": EphemerisScreen,
             "twilight": TwilightScreen,
+            "best": BestNightScreen,
         }
         bid = event.button.id or ""
         if bid == "back":
@@ -1289,5 +1291,51 @@ class TwilightScreen(Screen):
                 translate("Moon illumination: {f}").format(f=ephemeris["MoonIll"]),
             ]
             log.write("\n".join(lines))
+        finally:
+            btn.disabled = False
+
+
+class BestNightScreen(Screen):
+    """Rank upcoming astronomical nights from the 7Timer forecast.
+
+    Combines cloud cover, seeing, transparency and Moon illumination per
+    astronomical (bright-limit) night; precipitation excludes a night. Tuning
+    defaults mirror the ``[Planner]`` INI section (see ``configuration``).
+    """
+
+    BINDINGS = [Binding("escape", "back", "Back")]
+
+    def compose(self) -> Any:
+        yield Header()
+        yield Footer()
+        yield Vertical(
+            Label(translate("Best upcoming night")),
+            Button(translate("Find best night"), id="run", variant="primary"),
+            RichLog(id="log", wrap=True, highlight=True),
+            Button(translate("0 - Back"), id="back"),
+            id="panel",
+        )
+
+    def action_back(self) -> None:
+        self.app.pop_screen()
+
+    async def on_button_pressed(self, event: Button.Pressed) -> None:
+        if event.button.id == "back":
+            self.app.pop_screen()
+        elif event.button.id == "run":
+            await self._do_run()
+
+    async def _do_run(self) -> None:
+        """Compute the ranked night list off the UI thread into the Rich log."""
+        log = self.query_one("#log", RichLog)
+        btn = self.query_one("#run", Button)
+        log.clear()
+        btn.disabled = True
+        try:
+            report = await asyncio.to_thread(
+                scheduling.best_nights_report,
+                _app_config(self),
+            )
+            log.write(report)
         finally:
             btn.disabled = False

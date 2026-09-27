@@ -662,5 +662,17 @@ msgstr ""
 "O número máximo de objetos deve estar entre {low} e {high}; valor usado: "
 "{value}."
 
+#: asteroidpy/interface/_tui_screens.py:648
+msgid "6 - Best night"
+msgstr "6 - Melhor noite"
+
+#: asteroidpy/interface/_tui_screens.py:1312
+msgid "Best upcoming night"
+msgstr "Melhor noite vindoura"
+
+#: asteroidpy/interface/_tui_screens.py:1313
+msgid "Find best night"
+msgstr "Encontrar a melhor noite"
+
 #~ msgid "Work in Progress"
 #~ msgstr "Trabalho em andamento"
