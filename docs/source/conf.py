@@ -1,3 +1,6 @@
+# isort: skip_file
+# Import order here is deliberate: `sys.path` must include the repository root
+# before `asteroidpy.version` is imported below.
 # -*- coding: utf-8 -*-
 #
 # Configuration file for the Sphinx documentation builder.
@@ -83,6 +86,10 @@ extensions = [
     'sphinx.ext.napoleon',
 ]
 
+# Report broken cross-references as warnings, and allow known-unresolvable
+# targets via nitpick_ignore below.
+nitpicky = True
+
 # Add any paths that contain templates here, relative to this directory.
 templates_path = ['_templates']
 
@@ -127,6 +134,7 @@ html_theme = 'alabaster'
 # Add any paths that contain custom static files (such as style sheets) here,
 # relative to this directory. They are copied after the builtin static files,
 # so a file named "default.css" will overwrite the builtin "default.css".
+# The directory is kept in git (with a .gitkeep) so this path stays valid.
 html_static_path = ['_static']
 
 # Custom sidebar templates, must be a dictionary that maps document names
@@ -216,12 +224,21 @@ epub_title = project
 epub_exclude_files = ['search.html']
 
 
-# -- Extension configuration -------------------------------------------------
-
 # -- Options for intersphinx extension ---------------------------------------
 
-# Third-party/runtime types appear in Napoleon sections but deps are mocked for autodoc.
+# Example configuration for intersphinx: refer to the Python standard library.
+intersphinx_mapping = {
+    'python': ('https://docs.python.org/3', None),
+}
+
+# -- Cross-reference resolution ----------------------------------------------
+
+# Third-party types are mocked for autodoc (see autodoc_mock_imports), so they
+# have no inventory to link against. Napoleon also emits a bare ``optional``
+# cross-reference for ``int, optional`` parameter types.
 nitpick_ignore = [
+    ('py:class', 'optional'),
+    ('py:class', 'astropy.time.Time'),
     ('py:class', 'ConfigParser'),
     ('py:class', 'SkyCoord'),
     ('py:class', 'Time'),
@@ -239,11 +256,6 @@ nitpick_ignore = [
     ('py:class', 'Union'),
     ('py:class', 'Any'),
 ]
-
-# Example configuration for intersphinx: refer to the Python standard library.
-intersphinx_mapping = {
-    'python': ('https://docs.python.org/3', None),
-}
 
 # -- Options for todo extension ----------------------------------------------
 
