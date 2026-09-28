@@ -16,14 +16,14 @@ configuration helpers.
 Features
 --------
 
-* **Weather Forecast**: Astronomical forecasts (seeing, clouds, transparency) up to 72 hours via 7Timer
+* **Weather Forecast**: Astronomical forecasts (seeing, clouds, transparency) via 7Timer, over a horizon of 6–168 hours (72 by default) and in °C or °F
 * **Observation Scheduling**: Plan observing sessions with target lists
 * **NEOcp Candidates**: List and filter near-Earth object candidates
-* **Object Ephemeris**: Retrieve detailed ephemeris data for any object
+* **Object Ephemeris**: Retrieve detailed ephemeris data for any object, from 1 to 10000 points
 * **Twilight Times**: Calculate civil, nautical, and astronomical twilight
 * **Sun/Moon Ephemeris**: Get sunrise, sunset, moonrise, and moonset times
 * **Best Upcoming Night**: Rank upcoming astronomical nights by observing quality
-* **Virtual Horizon**: Simulate horizon obstructions for visibility calculations
+* **Virtual Horizon**: Simulate horizon obstructions for visibility calculations (0–90° per cardinal direction)
 
 Requirements
 ------------
@@ -53,6 +53,40 @@ Run the application with the ``asteroidpy`` console script::
 The main menu offers **Configuration** (general settings and observatory
 details) and **Observation scheduling** (weather, target lists, NEOcp,
 ephemeris, twilight, best night).
+
+.. _keyboard-navigation:
+
+Keyboard Navigation
+-------------------
+
+Every screen is fully drivable from the keyboard; the mouse is optional.
+
+.. list-table::
+   :header-rows: 1
+   :widths: 22 78
+
+   * - Key
+     - Action
+   * - ``Up`` / ``Down``
+     - Move the focus to the previous/next widget, exactly like
+       ``Shift+Tab`` / ``Tab``
+   * - ``Tab`` / ``Shift+Tab``
+     - Move the focus forward/backward
+   * - ``0``-``9``
+     - Activate the menu entry carrying that number in its label (e.g.
+       ``1 - Configuration``, ``0 - Back to main menu``)
+   * - ``Escape``
+     - Go back to the previous screen
+   * - ``Ctrl+Q``
+     - Quit, from the main menu
+
+The numbers are always visible in the button labels, so the shortcut for a
+screen is readable without leaving it. A digit with no matching entry — or one
+whose entry is disabled while a background query runs — is simply ignored.
+
+Arrow keys also work while filling in a form, and typing digits into a text
+field is never intercepted: input widgets consume printable characters before
+the shortcut is considered.
 
 Configuration
 -------------
@@ -88,9 +122,11 @@ The file has three sections:
 
 Missing options are filled from the defaults declared in
 :data:`asteroidpy.configuration.SECTION_DEFAULTS` on every load, so a partial
-or older file stays usable. ``[General] lang``, the ``[Observatory]`` fields and
-the virtual horizon are editable from the in-app **Configuration** menu; the
-``[Planner]`` weights are read from the file only.
+or older file stays usable. Every section is editable from the in-app
+**Configuration** menu, ``[Planner]`` included: the planner screen validates the
+weights with the same rules as the loader, shows the values that will really be
+applied (the weights divided by their sum) and previews the score of the next few
+nights without saving.
 
 Documentation
 -------------

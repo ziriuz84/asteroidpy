@@ -123,7 +123,7 @@ it is welcome, never a reason to hold back an otherwise good patch.
 ```
 asteroidpy/
 ├── __init__.py       # Entry point; loads config, launches interface
-├── interface/        # Textual TUI, gettext setup (legacy menu helpers retained)
+├── interface/        # Textual TUI and gettext setup
 ├── scheduling.py     # Ephemerides, weather, NEOcp, twilight, best-night planner
 ├── configuration.py  # Observatory config, horizon, language, planner weights
 └── locales/          # gettext translations (en, it, de, fr, es, pt), shipped in PyPI wheels

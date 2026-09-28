@@ -14,13 +14,22 @@ Behaviour notes for maintainers:
 * **MPC What's Observable** — :class:`ObservingTargetListScreen` clamps numeric
   form fields to safe ranges before building the POST payload (see module-level
   ``_MPC_*`` constants).
+* **Planner editor** — :class:`PlannerSettingsScreen` validates the ``[Planner]``
+  fields with the same parsers the loader uses
+  (:func:`~asteroidpy.scheduling.parse_planner_weights`,
+  :func:`~asteroidpy.scheduling.parse_planner_max_nights`), shows the weights as
+  they will really be applied and previews the score of a few nights without
+  saving.
 """
 
 from __future__ import annotations
 
 import asyncio
 import datetime
+import math
 import os
+import re
+from collections.abc import Mapping, Sequence
 from configparser import ConfigParser
 from typing import Any, cast
 
@@ -43,10 +52,87 @@ from textual.worker import WorkerFailed
 
 import asteroidpy.configuration as configuration
 import asteroidpy.scheduling as scheduling
+from asteroidpy.errors import DataSourceError
 from asteroidpy.version import __version__
 
 from ._i18n import get_locale_dir, setup_gettext
 from ._intl import observatory_labels, translate
+
+#: Number of nights ranked by the planner editor preview, to keep it quick.
+PLANNER_PREVIEW_NIGHTS = 3
+
+#: Translatable explanation of each :class:`~asteroidpy.scheduling.PlannerValueError`
+#: reason, so the editor never has to build an English sentence itself.
+PLANNER_ERROR_MESSAGES: dict[str, str] = {
+    "not_a_number": "Planner weights must be numbers.",
+    "not_an_integer": "The number of nights must be a whole number.",
+    "out_of_range": (
+        "Planner weights must be zero or greater, and the number of nights "
+        "at least 1."
+    ),
+    "zero_sum": "At least one planner weight must be greater than zero.",
+}
+
+#: Translatable name of each best-night scoring factor, shown next to its value.
+PLANNER_FACTOR_LABELS: dict[str, str] = {
+    "cloud": "Cloud cover",
+    "seeing": "Seeing",
+    "transparency": "Transparency",
+    "moon": "Moon",
+}
+
+#: Translatable explanation of each
+#: :class:`~asteroidpy.errors.DataSourceError` reason raised while scraping the
+#: MPC What's Observable form, so the user learns what to try next.
+WHATSUP_ERROR_LABELS: dict[str, str] = {
+    "http_status": "unexpected page",
+    "network_error": "page unreachable",
+    "token_not_found": "no form token in the page",
+}
+
+
+def _planner_error_message(reason: str) -> str:
+    """Return the translated text explaining a planner validation *reason*."""
+
+    fallback = PLANNER_ERROR_MESSAGES["out_of_range"]
+    return translate(PLANNER_ERROR_MESSAGES.get(reason, fallback))
+
+
+def _planner_weight_labels(weights: Mapping[str, float]) -> list[str]:
+    """Render normalized planner weights as ``label value`` lines for the editor.
+
+    *weights* maps each scoring factor to its value; factors keep the order of
+    :data:`PLANNER_FACTOR_LABELS` so the user can match the preview to the fields.
+    """
+
+    return [
+        f"{translate(PLANNER_FACTOR_LABELS.get(factor, factor))}: {weight:.3f}"
+        for factor, weight in weights.items()
+    ]
+
+
+def _planner_preview_lines(
+    nights: Sequence[Mapping[str, Any]], weights: Mapping[str, float]
+) -> list[str]:
+    """Render the planner editor preview: weights in use, then the best nights.
+
+    *nights* is a :func:`~asteroidpy.scheduling.best_nights` result, kept short by
+    the caller. Free of widgets so it can be tested directly.
+    """
+
+    lines = [translate("Weights used for the score:"), *_planner_weight_labels(weights)]
+    if not nights:
+        lines.append(translate("No weather forecast available."))
+        return lines
+    lines.append("")
+    lines.append(translate("Best nights with these weights:"))
+    for rank, night in enumerate(nights, start=1):
+        lines.append(
+            f"{rank}. {night['date']}  "
+            f"{night['start'].strftime('%H:%M')} - {night['end'].strftime('%H:%M')} UTC  "
+            f"{translate('score')} {night['score']:.1f}"
+        )
+    return lines
 
 
 def _app_config(screen: Screen) -> ConfigParser:
@@ -99,6 +185,47 @@ _MPC_MIN_ALT_DEG_MAX = 90
 _MPC_MAX_OBJECTS_MIN = 1
 _MPC_MAX_OBJECTS_MAX = 1000
 
+#: Lowest and highest virtual-horizon altitude, in degrees above the horizon.
+_HORIZON_DEG_MIN = 0.0
+_HORIZON_DEG_MAX = 90.0
+
+#: Highest number of nights the best-night screen ranks: the 7Timer ``astro``
+#: series spans eight days, so anything longer can only return empty tail.
+_MAX_BEST_NIGHT_NIGHTS = 30
+
+
+def _clamped_int(raw: str, low: int, high: int) -> tuple[int, bool] | None:
+    """Return ``(value, clamped)`` for *raw* forced into ``[low, high]``.
+
+    ``None`` when *raw* is not a whole number, so the caller can tell a typo (which
+    is rejected) from a value merely out of range (which is adjusted and reported,
+    as :class:`ObservingTargetListScreen` does for the MPC form).
+    """
+
+    try:
+        value = int(raw.strip())
+    except (AttributeError, TypeError, ValueError):
+        return None
+    clamped = value < low or value > high
+    return max(low, min(value, high)), clamped
+
+
+def _validate_horizon_degrees(raw: str) -> float | None:
+    """Return *raw* as a virtual-horizon altitude, or ``None`` when unusable.
+
+    Altitudes are degrees above the horizon, so anything outside
+    ``[_HORIZON_DEG_MIN, _HORIZON_DEG_MAX]`` or not a number is refused instead of
+    being clamped: a typo here would silently hide or fake part of the sky.
+    """
+
+    try:
+        value = float(raw.strip())
+    except (AttributeError, TypeError, ValueError):
+        return None
+    if not math.isfinite(value) or not _HORIZON_DEG_MIN <= value <= _HORIZON_DEG_MAX:
+        return None
+    return value
+
 
 def _collect_language_codes_and_catalog_warnings() -> tuple[list[str], list[str]]:
     """Return installed UI language codes plus optional catalog backlog messages.
@@ -147,7 +274,50 @@ def _collect_language_codes_and_catalog_warnings() -> tuple[list[str], list[str]
     return available_langs, backlog
 
 
-class MainMenuScreen(Screen):
+class MenuScreen(Screen):
+    """Common base for every screen: adds arrow-key and digit-key navigation.
+
+    On top of Textual's built-in ``Tab``/``Shift+Tab`` focus cycling and mouse
+    clicks, this lets the same menus be driven with the keyboard alone:
+
+    * ``Up``/``Down`` move focus like ``Shift+Tab``/``Tab`` (they reuse the same
+      ``app.focus_previous``/``app.focus_next`` actions Textual already binds to
+      Tab, so behaviour stays identical). ``Input`` fields do not bind these keys,
+      so arrow navigation also works while editing a form.
+    * Digits ``0``-``9`` press the :class:`~textual.widgets.Button` whose label
+      starts with ``"<digit> - "`` (e.g. ``translate("1 - Configuration")``),
+      mirroring the numbers already shown in every menu label. Screens without a
+      button for a given digit simply ignore that key. ``Input`` widgets consume
+      printable characters (digits included) before these bindings are ever
+      checked, so typing numbers into a form field is unaffected.
+
+    Subclasses keep adding their own ``BINDINGS`` (``escape`` to go back, etc.);
+    Textual merges ``BINDINGS`` across the whole class hierarchy, so nothing here
+    needs to be repeated per screen.
+    """
+
+    BINDINGS = [
+        Binding("up", "app.focus_previous", "Focus previous", show=False),
+        Binding("down", "app.focus_next", "Focus next", show=False),
+        *(
+            Binding(str(digit), f"press_numbered('{digit}')", show=False)
+            for digit in range(10)
+        ),
+    ]
+
+    def action_press_numbered(self, digit: str) -> None:
+        """Press the visible, enabled button labelled ``"<digit> - ..."``, if any."""
+
+        pattern = re.compile(rf"^{re.escape(digit)}(?!\d)\s*-")
+        for button in self.query(Button):
+            if button.disabled or not button.display:
+                continue
+            if pattern.match(str(button.label)):
+                button.press()
+                return
+
+
+class MainMenuScreen(MenuScreen):
     """Top-level menu: configuration, scheduling, or exit."""
 
     BINDINGS = [Binding("ctrl+q", "quit", "Quit")]
@@ -178,8 +348,8 @@ class MainMenuScreen(Screen):
             self.app.exit()
 
 
-class ConfigRootScreen(Screen):
-    """Configuration branch: general options or observatory details."""
+class ConfigRootScreen(MenuScreen):
+    """Configuration branch: general options, planner tuning or observatory details."""
 
     BINDINGS = [Binding("escape", "back", "Back")]
 
@@ -190,6 +360,7 @@ class ConfigRootScreen(Screen):
             Label(translate("Configuration")),
             Button(translate("1 - General"), id="general"),
             Button(translate("2 - Observatory"), id="obs"),
+            Button(translate("3 - Planner"), id="planner"),
             Button(translate("0 - Back to main menu"), id="back"),
             id="panel",
         )
@@ -202,11 +373,13 @@ class ConfigRootScreen(Screen):
             self.app.push_screen(GeneralConfigScreen())
         elif event.button.id == "obs":
             self.app.push_screen(ObservatoryScreen())
+        elif event.button.id == "planner":
+            self.app.push_screen(PlannerSettingsScreen())
         elif event.button.id == "back":
             self.app.pop_screen()
 
 
-class GeneralConfigScreen(Screen):
+class GeneralConfigScreen(MenuScreen):
     """General settings submenu (currently language selection)."""
 
     BINDINGS = [Binding("escape", "back", "Back")]
@@ -231,7 +404,7 @@ class GeneralConfigScreen(Screen):
             self.app.pop_screen()
 
 
-class LanguageScreen(Screen):
+class LanguageScreen(MenuScreen):
     """Pick UI language from installed gettext catalogs and refresh gettext.
 
     On mount, surfaces one notification per locale directory that has ``base.po`` but
@@ -290,7 +463,7 @@ class LanguageScreen(Screen):
             _refresh_main_menu_after_locale(self)
 
 
-class ObservatoryScreen(Screen):
+class ObservatoryScreen(MenuScreen):
     """Read-only observatory summary plus shortcuts to editable fields.
 
     The summary text is recomputed when the screen mounts and whenever it becomes
@@ -347,7 +520,7 @@ class ObservatoryScreen(Screen):
             self.app.push_screen(pushed[bid]())
 
 
-class ObservatoryCoordsScreen(Screen):
+class ObservatoryCoordsScreen(MenuScreen):
     """Edit locality name and latitude/longitude in the config.
 
     Fields load existing ``Observatory`` values on mount so partial edits do not blank untouched keys.
@@ -414,7 +587,7 @@ class ObservatoryCoordsScreen(Screen):
         self.app.pop_screen()
 
 
-class ObservatoryAltitudeScreen(Screen):
+class ObservatoryAltitudeScreen(MenuScreen):
     """Set observatory altitude (meters) as an integer."""
 
     BINDINGS = [Binding("escape", "back", "Back")]
@@ -454,7 +627,7 @@ class ObservatoryAltitudeScreen(Screen):
         self.app.pop_screen()
 
 
-class ObservatoryObserverScreen(Screen):
+class ObservatoryObserverScreen(MenuScreen):
     """Change the observer name stored in configuration."""
 
     BINDINGS = [Binding("escape", "back", "Back")]
@@ -490,7 +663,7 @@ class ObservatoryObserverScreen(Screen):
         self.app.pop_screen()
 
 
-class ObservatoryObservatoryNameScreen(Screen):
+class ObservatoryObservatoryNameScreen(MenuScreen):
     """Rename the observatory/site string in configuration."""
 
     BINDINGS = [Binding("escape", "back", "Back")]
@@ -526,7 +699,7 @@ class ObservatoryObservatoryNameScreen(Screen):
         self.app.pop_screen()
 
 
-class ObservatoryMpcScreen(Screen):
+class ObservatoryMpcScreen(MenuScreen):
     """Assign MPC observatory code; optionally pull coords/name from MPC data."""
 
     BINDINGS = [Binding("escape", "back", "Back")]
@@ -581,8 +754,13 @@ class ObservatoryMpcScreen(Screen):
         self.app.pop_screen()
 
 
-class ObservatoryHorizonScreen(Screen):
-    """Configure cardinal virtual-horizon strings (north/south/east/west)."""
+class ObservatoryHorizonScreen(MenuScreen):
+    """Configure cardinal virtual-horizon strings (north/south/east/west).
+
+    Fields are prefilled with the stored altitudes (or ``0`` for an option missing
+    from the INI file) and validated on save: each direction must be a number
+    between 0° and 90°.
+    """
 
     BINDINGS = [Binding("escape", "back", "Back")]
 
@@ -618,6 +796,15 @@ class ObservatoryHorizonScreen(Screen):
             id="panel",
         )
 
+    def on_mount(self) -> None:
+        """Prefill the four directions from the ``[Observatory]`` section."""
+
+        section = _app_config(self)["Observatory"]
+        for option in ("nord", "south", "east", "west"):
+            self.query_one(f"#{option}", Input).value = str(
+                section.get(f"{option}_altitude", "") or "0"
+            )
+
     def action_back(self) -> None:
         self.app.pop_screen()
 
@@ -633,11 +820,185 @@ class ObservatoryHorizonScreen(Screen):
             "east": self.query_one("#east", Input).value.strip(),
             "west": self.query_one("#west", Input).value.strip(),
         }
-        configuration.virtual_horizon_configuration(_app_config(self), horizon)
+        altitudes: dict[str, str] = {}
+        for option, raw in horizon.items():
+            value = _validate_horizon_degrees(raw)
+            if value is None:
+                self.app.notify(
+                    translate(
+                        "Virtual horizon altitudes must be numbers between 0° and 90°."
+                    ),
+                    severity="warning",
+                )
+                return
+            altitudes[option] = str(value)
+        configuration.virtual_horizon_configuration(_app_config(self), altitudes)
         self.app.pop_screen()
 
 
-class SchedulingRootScreen(Screen):
+class PlannerSettingsScreen(MenuScreen):
+    """Edit the ``[Planner]`` best-night weights and how many nights are ranked.
+
+    Fields are prefilled with the stored values, falling back to the built-in
+    defaults for options missing from the INI file. The same parsers the loader
+    uses (:func:`~asteroidpy.scheduling.parse_planner_weights`,
+    :func:`~asteroidpy.scheduling.parse_planner_max_nights`) validate the input, so
+    an unusable value is refused with a translated message instead of being
+    quietly replaced by a default, and the weights that will really be applied (the
+    inputs divided by their sum) are shown under the fields.
+    """
+
+    BINDINGS = [Binding("escape", "back", "Back")]
+
+    def compose(self) -> Any:
+        yield Header()
+        yield Footer()
+        yield ScrollableContainer(
+            Vertical(
+                Label(translate("Configuration -> Planner")),
+                Label(
+                    translate("Weights are relative: they are normalized to sum to 1.")
+                ),
+                Horizontal(
+                    Label(translate("Number of nights to rank -> ")),
+                    Input(placeholder=">=1", id="max_nights"),
+                    classes="input-row",
+                ),
+                Horizontal(
+                    Label(translate("Cloud cover weight -> ")),
+                    Input(placeholder=">=0", id="w_cloud"),
+                    classes="input-row",
+                ),
+                Horizontal(
+                    Label(translate("Seeing weight -> ")),
+                    Input(placeholder=">=0", id="w_seeing"),
+                    classes="input-row",
+                ),
+                Horizontal(
+                    Label(translate("Transparency weight -> ")),
+                    Input(placeholder=">=0", id="w_transparency"),
+                    classes="input-row",
+                ),
+                Horizontal(
+                    Label(translate("Moon weight -> ")),
+                    Input(placeholder=">=0", id="w_moon"),
+                    classes="input-row",
+                ),
+                Static("", id="summary"),
+                Horizontal(
+                    Button(translate("Preview score"), id="preview"),
+                    Button(translate("Save"), id="save", variant="primary"),
+                    Button(translate("Cancel"), id="cancel"),
+                ),
+                RichLog(id="log", wrap=True, highlight=True),
+                id="inner",
+            ),
+            id="panel",
+        )
+
+    def on_mount(self) -> None:
+        """Prefill the fields from the ``[Planner]`` section and show the weights."""
+
+        config = _app_config(self)
+        configuration.load_config(config)
+        section = config["Planner"]
+        self.query_one("#max_nights", Input).value = str(section.get("max_nights", ""))
+        for option in scheduling.PLANNER_WEIGHT_OPTIONS.values():
+            self.query_one(f"#{option}", Input).value = str(section.get(option, ""))
+        self._refresh_summary()
+
+    def on_input_changed(self, event: Input.Changed) -> None:
+        """Keep the applied-weights summary in sync with the fields."""
+
+        self._refresh_summary()
+
+    def action_back(self) -> None:
+        self.app.pop_screen()
+
+    async def on_button_pressed(self, event: Button.Pressed) -> None:
+        bid = event.button.id or ""
+        if bid == "cancel":
+            self.app.pop_screen()
+        elif bid == "save":
+            self._save()
+        elif bid == "preview":
+            await self._preview()
+
+    def _planner_values(self) -> tuple[int, dict[str, float], dict[str, float]]:
+        """Return ``(max_nights, entered weights, applied weights)`` from the fields.
+
+        Raises
+        ------
+        scheduling.PlannerValueError
+            If any field is unusable, carrying the reason and the offending options.
+        """
+
+        entered_raw = {
+            option: self.query_one(f"#{option}", Input).value.strip()
+            for option in scheduling.PLANNER_WEIGHT_OPTIONS.values()
+        }
+        max_nights = scheduling.parse_planner_max_nights(
+            self.query_one("#max_nights", Input).value.strip()
+        )
+        applied = scheduling.parse_planner_weights(entered_raw)
+        entered = {
+            factor: float(entered_raw[option])
+            for factor, option in scheduling.PLANNER_WEIGHT_OPTIONS.items()
+        }
+        return max_nights, entered, applied
+
+    def _refresh_summary(self) -> None:
+        """Show the weights the planner applies, or why the fields cannot be used."""
+
+        summary = self.query_one("#summary", Static)
+        try:
+            _max_nights, _entered, applied = self._planner_values()
+        except scheduling.PlannerValueError as exc:
+            summary.update(_planner_error_message(exc.reason))
+            return
+        summary.update(
+            translate("Weights used by the planner (normalized):\n{weights}").format(
+                weights="\n".join(_planner_weight_labels(applied))
+            )
+        )
+
+    def _save(self) -> None:
+        """Validate and persist the ``[Planner]`` section, keeping the screen on error."""
+
+        try:
+            max_nights, entered, _applied = self._planner_values()
+        except scheduling.PlannerValueError as exc:
+            self.app.notify(_planner_error_message(exc.reason), severity="warning")
+            return
+        configuration.change_planner_weights(_app_config(self), max_nights, entered)
+        self.app.pop_screen()
+
+    async def _preview(self) -> None:
+        """Rank a few nights with the weights in the fields, without saving them."""
+
+        try:
+            _max_nights, _entered, applied = self._planner_values()
+        except scheduling.PlannerValueError as exc:
+            self.app.notify(_planner_error_message(exc.reason), severity="warning")
+            return
+        log = self.query_one("#log", RichLog)
+        button = self.query_one("#preview", Button)
+        log.clear()
+        button.disabled = True
+        try:
+            nights = await asyncio.to_thread(
+                scheduling.best_nights,
+                _app_config(self),
+                PLANNER_PREVIEW_NIGHTS,
+                applied,
+            )
+            for line in _planner_preview_lines(nights, applied):
+                log.write(line)
+        finally:
+            button.disabled = False
+
+
+class SchedulingRootScreen(MenuScreen):
     """Hub for forecasting, MPC lists, ephemerides, twilight and best-night planning."""
 
     BINDINGS = [Binding("escape", "back", "Back")]
@@ -676,8 +1037,12 @@ class SchedulingRootScreen(Screen):
             self.app.push_screen(pushed[bid]())
 
 
-class WeatherScreen(Screen):
-    """Runs ``weather_forecast_report`` off the UI thread into a Rich log."""
+class WeatherScreen(MenuScreen):
+    """Runs ``weather_forecast_report`` off the UI thread into a Rich log.
+
+    The horizon and the temperature unit are choices of this screen only: they
+    shape the report and are not written to the configuration file.
+    """
 
     BINDINGS = [Binding("escape", "back", "Back")]
 
@@ -686,6 +1051,24 @@ class WeatherScreen(Screen):
         yield Footer()
         yield Vertical(
             Label(translate("Weather forecast")),
+            Horizontal(
+                Label(translate("Forecast hours -> ")),
+                Input(
+                    value=str(scheduling.DEFAULT_WEATHER_HOURS),
+                    placeholder="",
+                    id="hours",
+                ),
+                classes="input-row",
+            ),
+            Select(
+                (
+                    ("C — Celsius", "C"),
+                    ("F — Fahrenheit", "F"),
+                ),
+                allow_blank=False,
+                value="C",
+                id="unit",
+            ),
             Button(translate("Fetch forecast"), id="run", variant="primary"),
             RichLog(id="log", wrap=True, highlight=True),
             Button(translate("0 - Back"), id="back"),
@@ -703,6 +1086,27 @@ class WeatherScreen(Screen):
 
     async def _do_fetch(self) -> None:
         """Load forecast text asynchronously so the worker cannot block repaint."""
+        requested = _clamped_int(
+            self.query_one("#hours", Input).value,
+            scheduling.MIN_WEATHER_HOURS,
+            scheduling.MAX_WEATHER_HOURS,
+        )
+        if requested is None:
+            self.app.notify(translate("You must enter an integer."), severity="warning")
+            return
+        hours, clamped = requested
+        if clamped:
+            self.app.notify(
+                translate(
+                    "The value must be between {low} and {high}; using {value}."
+                ).format(
+                    low=scheduling.MIN_WEATHER_HOURS,
+                    high=scheduling.MAX_WEATHER_HOURS,
+                    value=hours,
+                ),
+                severity="warning",
+            )
+        unit = cast(str, self.query_one("#unit", Select).value)
         log = self.query_one("#log", RichLog)
         btn = self.query_one("#run", Button)
         log.clear()
@@ -711,13 +1115,15 @@ class WeatherScreen(Screen):
             report = await asyncio.to_thread(
                 scheduling.weather_forecast_report,
                 _app_config(self),
+                hours,
+                unit,
             )
             log.write(report)
         finally:
             btn.disabled = False
 
 
-class ObservingTargetListScreen(Screen):
+class ObservingTargetListScreen(MenuScreen):
     """What's Observable-style form with scrollable fields and MPC POST payload.
 
     Integer fields are clamped to documented ranges (module ``_MPC_*`` constants) before
@@ -822,17 +1228,24 @@ class ObservingTargetListScreen(Screen):
         btn = self.query_one("#run", Button)
         btn.disabled = True
         try:
-            authenticity_token, used_fallback = await asyncio.to_thread(
-                scheduling.resolve_whatsup_authenticity_token
-            )
-            if used_fallback:
+            try:
+                authenticity_token = await asyncio.to_thread(
+                    scheduling.resolve_whatsup_authenticity_token
+                )
+            except DataSourceError as error:
+                # No embedded token to fall back on: say why and stop, instead of
+                # posting a form the MPC is bound to reject.
                 self.app.notify(
                     translate(
-                        "Could not load a fresh MPC form token from the What's Observable page; "
-                        "using an embedded fallback. The request might fail."
+                        "The {source} page could not be used ({reason}); try again later."
+                    ).format(
+                        source=scheduling.MPC_WHATSUP_SOURCE,
+                        reason=translate(WHATSUP_ERROR_LABELS.get(error.reason, ""))
+                        or error.reason,
                     ),
-                    severity="warning",
+                    severity="error",
                 )
+                return
 
             coordinates = await asyncio.to_thread(_local_coordinates, cfg)
             use_now = self.query_one("#use_now", Checkbox).value
@@ -1032,7 +1445,7 @@ def _parse_datetime_inputs(screen: ObservingTargetListScreen) -> datetime.dateti
     return datetime.datetime(year, month, day, hour, minutes, seconds)
 
 
-class ResultLogScreen(Screen):
+class ResultLogScreen(MenuScreen):
     """Modal-ish screen dumping long plaintext into a scrollable Rich log."""
 
     BINDINGS = [Binding("escape", "close", "Close")]
@@ -1080,7 +1493,7 @@ async def _push_result_log_modal(screen: Screen, body: str) -> None:
         raise exc.error from exc
 
 
-class NeocpScreen(Screen):
+class NeocpScreen(MenuScreen):
     """Filter NEOcp confirmation prospects; render table or JS viewer."""
 
     BINDINGS = [Binding("escape", "back", "Back")]
@@ -1158,8 +1571,13 @@ class NeocpScreen(Screen):
             btn.disabled = False
 
 
-class EphemerisScreen(Screen):
-    """Planetarium-style stepping ephemeris for a named solar-system object."""
+class EphemerisScreen(MenuScreen):
+    """Planetarium-style stepping ephemeris for a named solar-system object.
+
+    The number of requested points is prefilled with
+    :data:`~asteroidpy.scheduling.DEFAULT_EPHEMERIS_POINTS` and validated by the
+    scheduling layer, so an unusable count is reported instead of being replaced.
+    """
 
     BINDINGS = [Binding("escape", "back", "Back")]
 
@@ -1191,6 +1609,15 @@ class EphemerisScreen(Screen):
                 id="step",
             ),
             Horizontal(
+                Label(translate("Number of points -> ")),
+                Input(
+                    value=str(scheduling.DEFAULT_EPHEMERIS_POINTS),
+                    placeholder="",
+                    id="points",
+                ),
+                classes="input-row",
+            ),
+            Horizontal(
                 Button(translate("Run"), id="run", variant="primary"),
                 Button(translate("0 - Back"), id="back"),
             ),
@@ -1208,6 +1635,20 @@ class EphemerisScreen(Screen):
 
     async def _do_run(self) -> None:
         """Run blocking ephemeris and push the textual table overlay."""
+        raw_points = self.query_one("#points", Input).value
+        try:
+            points = scheduling.validated_ephemeris_points(raw_points)
+        except ValueError:
+            self.app.notify(
+                translate(
+                    "The number of points must be a whole number between {low} and {high}."
+                ).format(
+                    low=scheduling.MIN_EPHEMERIS_POINTS,
+                    high=scheduling.MAX_EPHEMERIS_POINTS,
+                ),
+                severity="warning",
+            )
+            return
         btn = self.query_one("#run", Button)
         btn.disabled = True
         try:
@@ -1224,13 +1665,14 @@ class EphemerisScreen(Screen):
                 _app_config(self),
                 name,
                 step,
+                points,
             )
             await _push_result_log_modal(self, str(table))
         finally:
             btn.disabled = False
 
 
-class TwilightScreen(Screen):
+class TwilightScreen(MenuScreen):
     """Compute twilight windows plus sun/moon rise/set summary for tonight."""
 
     BINDINGS = [Binding("escape", "back", "Back")]
@@ -1302,12 +1744,16 @@ class TwilightScreen(Screen):
             btn.disabled = False
 
 
-class BestNightScreen(Screen):
+class BestNightScreen(MenuScreen):
     """Rank upcoming astronomical nights from the 7Timer forecast.
 
     Combines cloud cover, seeing, transparency and Moon illumination per
-    astronomical (bright-limit) night; precipitation excludes a night. Tuning
-    defaults mirror the ``[Planner]`` INI section (see ``configuration``).
+    astronomical (bright-limit) night; precipitation excludes a night. The number
+    of nights is prefilled with ``[Planner] max_nights`` and clamped to
+    ``[1, _MAX_BEST_NIGHT_NIGHTS]``, the documented input range of this screen: the
+    7Timer ``astro`` series only spans eight days, so a longer request can never
+    return more nights than that. Changing the value here does not rewrite
+    ``[Planner]``; use **Configuration → Planner** for that.
     """
 
     BINDINGS = [Binding("escape", "back", "Back")]
@@ -1317,10 +1763,22 @@ class BestNightScreen(Screen):
         yield Footer()
         yield Vertical(
             Label(translate("Best upcoming night")),
+            Horizontal(
+                Label(translate("Number of nights -> ")),
+                Input(placeholder="", id="nights"),
+                classes="input-row",
+            ),
             Button(translate("Find best night"), id="run", variant="primary"),
             RichLog(id="log", wrap=True, highlight=True),
             Button(translate("0 - Back"), id="back"),
             id="panel",
+        )
+
+    def on_mount(self) -> None:
+        """Prefill the night count with the ``[Planner]`` value for this run."""
+
+        self.query_one("#nights", Input).value = str(
+            _app_config(self)["Planner"].get("max_nights", "")
         )
 
     def action_back(self) -> None:
@@ -1334,6 +1792,20 @@ class BestNightScreen(Screen):
 
     async def _do_run(self) -> None:
         """Compute the ranked night list off the UI thread into the Rich log."""
+        requested = _clamped_int(
+            self.query_one("#nights", Input).value, 1, _MAX_BEST_NIGHT_NIGHTS
+        )
+        if requested is None:
+            self.app.notify(translate("You must enter an integer."), severity="warning")
+            return
+        nights, clamped = requested
+        if clamped:
+            self.app.notify(
+                translate(
+                    "The value must be between {low} and {high}; using {value}."
+                ).format(low=1, high=_MAX_BEST_NIGHT_NIGHTS, value=nights),
+                severity="warning",
+            )
         log = self.query_one("#log", RichLog)
         btn = self.query_one("#run", Button)
         log.clear()
@@ -1342,6 +1814,7 @@ class BestNightScreen(Screen):
             report = await asyncio.to_thread(
                 scheduling.best_nights_report,
                 _app_config(self),
+                nights,
             )
             log.write(report)
         finally:

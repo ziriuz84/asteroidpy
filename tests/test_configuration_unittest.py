@@ -44,7 +44,7 @@ def create_minimal_config_text(**overrides) -> str:
     altitude = overrides.get("altitude", "0.0")
     obs_name = overrides.get("obs_name", "")
     observer_name = overrides.get("observer_name", "")
-    mpc_code = overrides.get("mpc_code", "XXX")
+    mpc_code = overrides.get("mpc_code", "500")
 
     return (
         "[General]\n"
@@ -98,7 +98,7 @@ class ConfigurationTests(unittest.TestCase):
             "altitude": "0.0",
             "obs_name": "",
             "observer_name": "",
-            "mpc_code": "XXX",
+            "mpc_code": "500",
         }
 
         cfg.save_config(config)
@@ -140,7 +140,7 @@ class ConfigurationTests(unittest.TestCase):
 
     def test_change_mpc_code_updates_file(self):
         write_config_file(
-            config_canonical(self.fake_home), create_minimal_config_text(mpc_code="XXX")
+            config_canonical(self.fake_home), create_minimal_config_text(mpc_code="500")
         )
         cfg.change_mpc_code(self.new_config(), code="C10")
         new_text = read_config_file(config_canonical(self.fake_home))

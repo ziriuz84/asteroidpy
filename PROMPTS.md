@@ -11,12 +11,21 @@ nei prompt.
 Ordine di esecuzione suggerito:
 
 ```
-F1 → F9 → F7 → F2 → F6 → A1 → A2 → A3 → B1 → D1 → C1 → C2 → C3 → E1 → F3 → F4 → F5 → F8
+F1 ✅ → F9 ✅ → F7 ✅ → F2 ✅ → F6 ✅ → A1 → A2 → A3 → B1 → D1 → C1 → C2 → C3 → E1 → F3 → F4 → F5 → F8
 ```
 
 Bug e cleanup prima delle feature, così il resto poggia su una base pulita.
 `A3` dipende da `A1` (l'offline usa la cache). `F8` va LASTO perché tocca tutti
 i client di rete introdotti dai task precedenti.
+
+✅ = task già fatto sul branch `refactoring`; la sezione conserva il prompt
+originale e aggiunge in fondo un blocco **Esito** con le scelte prese e i
+riferimenti correnti. **Non ripetere un task ✅**: leggere il suo *Esito*.
+Prossimo task pendente: `A1`.
+
+I riferimenti `file.py:riga` delle sezioni **non** completate sono stati
+riallineati al codice corrente; quelli delle sezioni ✅ sono storici (valgono per
+lo stato precedente al task) e vanno letti insieme all'*Esito*.
 
 ---
 
@@ -42,10 +51,10 @@ Valgono per ogni task di questo file.
 
 ---
 
-## F1 — Correggere il riepilogo osservatorio e tradurre le etichette
+## F1 ✅ — Correggere il riepilogo osservatorio e tradurre le etichette
 
-**Contesto** — `asteroidpy/interface/_tui_screens.py:81` (`_observatory_summary`),
-`asteroidpy/configuration.py:277` (`print_obs_config`).
+**Contesto** (storico, pre-task) — `asteroidpy/interface/_tui_screens.py:81`
+(`_observatory_summary`), `asteroidpy/configuration.py:277` (`print_obs_config`).
 
 **Problema** — `_observatory_summary` chiama `print_obs_config(config)` senza
 `show_sensitive=True`, quindi la schermata Osservatorio mostra sempre
@@ -83,12 +92,24 @@ Italiane hardcoded, quindi non traducibili.
 
 **Dipende da** — nessuno.
 
+**Esito** — fatto (commits `36102cf`→`9aa8304`).
+
+- `configuration.py:333` `observatory_summary_lines(config)` rende le righe
+  etichettate; `configuration.py:371` `print_obs_config()` resta il dump
+  redacted con `show_sensitive` keyword-only (`False`).
+- Etichette tradotte via `configuration.OBSERVATORY_FIELD_LABELS` (`:42`) +
+  `interface/_intl.observatory_labels`; `redirect_stdout` rimosso da
+  `_observatory_summary` (`_tui_screens.py:164`).
+- `configuration.py:42` e `SECTION_DEFAULTS:65` allineati; test in
+  `tests/test_configuration.py`.
+
 ---
 
-## F7 — Esponere i parametri mancanti nelle schermate
+## F7 ✅ — Esponere i parametri mancanti nelle schermate
 
-**Contesto** — `asteroidpy/interface/_tui_screens.py:580` (`ObservatoryHorizonScreen`),
-`:675` (`WeatherScreen`), `:1301` (`BestNightScreen`), `:1157` (`EphemerisScreen`);
+**Contesto** (storico, pre-task) — `asteroidpy/interface/_tui_screens.py:580`
+(`ObservatoryHorizonScreen`), `:675` (`WeatherScreen`), `:1301` (`BestNightScreen`),
+`:1157` (`EphemerisScreen`);
 `asteroidpy/scheduling.py:1228` (`object_ephemeris`, `number=30` fisso a
 `asteroidpy/scheduling.py:1283`), `:1519` (`best_nights`, che accetta già
 `max_nights`).
@@ -126,11 +147,31 @@ della schermata coordinate).
 
 **Dipende da** — nessuno.
 
+**Esito** — fatto.
+
+- `scheduling.py:527` `validated_ephemeris_points(number: int | str) -> int`
+  (intero, 1–10000: `MIN_/MAX_EPHEMERIS_POINTS` a `:70`/`:77`),
+  `DEFAULT_EPHEMERIS_POINTS = 30` a `:73`. `object_ephemeris` (`:1368`) ha
+  `number=DEFAULT_EPHEMERIS_POINTS` e lo propaga a `MPC.get_ephemeris`.
+- `scheduling.py:565` `weather_temperature(celsius, unit)` e
+  `weather_forecast_report(config, hours=None, temperature_unit="C")` (`:582`);
+  default invariato (serie intera), `hours` filtra i timepoint,
+  `DEFAULT/MIN/MAX_WEATHER_HOURS` a `:83`/`:86`/`:89`.
+- Schermate: `EphemerisScreen` (`:1530`) input `#points`, `BestNightScreen`
+  (`:1703`) input `#nights` (1–30, prefill da `[Planner] max_nights`),
+  `WeatherScreen` (`:996`) input `#hours` (6–168, default 72) e `#unit` C/F,
+  `ObservatoryHorizonScreen` (`:713`) prefill da
+  `[Observatory] *_altitude` in `on_mount` e validazione 0–90.
+- Helper puri riutilizzabili e testati: `_clamped_int`, `_validate_horizon_degrees`
+  in `tests/test_tui_screens.py`.
+- Stringhe nuove nei sei cataloghi + `scripts/fill_po_gaps.py`.
+
 ---
 
-## F9 — Editor in-app dei pesi del planner
+## F9 ✅ — Editor in-app dei pesi del planner
 
-**Contesto** — `asteroidpy/configuration.py:36` (`SECTION_DEFAULTS`, sezione
+**Contesto** (storico, pre-task) — `asteroidpy/configuration.py:36`
+(`SECTION_DEFAULTS`, sezione
 `Planner`), `asteroidpy/scheduling.py:47` (`DEFAULT_PLANNER_WEIGHTS`), `:55`
 (`DEFAULT_PLANNER_MAX_NIGHTS`), `:1291` (`_planner_settings`); il menu di
 configurazione è `asteroidpy/interface/_tui_screens.py:177` (`ConfigRootScreen`) →
@@ -176,11 +217,28 @@ non può sapere quali pesi sono attivi senza aprire un file di configurazione.
 
 **Dipende da** — nessuno.
 
+**Esito** — fatto.
+
+- Validazione condivisa, non duplicata: `scheduling.py:1446` `PlannerValueError`,
+  `:1477` `normalize_planner_weights`, `:1502` `parse_planner_max_nights`,
+  `:1523` `parse_planner_weights`, `:1551` `planner_settings` (ex `_planner_settings`,
+  loader tollerante con fallback).
+- Persistenza: `configuration.py:271`
+  `change_planner_weights(config, max_nights, weights)` (salva i valori grezzi,
+  `load_config` + `save_config`); schema in
+  `PLANNER_WEIGHT_FACTORS` (`:55`) e `PLANNER_WEIGHT_OPTIONS` (`scheduling.py:65`).
+- UI: `PlannerSettingsScreen` (`_tui_screens.py:795`), raggiungibile da
+  `ConfigRootScreen` (`:307`) con la voce «3 - Planner»; mostra i pesi
+  normalizzati e l'anteprima dello score su `PLANNER_PREVIEW_NIGHTS = 3` notti,
+  senza salvare. `best_nights` (`:1768`) accetta `weights=` per la preview.
+- `README.md` e `docs/source/index.rst` non lo descrivono più come solo-INI.
+
 ---
 
-## F2 — Rimuovere il frontend legacy orfano
+## F2 ✅ — Rimuovere il frontend legacy orfano
 
-**Contesto** — `asteroidpy/interface/_config_menus.py` (188 righe),
+**Contesto** (storico, pre-task) — `asteroidpy/interface/_config_menus.py`
+(188 righe),
 `asteroidpy/interface/_schedule_menus.py` (204 righe),
 `asteroidpy/interface/_input.py` (40 righe), `asteroidpy/interface/_main.py:17`
 (`main_menu`), `asteroidpy/interface/__init__.py:14` (`__all__`).
@@ -222,11 +280,23 @@ tossicità e divergenza.
 
 **Dipende da** — nessuno.
 
+**Esito** — fatto: esito di default, cioè **rimozione** (non deprecazione).
+
+- Eliminati `_config_menus.py`, `_schedule_menus.py`, `_input.py` e
+  `main_menu`; `_main.py:11` espone solo `interface()`, e
+  `interface/__init__.py` ha `__all__ = ["interface", "setup_gettext"]`.
+- Nessuna funzionalità persa: ogni voce dei menu legacy ha una schermata TUI
+  (best-night, clamping dei range MPC, ecc.).
+- Docs allineate: `docs/source/asteroidpy.rst` (layout dei sottomoduli) e
+  `CONTRIBUTING.md:126`.
+- 21 msgid rimasti orfani potati da `base.pot` e dai sei `base.po` (più 3 voci
+  morte in `scripts/fill_po_gaps.py`).
+
 ---
 
-## F6 — Rimuovere il token CSRF fallback hardcodato
+## F6 ✅ — Rimuovere il token CSRF fallback hardcodato
 
-**Contesto** — `asteroidpy/scheduling.py:96`
+**Contesto** (storico, pre-task) — `asteroidpy/scheduling.py:96`
 (`_MPC_WHATSUP_AUTH_TOKEN_FALLBACK`), `:108`
 (`_scrape_whatsup_authenticity_token`), `:143`
 (`resolve_whatsup_authenticity_token`), chiamato da
@@ -263,18 +333,36 @@ silenziosamente l'utente vede una lista target vuota senza capire perché.
 
 **Dipende da** — nessuno.
 
+**Esito** — fatto.
+
+- `_MPC_WHATSUP_AUTH_TOKEN_FALLBACK` eliminato: `rg -n "authenticity_token" asteroidpy/`
+  mostra solo scraping e POST.
+- `scheduling.py:197` `resolve_whatsup_authenticity_token() -> str` non ritorna
+  più una tupla: solleva `DataSourceError` invece di mascherare il fallimento.
+- Nuovo modulo `asteroidpy/errors.py`: `DataSourceError(source, reason, detail)`
+  con costanti `REASON_HTTP_STATUS`, `REASON_NETWORK_ERROR`,
+  `REASON_TOKEN_NOT_FOUND`, `REASON_MALFORMED_RESPONSE` (A3 e F8 vi aggiungono
+  `cached_age` / `status`).
+- `_scrape_whatsup_authenticity_token` (`:146`) distingue rete irraggiungibile,
+  status non 200 e pagina senza token; la UI (`_tui_screens.py:1188`) notifica
+  `severity="error"` con le etichette tradotte `WHATSUP_ERROR_LABELS` e interrompe
+  il flusso invece di postare un form destinato a fallire.
+- Test in `tests/test_scheduling.py`: scraping ok, meta CSRF, pagina senza
+  token, HTTP 503, timeout/connection error, e assenza di token embedded.
+- Il drift docs «caches» è già risolto: la cache del token resta ad **A1**.
+
 ---
 
 ## A1 — Cache persistente delle risposte di rete
 
-**Contesto** — `asteroidpy/scheduling.py:41` (`SEVENTIMER_API_URL`), `:291`
-(`httpx_get`), `:343` (`httpx_post`), `:430` (`weather_forecast_raw`), `:713`
-(`observing_target_list_scraper`), `:1039` (`get_neocp_ephemeris`), `:1119`
-(`fetch_neocp_json_and_ephemeris`), `:108`
-(`_scrape_whatsup_authenticity_token`), `:143`
-(`resolve_whatsup_authenticity_token`); `asteroidpy/configuration.py:61`
-(`canonical_config_path`); `docs/source/asteroidpy.rst:129` afferma che
-`resolve_whatsup_authenticity_token` «caches» i token, ma non lo fa.
+**Contesto** — `asteroidpy/scheduling.py:48` (`SEVENTIMER_API_URL`), `:349`
+(`httpx_get`), `:401` (`httpx_post`), `:488` (`weather_forecast_raw`), `:853`
+(`observing_target_list_scraper`), `:1179` (`get_neocp_ephemeris`), `:1259`
+(`fetch_neocp_json_and_ephemeris`), `:146`
+(`_scrape_whatsup_authenticity_token`), `:197`
+(`resolve_whatsup_authenticity_token`); `asteroidpy/configuration.py:90`
+(`canonical_config_path`). Il drift docs «caches» menzionato in `:129` è già
+stato corretto da F6: qui la cache va implementata per davvero.
 
 **Problema** — ogni esecuzione ricontatta MPC e 7Timer. Il token del form
 Rails viene ri-scrapato a ogni run della lista target. Non esiste alcuna cache,
@@ -321,12 +409,12 @@ quindi non esiste nemmeno la base per una modalità offline.
 
 ## A2 — Export dei risultati su file e clipboard
 
-**Contesto** — `asteroidpy/interface/_tui_screens.py:1002` e `:1148` usano
-`show_in_browser(jsviewer=True)`; `EphemerisScreen` (`:1157`) non ha l'opzione;
-`:1031` (`ResultLogScreen`) è il dump testuale; `asteroidpy/scheduling.py:469`
-(`weather_forecast_report`), `:809` (`observing_target_list`), `:880`/`:943`
-(`neocp_confirmation`), `:1228` (`object_ephemeris`), `:1579`
-(`best_nights_report`).
+**Contesto** — `asteroidpy/interface/_tui_screens.py:1375` e `:1521` usano
+`show_in_browser(jsviewer=True)`; `EphemerisScreen` (`:1530`) non ha l'opzione;
+`:1404` (`ResultLogScreen`) è il dump testuale; `asteroidpy/scheduling.py:582`
+(`weather_forecast_report`), `:949` (`observing_target_list`), `:1020`/`:1083`
+(`neocp_confirmation`/`async_neocp_confirmation`), `:1368` (`object_ephemeris`),
+`:1842` (`best_nights_report`).
 
 **Problema** — l'unico export è un HTML temporaneo su 2 schermate su 3. Non
 esistono CSV, JSON, né un percorso scelto dall'utente, né copia negli appunti.
@@ -341,7 +429,7 @@ esistono CSV, JSON, né un percorso scelto dall'utente, né copia negli appunti.
    Precompilare con un nome suggerito nella directory dati utente e chiedere
    conferma prima di scrivere.
 3. Usare scrittura atomica (temp + `os.replace`), come già fatto in
-   `asteroidpy/configuration.py:135` (`_atomic_replace`): riusa quel pattern o
+   `asteroidpy/configuration.py:164` (`_atomic_replace`): riusa quel pattern o
    spostalo in un modulo condiviso e riusalo da entrambi i lati.
 4. Rimuovere la scrittura di file temporanei sparsi: `show_in_browser` va
    sostituito dall'export su percorso esplicito, o mantenuto come opzione
@@ -367,9 +455,14 @@ esistono CSV, JSON, né un percorso scelto dall'utente, né copia negli appunti.
 
 ## A3 — Modalità offline e surfacing dello stato dei dati
 
-**Contesto** — oggi i fallimenti degradano a testo: `weather_forecast_report`
-(`asteroidpy/scheduling.py:479`), `best_nights_report` (`:1590`),
-`observing_target_list_scraper` (`:759`), `async_neocp_confirmation` (`:974`).
+**Contesto** — oggi i fallimenti degradano a testo o a valori vuoti:
+`weather_forecast_raw` (`asteroidpy/scheduling.py:518-523` → `{}`),
+`observing_target_list_scraper` (`:898`/`:935` → `[]`),
+`fetch_neocp_json_and_ephemeris` (`:1269` → `([], {}, False)`),
+`best_nights` (`:1811-1814`), con i report `weather_forecast_report` (`:582`) e
+`best_nights_report` (`:1842`) che trasformano il vuoto in testo. `DataSourceError`
+(`asteroidpy/errors.py`, introdotto da F6) è il tipo su cui poggiare:
+manca solo `cached_age`.
 
 **Problema** — l'utente non distingue "nessun dato", "rete irraggiungibile",
 "MPC ha cambiato la pagina" e "sto guardando una cache vecchia di 3 giorni".
@@ -380,9 +473,11 @@ esistono CSV, JSON, né un percorso scelto dall'utente, né copia negli appunti.
    fresco, dato da cache (con età), errore (con motivo). Non usare più `{}` /
    `[]` / stringa d'errore per signalling tre casi diversi.
 2. Soprattutto: usare le eccezioni per gli errori reali. Le funzioni pubbliche
-   che oggi catturano tutto dovrebbero propagare un errore tipizzato
-   (`DataSourceError` con `source`, `reason`, `cached_age`), mantenendo un
-   wrapper che produce il report testuale per chi lo chiama dalla UI.
+   che oggi catturano tutto dovrebbero propagare l'errore tipizzato esistente
+   (`DataSourceError` con `source`, `reason`, `detail`: estenderlo con
+   `cached_age`), mantenendo un wrapper che produce il report testuale per chi lo
+   chiama dalla UI. Le schermate che già trattano `DataSourceError`
+   (`_tui_screens.py:1188`) sono il modello del messaggio tradotto.
 3. Banner di stato persistente nella TUI (non una notifica effimera) che dice
    "dati in cache, età 6 h" o "rete non raggiungibile".
 4. Una modalità offline esplicita: le schermate di scheduling funzionano
@@ -406,9 +501,12 @@ esistono CSV, JSON, né un percorso scelto dall'utente, né copia negli appunti.
 ## B1 — Interfaccia a riga di comando non interattiva
 
 **Contesto** — `pyproject.toml:41` (`asteroidpy = "asteroidpy:main"`);
-`asteroidpy/__init__.py:31` (`main`, che oggi chiama solo `interface()`);
-`asteroidpy/interface/_main.py:35`; non esiste alcun parsing degli argomenti in
-tutto il progetto; non esiste `__main__.py`.
+`asteroidpy/__init__.py:31` (`main`, che oggi chiama solo `interface()` alle
+`:51`/`:56`); `asteroidpy/interface/_main.py:11`; non esiste alcun parsing degli
+argomenti in tutto il progetto; non esiste `__main__.py`. I parametri da
+esporre esistono già: `object_ephemeris(..., number=)` e
+`weather_forecast_report(..., hours=, temperature_unit=)` (F7), pesi
+`[Planner]` e `max_nights` (F9).
 
 **Problema** — ogni funzionalità è raggiungibile solo dalla TUI. Non c'è
 `--version`, non ci sono subcommand, non c'è output machine-readable. Lo
@@ -453,9 +551,9 @@ strumento è inutilizzabile in uno script, in un cron, o in CI.
 
 ## D1 — Grafici e curve di visibilità
 
-**Contesto** — `asteroidpy/scheduling.py:469` (report meteo), `:1228`
-(`object_ephemeris`), `:1519`/`:1579` (miglior notte); `astropy` è già
-dipendenza, `matplotlib` no.
+**Contesto** — `asteroidpy/scheduling.py:582` (report meteo), `:1368`
+(`object_ephemeris`, con `number=`), `:1768`/`:1842` (miglior notte);
+`astropy` è già dipendenza, `matplotlib` no.
 
 **Problema** — tutti i risultati sono tabelle testuali a larghezza fissa. Non si
 vede l'andamento dell'altitudine di un oggetto nella notte, non si vede la
@@ -501,9 +599,9 @@ posizione in cielo, non si vede l'andamento del punteggio di una notte.
 ## C1 — Watchlist oggetti persistente
 
 **Contesto** — nessun catalogo locale esiste; gli oggetti arrivano da
-`observing_target_list` (`asteroidpy/scheduling.py:809`), da
-`neocp_confirmation` (`:880`) o da una ricerca puntuale con
-`object_ephemeris` (`:1228`).
+`observing_target_list` (`asteroidpy/scheduling.py:949`), da
+`neocp_confirmation` (`:1020`) o da una ricerca puntuale con
+`object_ephemeris` (`:1368`).
 
 **Problema** — l'utente non può salvare un oggetto che gli interessa, né
 ritrovare «quello che volevo vedere giovedì». Ogni risultato è effimero.
@@ -513,7 +611,7 @@ ritrovare «quello che volevo vedere giovedì». Ogni risultato è effimero.
 1. Persistenza in un file JSON nella directory dati utente
    (`platformdirs.user_data_dir`), con schema versionato e una `schema_version`
    per la migrazione futura. Scrittura atomica (stesso pattern di
-   `asteroidpy/configuration.py:135`).
+   `asteroidpy/configuration.py:164`).
 2. Schermata Watchlist: elenco degli oggetti salvati, con designazione, data di
    aggiunta e note libere. Aggiungi/rimuovi con `--` dell'azione e tasto di
    conferma per la rimozione.
@@ -539,10 +637,10 @@ ritrovare «quello che volevo vedere giovedì». Ogni risultato è effimero.
 
 ## C2 — Piani di sessione salvati e ripresi
 
-**Contesto** — `asteroidpy/interface/_tui_screens.py:636`
+**Contesto** — `asteroidpy/interface/_tui_screens.py:957`
 (`SchedulingRootScreen`) è un hub di query **stateless**: ogni schermata
 riscrive i propri parametri e nessun risultato sopravvive. `ObservingTargetListScreen`
-(`:716`) raccoglie data/ora, durata, elongazioni, tipo oggetto.
+(`:1082`) raccoglie data/ora, durata, elongazioni, tipo oggetto.
 
 **Problema** — non esiste il concetto di piano: non si salva «martedì 21:30, 4
 ore, NEAs, elongazione solare > 60°», non si riprende, non si confronta un piano
@@ -580,7 +678,7 @@ con il meteo previsto per quella notte.
 **Contesto** — oggi lo strumento dice **cosa osservare**, non **cosa è stato
 osservato**. Nessun modulo tiene traccia delle osservazioni; `mpc_code` e
 `observer_name` sono già in configurazione
-(`asteroidpy/configuration.py:261`, `:269`) ma servono solo come parametri di
+(`asteroidpy/configuration.py:263`, `:325`) ma servono solo come parametri di
 query.
 
 **Problema** — manca il secondo atto del lavoro dell'astronomo. Questo era già un
@@ -600,7 +698,7 @@ TODO del progetto.
    AsteroidPy non raccoglie, produrre il subset disponibile e **dichiarare
    esplicitamente** quali campi non sono popolati, senza valori fittizi.
 4. Collegamento con la `mpc_code` configurata e avviso chiaro se è ancora
-   `XXX` (il default in `asteroidpy/configuration.py:52`), perché un export con
+   `XXX` (il default in `asteroidpy/configuration.py:81`), perché un export con
    codice osservatorio fittizio è inutile al MPC.
 5. L'export riusa l'infrastruttura di A2 (percorso, conferma, scrittura atomica).
 
@@ -621,8 +719,8 @@ TODO del progetto.
 ## E1 — Alert programmati e notifiche persistenti
 
 **Contesto** — le uniche notifiche sono toast effimeri di `app.notify()` per
-validazione e clamping degli input (es. `asteroidpy/interface/_tui_screens.py:825`,
-`:1134`, `:1213`). Nessun meccanismo persistente o programmato.
+validazione, clamping ed errori (es. `asteroidpy/interface/_tui_screens.py:407`,
+`:927`, `:1055`, `:1194`). Nessun meccanismo persistente o programmato.
 
 **Problema** — l'utente deve aprire l'app e interrogare i dati per scoprire che
 un oggetto è sorto o che un NEOcp ad alto score è visibile stasera. Erano già un
@@ -664,25 +762,31 @@ TODO del progetto.
 
 ## F3 — Test della TUI con `App.run_test()` e pilot
 
-**Contesto** — `asteroidpy/interface/_tui_screens.py` è 1344 righe e **non ha
-nessun test**. I 75 test esistenti coprono solo logica pura. Nessun file in
-`tests/` importa `_tui_screens`.
+**Contesto** — `asteroidpy/interface/_tui_screens.py` è 1777 righe con 20 classi
+`Screen` e **nessun test che le istanzi**. `tests/test_tui_screens.py` esiste già
+(7 test) ma copre solo gli helper puri introdotti da F7/F9/F6
+(`_clamped_int`, `_validate_horizon_degrees`, `PLANNER_ERROR_MESSAGES`,
+`_planner_preview_lines`, `WHATSUP_ERROR_LABELS`): nessun test usa
+`App.run_test()`. I 154 test della suite coprono la logica pura, non i widget.
 
 **Cosa fare**
 
-1. `tests/test_tui_screens.py` con `pytest-asyncio` (o `anyio`) e il pattern
-   `async with app.run_test() as pilot:`.
+1. Estendere il `tests/test_tui_screens.py` esistente con `pytest-asyncio` (o
+   `anyio`) e il pattern `async with app.run_test() as pilot:`, senza perdere i
+   test degli helper già presenti.
 2. Coprire almeno: composizione di ogni schermata senza eccezioni, `escape`
    torna al menu precedente da ogni schermata, validazione degli input
-   (numero non numerico, fuori range), prefill dei campi di C1/F7, e il cambio
-   lingua che ricostruisce lo stack (`_refresh_main_menu_after_locale`).
+   (numero non numerico, fuori range), prefill dei campi di C1/F7 — incluso il
+   nuovo `PlannerSettingsScreen` (`_tui_screens.py:795`) — e il cambio lingua
+   che ricostruisce lo stack (`_refresh_main_menu_after_locale`, `:148`).
 3. Simulare la rete: patchare le funzioni di `scheduling.py` a livello di
    modulo, non i client HTTP. Non colpire mai la rete in un test.
 4. Test della navigazione principali: Configurazione → Osservatorio → coordinate
    → salva → riapri e verifica il valore persistito (con directory temporanea
    come in `tests/test_configuration.py`).
 5. Attenzione a `asyncio.to_thread` e `run_worker` usati in
-   `_tui_screens.py:1061`: i test devono attendere il completamento senza
+   `_tui_screens.py:1188` (token What's Observable) e in
+   `_push_result_log_modal:1434`: i test devono attendere il completamento senza
    `time.sleep` fragili. Preferire un meccanismo di attesa esplicito.
 6. Aggiungere `pytest-asyncio` in `pyproject.toml` se assente, con
    `asyncio_mode = "auto"` o marker espliciti coerenti con lo stile esistente.
@@ -690,8 +794,8 @@ nessun test**. I 75 test esistenti coprono solo logica pura. Nessun file in
 **Criteri di accettazione**
 
 - `pytest -q` verde e nessun test che tocchi la rete.
-- Almeno una copertura per ciascuna delle 19 classi `Screen`.
-- `mypy.ini:44-48` continua a ignorare gli errori in `tests.*`: non allargare il
+- Almeno una copertura per ciascuna delle 20 classi `Screen`.
+- `mypy.ini:41-45` continua a ignorare gli errori in `tests.*`: non allargare il
   gate per far passare i test.
 
 **Verifica** — stesso gate di `F1`, più
@@ -704,11 +808,12 @@ nessun test**. I 75 test esistenti coprono solo logica pura. Nessun file in
 
 ## F4 — Deduplicare i test di configurazione
 
-**Contesto** — `tests/test_configuration.py` (15 test, stile pytest) e
+**Contesto** — `tests/test_configuration.py` (28 test, stile pytest) e
 `tests/test_configuration_unittest.py` (13 test, `unittest.TestCase`, caricato
-con `importlib.util.spec_from_file_location`) coprono ~90% lo stesso terreno;
-`test_configuration_corrupted.py` e `test_configuration_unreadable.py` coprono
-un caso ciascuno.
+con `importlib.util.spec_from_file_location`) coprono in buona parte lo stesso
+terreno; `test_configuration_corrupted.py` e `test_configuration_unreadable.py`
+coprono un caso ciascuno. I test degli helper delle schermate sono già in
+`tests/test_tui_screens.py`: non vanno ricollocati qui (F3 li estenderà).
 
 **Cosa fare**
 
@@ -721,7 +826,7 @@ un caso ciascuno.
 4. Se si preferisce mantenere `unittest` per una ragione precisa, dirlo in un
    commento; altrimenti una sola suite pytest.
 5. Aggiungere il test mancante per `get_observatory_coordinates`
-   (`asteroidpy/configuration.py:242`), con la rete simulata: è l'unica funzione
+   (`asteroidpy/configuration.py:298`), con la rete simulata: è l'unica funzione
    di configurazione che richiede rete e nessun test la copre.
 
 **Criteri di accettazione**
@@ -778,12 +883,13 @@ supporto 3.11, 3.12, 3.13, 3.14 e `pyproject.toml` li elenca nei classifier.
 
 ## F8 — Retry con backoff e gestione degli errori di rete
 
-**Contesto** — `asteroidpy/scheduling.py:44` (`DEFAULT_REQUEST_TIMEOUT_SEC = 30.0`)
+**Contesto** — `asteroidpy/scheduling.py:51` (`DEFAULT_REQUEST_TIMEOUT_SEC = 30.0`)
 è l'unico controllo di rete dell'intero progetto. Non c'è retry, non c'è backoff,
 non c'è rispetto di `Retry-After`. I client sono tre: `requests`
-(`:453`, `:751`), `httpx` (`:320`, `:371`, `:1085`). Gli errori si degradano in
-silenzio a `{}`, `[]` o stringhe (`weather_forecast_report:479`,
-`best_nights_report:1590`).
+(`:158` token What's Observable, `:511` 7Timer, `:891` POST What's Observable),
+`httpx` (`:349` `httpx_get`, `:401` `httpx_post`, `:1226`). Gli errori si
+degradano in silenzio a `{}`, `[]` o stringhe (`weather_forecast_raw:518`,
+`observing_target_list_scraper:898`, `best_nights:1811`).
 
 **Problema** — un timeout transitorio o un 503 del MPC producono una tabella
 vuota senza diagnosi; l'utente non distingue «nessun oggetto» da «richiesta
@@ -794,7 +900,8 @@ fallita».
 1. Un unico wrapper HTTP con retry esponenziale + jitter, rispetto di
    `Retry-After`, e tetto sui tentativi. I tre call site passano da quel wrapper.
    Non ritentare su 4xx (eccetto 429): ritentare un 400 spreca tempo.
-2. Distinguere gli errori tipizzati (`DataSourceError` con `source`, `reason`,
+2. Distinguere gli errori tipizzati (`DataSourceError`, già introdotto da F6 in
+   `asteroidpy/errors.py`, con `source`, `reason`, `detail`: qui va esteso con
    `status`) invece di `except requests.RequestException: return {}`. Vedi A3: i
    due task devono restare coerenti nella firma delle funzioni pubbliche.
 3. Non ritentare mai i POST non idempotenti senza pensarci: `confirmeph2.cgi` e il

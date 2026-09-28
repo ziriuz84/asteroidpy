@@ -21,6 +21,7 @@ import asyncio
 import datetime
 import math
 import re
+from collections.abc import Mapping, Sequence
 from configparser import ConfigParser
 from typing import Any, Literal, NamedTuple, cast
 
@@ -36,6 +37,12 @@ from astroquery.mpc import MPC
 from bs4 import BeautifulSoup
 
 from asteroidpy import configuration
+from asteroidpy.errors import (
+    REASON_HTTP_STATUS,
+    REASON_NETWORK_ERROR,
+    REASON_TOKEN_NOT_FOUND,
+    DataSourceError,
+)
 
 #: 7Timer ``astro`` endpoint queried by the weather and best-night code paths.
 SEVENTIMER_API_URL = "https://www.7timer.info/bin/api.pl"
@@ -53,6 +60,37 @@ DEFAULT_PLANNER_WEIGHTS = {
 
 #: Maximum number of nights to report when ``[Planner] max_nights`` is missing.
 DEFAULT_PLANNER_MAX_NIGHTS = 5
+
+#: ``[Planner]`` INI option that stores the weight of each scoring factor.
+PLANNER_WEIGHT_OPTIONS: dict[str, str] = {
+    "cloud": "w_cloud",
+    "seeing": "w_seeing",
+    "transparency": "w_transparency",
+    "moon": "w_moon",
+}
+
+#: Number of ephemeris points requested from the MPC when none is given.
+DEFAULT_EPHEMERIS_POINTS = 30
+
+#: Fewest ephemeris points that make sense, since one row is already an ephemeris.
+MIN_EPHEMERIS_POINTS = 1
+
+#: Highest ephemeris point count accepted, generous enough for any realistic
+#: session and low enough to keep the MPC from answering with a huge table.
+MAX_EPHEMERIS_POINTS = 10000
+
+#: Forecast horizon, in hours, prefilled by the weather screen (three days).
+DEFAULT_WEATHER_HOURS = 72
+
+#: Shortest forecast horizon the weather screen accepts, in hours.
+MIN_WEATHER_HOURS = 6
+
+#: Longest forecast horizon the weather screen accepts, in hours, and the whole span
+#: of the 7Timer ``astro`` series.
+MAX_WEATHER_HOURS = 168
+
+#: Temperature units accepted by :func:`weather_forecast_report`.
+TEMPERATURE_UNITS: dict[str, str] = {"C": "Celsius", "F": "Fahrenheit"}
 
 #: Midpoint cloud cover (percent) for each 7Timer ``cloudcover`` code (1 = clear, 9 = overcast).
 CLOUDCOVER_MIDPOINT_PCT = {
@@ -92,8 +130,8 @@ MPC_MIN_COLS = 8
 #: MPC "What's Observable" query form endpoint used for target-list POSTs.
 MPC_WHATSUP_INDEX_URL = "https://www.minorplanetcenter.net/whatsup/index"
 
-# Last-resort token if MPC blocks scraping or markup changes (POST may still fail).
-_MPC_WHATSUP_AUTH_TOKEN_FALLBACK = "W5eBzzw9Clj4tJVzkz0z%2F2EK18jvSS%2BffHxZpAshylg%3D"
+#: Name of the What's Observable source, used in :class:`~asteroidpy.errors.DataSourceError`.
+MPC_WHATSUP_SOURCE = "MPC What's Observable"
 
 _MPC_BROWSER_HEADERS = {
     "User-Agent": (
@@ -106,7 +144,15 @@ _MPC_BROWSER_HEADERS = {
 
 
 def _scrape_whatsup_authenticity_token() -> str:
-    """Return '' if scraping did not recover a Rails authenticity_token."""
+    """Return the Rails authenticity token of the What's Observable form.
+
+    Raises
+    ------
+    DataSourceError
+        The page was unreachable, answered with a non-200 status, or no longer
+        carries a form token. The caller must report it: posting without a
+        token only produces a confusing empty result.
+    """
 
     try:
         r = requests.get(
@@ -114,10 +160,18 @@ def _scrape_whatsup_authenticity_token() -> str:
             headers=_MPC_BROWSER_HEADERS,
             timeout=DEFAULT_REQUEST_TIMEOUT_SEC,
         )
-    except requests.RequestException:
-        return ""
+    except requests.RequestException as exc:
+        raise DataSourceError(
+            MPC_WHATSUP_SOURCE,
+            REASON_NETWORK_ERROR,
+            str(exc) or type(exc).__name__,
+        ) from exc
     if r.status_code != 200:
-        return ""
+        raise DataSourceError(
+            MPC_WHATSUP_SOURCE,
+            REASON_HTTP_STATUS,
+            f"HTTP {r.status_code}",
+        )
     soup = BeautifulSoup(r.content, "lxml")
     inp = soup.find("input", attrs={"name": "authenticity_token"})
     if inp and inp.get("value"):
@@ -137,16 +191,20 @@ def _scrape_whatsup_authenticity_token() -> str:
     )
     if meta:
         return meta.group(1)
-    return ""
+    raise DataSourceError(MPC_WHATSUP_SOURCE, REASON_TOKEN_NOT_FOUND)
 
 
-def resolve_whatsup_authenticity_token() -> tuple[str, bool]:
-    """Return ``(authenticity_token, used_fallback)`` for MPC What's Observable POST."""
+def resolve_whatsup_authenticity_token() -> str:
+    """Return a fresh authenticity token for the MPC What's Observable POST.
 
-    scraped = _scrape_whatsup_authenticity_token()
-    if scraped:
-        return scraped, False
-    return _MPC_WHATSUP_AUTH_TOKEN_FALLBACK, True
+    Raises
+    ------
+    DataSourceError
+        When the token cannot be scraped. There is no cached or embedded
+        substitute: an unusable token is reported instead of hidden.
+    """
+
+    return _scrape_whatsup_authenticity_token()
 
 
 # MPC observing-target calendar times, e.g. ``2026 5 24.559 (13:25 UT)``, optional ``UTC``.
@@ -201,6 +259,19 @@ def mpc_whatsup_table_cell_to_time(timestr: str) -> Time:
 NEOCP_EPHEM_VELOCITY_IDX = 12
 NEOCP_EPHEM_DIRECTION_IDX = 13
 NEOCP_EPHEM_MIN_LEN = NEOCP_EPHEM_DIRECTION_IDX + 1
+
+#: ``Parallax`` values accepted by the MPC confirmeph2 CGI: the viewing-point
+#: selector, where only one of ``obscode`` and the explicit coordinates counts.
+NEOCP_PARALLAX_GEOCENTRIC = 0
+NEOCP_PARALLAX_OBS_CODE = 1
+NEOCP_PARALLAX_COORDINATES = 2
+
+#: ``[Observatory] mpc_code`` values that name no real observing site, so the
+#: ephemeris site falls back to the explicit coordinates or to the geocenter.
+#: ``500`` is the MPC's own geocentric code; ``XXX`` and ``0`` are placeholders the
+#: MPC refuses as observing sites, kept here so configurations written before the
+#: ``500`` default still produce a usable ephemeris.
+NEOCP_GENERIC_MPC_CODES = frozenset({"", "0", "500", "XXX"})
 
 cloudcover_dict = {
     1: "0%-6%",
@@ -466,13 +537,89 @@ def weather_forecast_raw(
     return weather_forecast
 
 
-def weather_forecast_report(config: ConfigParser) -> str:
+def validated_ephemeris_points(number: int | str) -> int:
+    """Return *number* as a whole number of ephemeris points to request.
+
+    Parameters
+    ----------
+    number : int or str
+        The requested count, as typed in the UI or passed by a caller.
+
+    Returns
+    -------
+    int
+        *number* as an ``int``.
+
+    Raises
+    ------
+    ValueError
+        If *number* is not a whole number, or is outside
+        :data:`MIN_EPHEMERIS_POINTS`/:data:`MAX_EPHEMERIS_POINTS`. The UI turns this
+        into a translated message instead of silently asking for another count.
+    """
+    if isinstance(number, bool):
+        raise ValueError(
+            f"number of ephemeris points must be an integer, got {number!r}"
+        )
+    try:
+        points = int(str(number).strip())
+    except (TypeError, ValueError):
+        raise ValueError(
+            f"number of ephemeris points must be an integer, got {number!r}"
+        ) from None
+    if points < MIN_EPHEMERIS_POINTS or points > MAX_EPHEMERIS_POINTS:
+        raise ValueError(
+            f"number of ephemeris points must be between {MIN_EPHEMERIS_POINTS} "
+            f"and {MAX_EPHEMERIS_POINTS}, got {points}"
+        )
+    return points
+
+
+def weather_temperature(celsius: Any, unit: str = "C") -> str:
+    """Return *celsius* rendered for *unit* (``"C"`` or ``"F"``), or ``"N/A"``.
+
+    7Timer reports ``temp2m`` in Celsius; the Fahrenheit rendering keeps one
+    decimal, the Celsius one keeps the value as the service reported it.
+    """
+
+    if celsius is None:
+        return "N/A"
+    if unit == "F":
+        try:
+            return f"{float(celsius) * 9 / 5 + 32:.1f} F"
+        except (TypeError, ValueError):
+            return "N/A"
+    return f"{celsius} C"
+
+
+def weather_forecast_report(
+    config: ConfigParser, hours: int | None = None, temperature_unit: str = "C"
+) -> str:
     """Fetch and format the 7Timer astronomical forecast as plain text.
 
     Returns a user-visible error message when the HTTP request fails or the body
     is not valid JSON; otherwise returns the plaintext rendering of the formatted table.
+
+    Parameters
+    ----------
+    config : ConfigParser
+        Observatory settings, used to build the request URL.
+    hours : int, optional
+        Show only the timepoints within this many hours of the forecast start
+        (7Timer ``astro`` steps are 3-hourly). ``None`` shows the whole series.
+    temperature_unit : str
+        ``"C"`` (default) or ``"F"``: unit of the ``Temp`` column.
+
+    Raises
+    ------
+    ValueError
+        If *hours* is not a whole number of hours.
     """
 
+    if hours is not None:
+        hours = int(hours)
+        if hours < 0:
+            raise ValueError(f"hours must not be negative, got {hours}")
     configuration.load_config(config)
     weather_forecast = weather_forecast_raw(config)
     if not weather_forecast:
@@ -498,6 +645,12 @@ def weather_forecast_report(config: ConfigParser) -> str:
         return mapping.get(key, "N/A")
 
     for time in weather_forecast.get("dataseries", []):
+        if not isinstance(time, dict):
+            continue
+        if hours is not None:
+            timepoint = time.get("timepoint", 0)
+            if not isinstance(timepoint, int) or timepoint > hours:
+                continue
         try:
             when = weather_time(
                 weather_forecast.get("init", ""),
@@ -510,7 +663,7 @@ def weather_forecast_report(config: ConfigParser) -> str:
         seeing = map_or_na(seeing_dict, time.get("seeing"))
         transp = map_or_na(transparency_dict, time.get("transparency"))
         lifted = map_or_na(liftedIndex_dict, time.get("lifted_index"))
-        temp = f"{time.get('temp2m', 'N/A')} C" if "temp2m" in time else "N/A"
+        temp = weather_temperature(time.get("temp2m"), temperature_unit)
         rh = map_or_na(rh2m_dict, time.get("rh2m"))
         wind = time.get("wind10m") or {}
         wind_dir = wind.get("direction", "N/A")
@@ -1036,6 +1189,61 @@ async def async_neocp_confirmation(
     return table
 
 
+def _neocp_viewing_point_fields(config: ConfigParser) -> str:
+    """Build the ``Parallax``/``obscode``/``long``/``lat``/``alt`` form fields.
+
+    ``Parallax`` selects the MPC confirmeph2 viewing point and the CGI honours only
+    the matching fields, so a real ``mpc_code`` always wins. Otherwise the
+    ``[Observatory]`` coordinates drive the ephemeris when they differ from the
+    shipped defaults, keeping the MPC in step with the coordinates the local
+    altitude and virtual-horizon filters already use; with no usable site or no
+    coordinates, the geocenter is requested.
+
+    ``long``/``lat`` are validated for every ``Parallax`` value, so unparsable or
+    blank coordinates are sent as ``0.0`` rather than failing the whole request.
+    """
+
+    observatory = config["Observatory"]
+    defaults = configuration.SECTION_DEFAULTS["Observatory"]
+
+    def option_float(option: str) -> float | None:
+        raw = observatory.get(option) or defaults.get(option, "")
+        try:
+            return float(raw)
+        except ValueError:
+            return None
+
+    obs_code = (observatory.get("mpc_code") or "").strip()
+    latitude = option_float("latitude")
+    longitude = option_float("longitude")
+    altitude = option_float("altitude")
+
+    generic_code = obs_code.upper() in NEOCP_GENERIC_MPC_CODES
+    coordinates_set = (
+        latitude is not None
+        and longitude is not None
+        and (
+            (latitude, longitude)
+            != (float(defaults["latitude"]), float(defaults["longitude"]))
+        )
+    )
+
+    if not generic_code:
+        parallax = NEOCP_PARALLAX_OBS_CODE
+    elif coordinates_set:
+        parallax = NEOCP_PARALLAX_COORDINATES
+    else:
+        parallax = NEOCP_PARALLAX_GEOCENTRIC
+
+    return (
+        f"Parallax={parallax}"
+        f"&obscode={obs_code}"
+        f"&long={0.0 if latitude is None else latitude}"
+        f"&lat={0.0 if longitude is None else longitude}"
+        f"&alt={0.0 if altitude is None else altitude}"
+    )
+
+
 async def get_neocp_ephemeris(
     config: ConfigParser, object_names: list[str]
 ) -> dict[str, list[str]]:
@@ -1067,19 +1275,15 @@ async def get_neocp_ephemeris(
     and queries the MPC CGI service. The HTML response is parsed using regex
     to extract ephemeris data. Only objects with at least 4 values in their
     ephemeris data are included in the results.
+
+    The viewing point is resolved by :func:`_neocp_viewing_point_fields` from
+    ``[Observatory] mpc_code``, ``latitude``, ``longitude`` and ``altitude``,
+    so the returned velocity and direction are computed for the same site the
+    caller filters on locally.
     """
     configuration.load_config(config)
     object_names_str = ",".join(object_names)
-    obs_code = (
-        config["Observatory"]["mpc_code"] if config["Observatory"]["mpc_code"] else ""
-    )
-    latitude = (
-        config["Observatory"]["latitude"] if config["Observatory"]["latitude"] else ""
-    )
-    longitude = (
-        config["Observatory"]["longitude"] if config["Observatory"]["longitude"] else ""
-    )
-    payload = f"mb=-30&mf=30&dl=-90&du=%2B90&nl=0&nu=100&sort=d&W=j&obj={object_names_str}&Parallax=1&obscode={obs_code}&long={longitude}&lat={latitude}&int=0&start=0&raty=a&mot=m&dmot=p&out=f&sun=x&oalt=20"
+    payload = f"mb=-30&mf=30&dl=-90&du=%2B90&nl=0&nu=100&sort=d&W=j&obj={object_names_str}&{_neocp_viewing_point_fields(config)}&int=0&start=0&raty=a&mot=m&dmot=p&out=f&sun=x&oalt=20"
     url = "https://cgi.minorplanetcenter.net/cgi-bin/confirmeph2.cgi"
     timeout = httpx.Timeout(DEFAULT_REQUEST_TIMEOUT_SEC)
     try:
@@ -1225,7 +1429,12 @@ def sun_moon_ephemeris(config: ConfigParser) -> dict[str, Any]:
     return result
 
 
-def object_ephemeris(config: ConfigParser, object_name: str, stepping: str) -> QTable:
+def object_ephemeris(
+    config: ConfigParser,
+    object_name: str,
+    stepping: str,
+    number: int | str = DEFAULT_EPHEMERIS_POINTS,
+) -> QTable:
     """Retrieve ephemeris data for a specific object from the Minor Planet Center.
 
     Queries the MPC database for ephemeris data of the specified object,
@@ -1246,11 +1455,13 @@ def object_ephemeris(config: ConfigParser, object_name: str, stepping: str) -> Q
         - 'd': 1 day
         - 'w': 1 week
         Defaults to '1h' if an unknown value is provided.
+    number : int, optional
+        How many points to request, :data:`DEFAULT_EPHEMERIS_POINTS` by default.
 
     Returns
     -------
     QTable
-        An astropy QTable containing 30 ephemeris points with columns:
+        An astropy QTable with *number* ephemeris points and columns:
         - Date: Observation date/time
         - RA: Right ascension
         - Dec: Declination
@@ -1260,11 +1471,19 @@ def object_ephemeris(config: ConfigParser, object_name: str, stepping: str) -> Q
         - Proper motion: Angular motion
         - Direction: Motion direction
 
+    Raises
+    ------
+    ValueError
+        If *number* is not a whole number within
+        :data:`MIN_EPHEMERIS_POINTS`/:data:`MAX_EPHEMERIS_POINTS`, checked by
+        :func:`validated_ephemeris_points`.
+
     Notes
     -----
     The function uses astroquery.mpc.MPC to query the Minor Planet Center
     database. Ephemeris is calculated for the configured observatory location.
     """
+    points = validated_ephemeris_points(number)
     configuration.load_config(config)
     location = earth_location_from_config(config)
     step: Quantity | str
@@ -1280,7 +1499,7 @@ def object_ephemeris(config: ConfigParser, object_name: str, stepping: str) -> Q
         # Default to 1 hour if unknown stepping value
         step = "1h"
     eph = MPC.get_ephemeris(
-        str(object_name).upper(), location=location, step=step, number=30
+        str(object_name).upper(), location=location, step=step, number=points
     )
     ephemeris = eph[
         "Date", "RA", "Dec", "Elongation", "V", "Altitude", "Proper motion", "Direction"
@@ -1288,19 +1507,125 @@ def object_ephemeris(config: ConfigParser, object_name: str, stepping: str) -> Q
     return ephemeris
 
 
-def _planner_settings(config: ConfigParser) -> dict[str, Any]:
-    """Return planner tuning from the ``[Planner]`` INI section with hardcoded fallback.
+class PlannerValueError(ValueError):
+    """Raised for a ``[Planner]`` value that the best-night planner cannot use.
 
-    ``max_nights`` is clamped to at least 1; weights are normalized to sum to 1.
-    Any missing or non-numeric value falls back to :data:`DEFAULT_PLANNER_WEIGHTS`
-    / :data:`DEFAULT_PLANNER_MAX_NIGHTS`.
+    *reason* is a stable machine-readable code, so a UI can pick a translated
+    message without parsing prose, and *options* lists the INI option names to
+    blame. Reasons:
 
-    Weights must be finite and non-negative: a negative weight would invert a
-    quality factor (a negative ``w_moon`` would reward a brighter Moon) and let
-    the score leave the 0-100 range, so such a value is rejected in favour of
-    its default.
+    * ``not_a_number`` — the value is not numeric;
+    * ``not_an_integer`` — ``max_nights`` is not a whole number;
+    * ``out_of_range`` — the value is negative, not finite, or below the minimum
+      (weights must be non-negative, ``max_nights`` at least 1);
+    * ``zero_sum`` — every weight is zero, which would leave the score undefined.
     """
 
+    def __init__(self, reason: str, options: Sequence[str]) -> None:
+        super().__init__(f"{reason}: {', '.join(options)}")
+        self.reason = reason
+        self.options = tuple(options)
+
+
+def _weight_problem(raw: Any) -> str | None:
+    """Return why *raw* is unusable as a planner weight, or None when it is fine."""
+    try:
+        value = float(raw)
+    except (TypeError, ValueError):
+        return "not_a_number"
+    if not math.isfinite(value) or value < 0:
+        return "out_of_range"
+    return None
+
+
+def normalize_planner_weights(weights: Mapping[str, float]) -> dict[str, float]:
+    """Validate planner weights and return them divided by their sum.
+
+    This is the single place where the weighting rules live: the in-app editor
+    validates with it before saving, and :func:`best_nights` applies the result
+    to every night it ranks.
+
+    Raises
+    ------
+    PlannerValueError
+        If a weight is not a finite non-negative number, or all of them are zero
+        (the score would divide by zero).
+    """
+    problems = [(factor, _weight_problem(value)) for factor, value in weights.items()]
+    invalid = [(factor, reason) for factor, reason in problems if reason is not None]
+    if invalid:
+        raise PlannerValueError(
+            invalid[0][1], [PLANNER_WEIGHT_OPTIONS.get(f, f) for f, _ in invalid]
+        )
+    total = math.fsum(float(value) for value in weights.values())
+    if total <= 0:
+        raise PlannerValueError("zero_sum", list(PLANNER_WEIGHT_OPTIONS.values()))
+    return {factor: float(value) / total for factor, value in weights.items()}
+
+
+def parse_planner_max_nights(raw: Any) -> int:
+    """Return ``[Planner] max_nights`` as a whole number of nights (at least 1).
+
+    Raises
+    ------
+    PlannerValueError
+        If *raw* is not an integer or is below 1. The editor must refuse to store
+        such a value, while :func:`planner_settings` stays tolerant of a
+        hand-edited file.
+    """
+    if isinstance(raw, bool):
+        raise PlannerValueError("not_an_integer", ("max_nights",))
+    try:
+        value = int(str(raw).strip())
+    except (TypeError, ValueError):
+        raise PlannerValueError("not_an_integer", ("max_nights",)) from None
+    if value < 1:
+        raise PlannerValueError("out_of_range", ("max_nights",))
+    return value
+
+
+def parse_planner_weights(raw: Mapping[str, Any]) -> dict[str, float]:
+    """Parse raw ``[Planner]`` values into the weights the scorer really uses.
+
+    Options absent from *raw* fall back to :data:`DEFAULT_PLANNER_WEIGHTS`; the
+    result is normalized to sum to 1, so the editor can show the user the numbers
+    that will be applied (see :func:`normalize_planner_weights`).
+
+    Raises
+    ------
+    PlannerValueError
+        If any weight is unusable, naming every offending option.
+    """
+    parsed: dict[str, float] = {}
+    problems: list[str] = []
+    reason = ""
+    for factor, option in PLANNER_WEIGHT_OPTIONS.items():
+        value = raw.get(option, DEFAULT_PLANNER_WEIGHTS[factor])
+        problem = _weight_problem(value)
+        if problem is None:
+            parsed[factor] = float(value)
+        else:
+            problems.append(option)
+            reason = reason or problem
+    if problems:
+        raise PlannerValueError(reason, problems)
+    return normalize_planner_weights(parsed)
+
+
+def planner_settings(config: ConfigParser) -> dict[str, Any]:
+    """Return the planner tuning of *config*, tolerating a hand-edited INI file.
+
+    The returned mapping has two keys: ``max_nights`` (an ``int`` of at least 1)
+    and ``weights`` (the four factors, normalized to sum to 1). Each option is read
+    through its strict parser, so the accepted ranges are defined once in
+    :func:`parse_planner_max_nights` and :func:`parse_planner_weights`; a value
+    those reject falls back to :data:`DEFAULT_PLANNER_MAX_NIGHTS` or, weight by
+    weight, to :data:`DEFAULT_PLANNER_WEIGHTS`.
+
+    A negative or non-finite weight is rejected because it would invert a quality
+    factor (a negative ``w_moon`` would reward a brighter Moon) and let the score
+    leave the 0-100 range.
+    """
     if not config.has_section("Planner"):
         return {
             "max_nights": DEFAULT_PLANNER_MAX_NIGHTS,
@@ -1308,37 +1633,25 @@ def _planner_settings(config: ConfigParser) -> dict[str, Any]:
         }
     section = config["Planner"]
 
-    def _float(key: str, default: float) -> float:
-        try:
-            value = float(section.get(key, str(default)))
-        except (TypeError, ValueError):
-            return default
-        if not math.isfinite(value) or value < 0:
-            return default
-        return value
-
-    weights = {
-        "cloud": _float("w_cloud", DEFAULT_PLANNER_WEIGHTS["cloud"]),
-        "seeing": _float("w_seeing", DEFAULT_PLANNER_WEIGHTS["seeing"]),
-        "transparency": _float(
-            "w_transparency", DEFAULT_PLANNER_WEIGHTS["transparency"]
-        ),
-        "moon": _float("w_moon", DEFAULT_PLANNER_WEIGHTS["moon"]),
-    }
-    total = sum(weights.values())
-    if total <= 0:
-        weights = dict(DEFAULT_PLANNER_WEIGHTS)
-        total = 1.0
     try:
-        max_nights = int(section.get("max_nights", ""))
-        if max_nights < 1:
-            raise ValueError
-    except (ValueError, TypeError):
+        max_nights = parse_planner_max_nights(section.get("max_nights", ""))
+    except PlannerValueError:
         max_nights = DEFAULT_PLANNER_MAX_NIGHTS
-    return {
-        "max_nights": max_nights,
-        "weights": {key: value / total for key, value in weights.items()},
-    }
+
+    weights: dict[str, float] = {}
+    for factor, option in PLANNER_WEIGHT_OPTIONS.items():
+        value = section.get(option, DEFAULT_PLANNER_WEIGHTS[factor])
+        weights[factor] = (
+            float(value)
+            if _weight_problem(value) is None
+            else DEFAULT_PLANNER_WEIGHTS[factor]
+        )
+    try:
+        normalized = normalize_planner_weights(weights)
+    except PlannerValueError:
+        # All-zero weights (or a bad mix that still adds up to nothing): start over.
+        normalized = dict(DEFAULT_PLANNER_WEIGHTS)
+    return {"max_nights": max_nights, "weights": normalized}
 
 
 def astronomical_night(config: ConfigParser, date: datetime.date) -> tuple[Time, Time]:
@@ -1517,7 +1830,9 @@ def _score_night(entry: dict[str, Any], weights: dict[str, float]) -> None:
 
 
 def best_nights(
-    config: ConfigParser, max_nights: int | None = None
+    config: ConfigParser,
+    max_nights: int | None = None,
+    weights: Mapping[str, float] | None = None,
 ) -> list[dict[str, Any]]:
     """Rank upcoming astronomical nights from the 7Timer astro forecast.
 
@@ -1525,7 +1840,7 @@ def best_nights(
     astronomical twilight window contains it. Per night, the mean cloud cover
     (percent), seeing and transparency indices, and the Moon illumination at the
     middle of the night are combined into a 0–100 score using the ``[Planner]``
-    weights (see ``_planner_settings``).
+    weights (see :func:`planner_settings`).
 
     Nights containing any precipitation timepoint are discarded.
 
@@ -1535,6 +1850,10 @@ def best_nights(
         Observatory settings and optional ``[Planner]`` tuning.
     max_nights : int, optional
         Override ``[Planner] max_nights``; defaults to the configured value.
+    weights : mapping, optional
+        Score with these weights instead of the configured ones, which is how the
+        planner editor previews unsaved values. They are validated and normalized
+        by :func:`normalize_planner_weights`.
 
     Returns
     -------
@@ -1542,6 +1861,11 @@ def best_nights(
         Each entry has ``date`` (start date), ``start``/``end`` (astropy Time),
         ``length_h``, ``avg_cloud_pct``, ``avg_seeing``, ``avg_transparency``,
         ``moon_illum`` and ``score`` (100 = ideal). Empty when no forecast data.
+
+    Raises
+    ------
+    PlannerValueError
+        If *weights* is supplied and unusable.
     """
 
     configuration.load_config(config)
@@ -1567,9 +1891,12 @@ def best_nights(
         if entry is not None:
             results.append(entry)
 
-    settings = _planner_settings(config)
+    settings = planner_settings(config)
+    scoring_weights = (
+        settings["weights"] if weights is None else normalize_planner_weights(weights)
+    )
     for entry in results:
-        _score_night(entry, settings["weights"])
+        _score_night(entry, scoring_weights)
     results.sort(key=lambda entry: entry["score"], reverse=True)
     if max_nights is None:
         max_nights = settings["max_nights"]
@@ -1582,7 +1909,7 @@ def best_nights_report(config: ConfigParser, max_nights: int | None = None) -> s
     Returns a short error message when no forecast data is available.
     """
 
-    settings = _planner_settings(config)
+    settings = planner_settings(config)
     if max_nights is None:
         max_nights = settings["max_nights"]
     nights = best_nights(config, max_nights)

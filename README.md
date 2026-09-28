@@ -16,6 +16,7 @@ AsteroidPy is a command-line tool for astronomers to schedule and manage asteroi
 - [Requirements](#requirements)
 - [Installation](#installation)
 - [Quick Start](#quick-start)
+- [Keyboard Navigation](#keyboard-navigation)
 - [Configuration](#configuration)
 - [FAQ](#faq)
 - [Data Sources](#data-sources)
@@ -29,13 +30,13 @@ AsteroidPy is a command-line tool for astronomers to schedule and manage asteroi
 
 | Feature | Description |
 |--------|-------------|
-| **Weather forecast** | Astronomical weather (cloud cover, seeing, transparency) up to 72 hours via 7Timer |
+| **Weather forecast** | Astronomical weather (cloud cover, seeing, transparency) via 7Timer, over a horizon of 6–168 hours (72 by default) and in °C or °F |
 | **Observation scheduling** | Plan sessions with target lists and visibility windows |
 | **NEOcp candidates** | List and filter Near-Earth Object candidates from the MPC Confirmation Page |
-| **Object ephemeris** | Retrieve detailed ephemeris data for any minor body |
+| **Object ephemeris** | Retrieve detailed ephemeris data for any minor body, from 1 to 10000 points |
 | **Twilight & Sun/Moon** | Civil, nautical, and astronomical twilight; rise/set times |
 | **Best-upcoming-night planner** | Rank the upcoming astronomical nights by observing quality (cloud cover, seeing, transparency, Moon illumination) with configurable weights |
-| **Virtual horizon** | Simulate horizon obstructions for visibility calculations |
+| **Virtual horizon** | Simulate horizon obstructions for visibility calculations (0–90° per cardinal direction) |
 
 ---
 
@@ -114,6 +115,24 @@ The **Observation scheduling** menu offers weather, MPC observing target list, N
 
 ---
 
+## Keyboard Navigation
+
+Every screen is fully drivable from the keyboard; the mouse is optional.
+
+| Key | Action |
+|-----|--------|
+| `Up` / `Down` | Move the focus to the previous/next widget, exactly like `Shift+Tab` / `Tab` |
+| `Tab` / `Shift+Tab` | Move the focus forward/backward |
+| `0`–`9` | Activate the menu entry carrying that number in its label (e.g. `1 - Configuration`, `0 - Back to main menu`) |
+| `Escape` | Go back to the previous screen |
+| `Ctrl+Q` | Quit, from the main menu |
+
+The numbers are always visible in the button labels, so the shortcut for a screen is readable without leaving it. A digit with no matching entry — or one whose entry is disabled while a background query runs — is simply ignored.
+
+Arrow keys also work while filling in a form, and typing digits into a text field is never intercepted: input widgets consume printable characters before the shortcut is considered.
+
+---
+
 ## Configuration
 
 Configuration is stored in a single INI file named `.asteroidpy`, in the application config directory returned by [platformdirs](https://github.com/platformdirs/platformdirs) (for example `~/.config/asteroidpy/` on Linux, `~/Library/Application Support/asteroidpy/` on macOS, and `%LOCALAPPDATA%\asteroidpy\` on Windows). Legacy installs may still have a copy at `~/.asteroidpy`, which is migrated automatically on first run.
@@ -124,6 +143,7 @@ Use the in-app **Configuration** menu to change:
 |--------|-------------|
 | **Observatory** | Latitude, longitude, altitude, site and observer names, MPC observatory code |
 | **Virtual horizon** | Minimum altitude (in degrees) per cardinal direction for visibility |
+| **Planner** | Number of nights the best-night planner ranks, and the relative weights of cloud cover, seeing, transparency and Moon illumination |
 | **Language** | Interface language (English, Italiano, Deutsch, Français, Español, Português) |
 
 The same values can be edited by hand in the INI file. It has three sections:
@@ -134,14 +154,14 @@ The same values can be edited by hand in the INI file. It has three sections:
 | `[Planner]` | `max_nights` — how many nights the best-night planner ranks; `w_cloud`, `w_seeing`, `w_transparency`, `w_moon` — relative weights, normalized to sum to 1 |
 | `[Observatory]` | `place`, `latitude`, `longitude`, `altitude`, `obs_name`, `observer_name`, `mpc_code`, `nord_altitude`, `east_altitude`, `south_altitude`, `west_altitude` |
 
-Missing options are filled from the built-in defaults on every load, so a partial or older file stays usable. The `[Planner]` weights are read from the file only — there is no in-app screen for them yet; they control the **Best upcoming night** score, whose only inputs are cloud cover, seeing, transparency and Moon illumination. Nights with any precipitation are discarded outright.
+Missing options are filled from the built-in defaults on every load, so a partial or older file stays usable. The `[Planner]` weights control the **Best upcoming night** score, whose only inputs are cloud cover, seeing, transparency and Moon illumination; nights with any precipitation are discarded outright. The **Configuration → Planner** screen edits `max_nights` and the four weights, shows the values that will really be applied (the weights divided by their sum) and previews the score of the next few nights without saving.
 
 ---
 
 ## FAQ
 
 **Where do I find my MPC observatory code?**  
-The [Minor Planet Center](https://www.minorplanetcenter.net/iau/lists/ObsCodes.html) publishes the list of observatory codes. If your site is not listed, use `XXX` or another temporary code until you register it with the MPC.
+The [Minor Planet Center](https://www.minorplanetcenter.net/iau/lists/ObsCodes.html) publishes the list of observatory codes. The default is `500` (Geocentric), which tells AsteroidPy to use your own latitude/longitude/altitude for the NEOcp ephemerides. If your site is not listed, keep `500` or use another temporary code until you register it with the MPC.
 
 **Why do ephemerides differ from Stellarium or other tools?**  
 Small differences can arise from different orbital elements, epoch dates, or time handling. AsteroidPy uses MPC data directly; ensure your observatory coordinates and time (UTC vs local) match across tools.
@@ -223,14 +243,14 @@ e comandi di verifica.
 ### Debito tecnico
 
 - [x] **F1** Schermata Osservatorio: coordinate mostrate in chiaro via `observatory_summary_lines`, etichette di `print_obs_config` passate da gettext e presenti in tutti i cataloghi
-- [ ] **F2** Rimozione del frontend legacy orfano (`_config_menus.py`, `_schedule_menus.py`, `_input.py`), irraggiungibile e già divergente dalla TUI
+- [x] **F2** Rimossi il frontend legacy orfano (`_config_menus.py`, `_schedule_menus.py`, `_input.py`) e `main_menu`, irraggiungibili e già divergenti dalla TUI
 - [ ] **F3** Test della TUI: oggi le 19 schermate non hanno nessun test
 - [ ] **F4** Deduplicazione di `test_configuration.py` e `test_configuration_unittest.py`
 - [ ] **F5** Stage docs e matrix Python 3.11–3.14 nel `Jenkinsfile`
-- [ ] **F6** Rimozione del token CSRF fallback hardcodato in `scheduling.py` e segnalazione esplicita del fallimento
-- [ ] **F7** Parametri mancanti: numero di punti di efemeride, numero di notti, prefill dell'orizzonte virtuale
+- [x] **F6** Rimozione del token CSRF fallback hardcodato in `scheduling.py` e segnalazione esplicita del fallimento
+- [x] **F7** Parametri mancanti: `object_ephemeris(number=…)` con validazione, numero di punti e di notti nelle schermate, ore e unità di temperatura sulla schermata meteo, prefill e validazione 0–90° dell'orizzonte virtuale
 - [ ] **F8** Retry con backoff e gestione tipizzata degli errori di rete
-- [ ] **F9** Editor in-app dei pesi del planner: `[Planner] w_cloud`, `w_seeing`, `w_transparency`, `w_moon` e `max_nights` sono oggi modificabili solo editando l'INI a mano
+- [x] **F9** Editor in-app dei pesi del planner: schermata **Configurazione → Pianificatore** con `max_nights` e i quattro pesi, validazione condivisa con il loader, pesi normalizzati mostrati e anteprima dello score
 
 Ordine di esecuzione suggerito:
 
