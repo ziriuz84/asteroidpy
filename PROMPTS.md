@@ -465,6 +465,11 @@ quindi non esiste nemmeno la base per una modalità offline.
 (`neocp_confirmation`/`async_neocp_confirmation`), `:1607` (`object_ephemeris`),
 `:2081` (`best_nights_report`).
 
+**Nota da A1** — `cache.FetchResult` (`asteroidpy/cache.py:81`) espone già
+`status` (`hit|miss|failover|disabled`) e `age_seconds`, ma i caller pubblici di
+`scheduling.py` continuano a restituire il payload nudo: l'export deve decidere
+come portare origine ed età del dato fino al file senza rompere le firme.
+
 **Problema** — l'unico export è un HTML temporaneo su 2 schermate su 3. Non
 esistono CSV, JSON, né un percorso scelto dall'utente, né copia negli appunti.
 
@@ -581,6 +586,10 @@ strumento è inutilizzabile in uno script, in un cron, o in CI.
    errore, con il messaggio su stderr.
 6. Non rompere il workflow TUI esistente e non cambiare il default di
    `asteroidpy` senza nota.
+7. Debito da A1, rimasto indietro: la cache si svuota dalla TUI
+   (`GeneralConfigScreen`, `2 - Clear cache`, `_tui_screens.py:397`) ma non
+   ancora dalla CLI. Aggiungi il subcommand `cache` (`--clear`, `--path`) con
+   `asteroidpy.cache.clear()`/`cache.cache_root()`.
 
 **Criteri di accettazione**
 
@@ -746,9 +755,9 @@ TODO del progetto.
    implementare: non inventare un formato. Se l'export richiede dati che
    AsteroidPy non raccoglie, produrre il subset disponibile e **dichiarare
    esplicitamente** quali campi non sono popolati, senza valori fittizi.
-4. Collegamento con la `mpc_code` configurata e avviso chiaro se è ancora
-   `XXX` (il default in `asteroidpy/configuration.py:81`), perché un export con
-   codice osservatorio fittizio è inutile al MPC.
+4. Collegamento con la `mpc_code` configurata e avviso chiaro se è ancora il
+   default geocentrico `500` (`asteroidpy/configuration.py:81`), perché un export
+   con codice osservatorio non assegnato è inutile al MPC.
 5. L'export riusa l'infrastruttura di A2 (percorso, conferma, scrittura atomica).
 
 **Criteri di accettazione**
@@ -757,7 +766,7 @@ TODO del progetto.
 - L'export produce un file che supera una validazione del formato scelto
   (test con validatore o con asserzioni sulla struttura).
 - I campi non disponibili sono dichiarati, mai inventati.
-- Avviso quando `mpc_code` è `XXX`.
+- Avviso quando `mpc_code` è il default `500`.
 
 **Verifica** — stesso gate di `F1`.
 
@@ -811,12 +820,13 @@ TODO del progetto.
 
 ## F3 — Test della TUI con `App.run_test()` e pilot
 
-**Contesto** — `asteroidpy/interface/_tui_screens.py` è 1777 righe con 20 classi
-`Screen` e **nessun test che le istanzi**. `tests/test_tui_screens.py` esiste già
-(7 test) ma copre solo gli helper puri introdotti da F7/F9/F6
-(`_clamped_int`, `_validate_horizon_degrees`, `PLANNER_ERROR_MESSAGES`,
-`_planner_preview_lines`, `WHATSUP_ERROR_LABELS`): nessun test usa
-`App.run_test()`. I 154 test della suite coprono la logica pura, non i widget.
+**Contesto** — `asteroidpy/interface/_tui_screens.py` è 1843 righe con 21 classi
+`Screen` (20 schermate più la base `MenuScreen`) e **nessun test che le
+istanzi**. `tests/test_tui_screens.py` esiste già (7 test) ma copre solo gli
+helper puri introdotti da F7/F9/F6 (`_clamped_int`, `_validate_horizon_degrees`,
+`PLANNER_ERROR_MESSAGES`, `_planner_preview_lines`, `WHATSUP_ERROR_LABELS`):
+nessun test usa `App.run_test()`. I 215 test della suite coprono la logica pura,
+non i widget.
 
 **Cosa fare**
 
@@ -837,13 +847,14 @@ TODO del progetto.
    `_tui_screens.py:1254` (token What's Observable) e in
    `_push_result_log_modal:1500`: i test devono attendere il completamento senza
    `time.sleep` fragili. Preferire un meccanismo di attesa esplicito.
-6. Aggiungere `pytest-asyncio` in `pyproject.toml` se assente, con
-   `asyncio_mode = "auto"` o marker espliciti coerenti con lo stile esistente.
+6. Aggiungere `pytest-asyncio` in `pyproject.toml` (l'extra `dev`, a
+   `pyproject.toml:54`, oggi non lo include), con `asyncio_mode = "auto"` o
+   marker espliciti coerenti con lo stile esistente.
 
 **Criteri di accettazione**
 
 - `pytest -q` verde e nessun test che tocchi la rete.
-- Almeno una copertura per ciascuna delle 20 classi `Screen`.
+- Almeno una copertura per ciascuna delle 20 schermate.
 - `mypy.ini:41-45` continua a ignorare gli errori in `tests.*`: non allargare il
   gate per far passare i test.
 
@@ -896,8 +907,15 @@ coprono un caso ciascuno. I test degli helper delle schermate sono già in
 **nessuno stage docs**, quindi il drift della documentazione non viene
 intercettato. La matrix dei test non esercita le versioni dichiarate: il
 `Jenkinsfile` usa un singolo `python3` non pinnato, mentre `README.md` dichiara
-supporto 3.11, 3.12, 3.13, 3.14 e `pyproject.toml` li elenca nei classifier.
-`docs/source/conf.py:91` imposta `nitpicky = True`.
+supporto 3.11, 3.12, 3.13, 3.14 e `pyproject.toml` li elenca nei classifier
+(`pyproject.toml:31-34`). `docs/source/conf.py:91` imposta `nitpicky = True`.
+
+**Nota** — `make html` oggi non è del tutto pulito: resta un warning pre-esistente
+`:func:` non risolvibile verso il privato `_neocp_viewing_point_fields`, citato
+nella docstring di `get_neocp_ephemeris` (`asteroidpy/scheduling.py:1438`).
+Con `-W` quello stage fallirebbe subito: correggi il riferimento (per esempio
+riferendosi al comportamento senza cross-reference privata) **prima** di
+aggiungere lo stage.
 
 **Cosa fare**
 
@@ -923,7 +941,8 @@ supporto 3.11, 3.12, 3.13, 3.14 e `pyproject.toml` li elenca nei classifier.
 - `AGENTS.md` e `CONTRIBUTING.md` descrivono i comandi e gli stage aggiornati.
 
 **Verifica** — esecuzione locale di `pytest -q`, del gate di lint, e
-`(cd docs && make html)` pulito.
+`(cd docs && make html)` pulito: oggi l'ultimo è **già rosso** per il warning
+`_neocp_viewing_point_fields` descritto sopra, quindi partire da lì.
 
 **Dipende da** — nessuno, ma farlo dopo le feature che toccano la documentazione
 (si rischierebbe di segnalare come fallimento il drift prodotto da quel task).
@@ -949,8 +968,12 @@ fallita».
 **Cosa fare**
 
 1. Un unico wrapper HTTP con retry esponenziale + jitter, rispetto di
-   `Retry-After`, e tetto sui tentativi. I tre call site passano da quel wrapper.
-   Non ritentare su 4xx (eccetto 429): ritentare un 400 spreca tempo.
+   `Retry-After`, e tetto sui tentativi. I call site passano da quel wrapper:
+   i tre su `requests`, `httpx_get`, l'`AsyncClient` inline di
+   `get_neocp_ephemeris`, e anche `httpx_post`, che oggi non ha più caller
+   production (solo test) e va valutato: tenerlo o rimuoverlo, non lasciarlo
+   fuori dal wrapper. Non ritentare su 4xx (eccetto 429): ritentare un 400
+   spreca tempo.
 2. Distinguere gli errori tipizzati (`DataSourceError`, già introdotto da F6 in
    `asteroidpy/errors.py`, con `source`, `reason`, `detail`: qui va esteso con
    `status`) invece di `except requests.RequestException: return {}`. Vedi A3: i
