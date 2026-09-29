@@ -1,3 +1,42 @@
+## [1.4.1](https://github.com/ziriuz84/asteroidpy/releases/tag/v1.4.1) (2026-09-29)
+
+### Added
+
+- feat(interface): add keyboard navigation to the TUI menus ([b6b9618](https://github.com/ziriuz84/asteroidpy/commit/b6b96186d04307e9d77e1f307428cde2c4b267a8))
+- feat(planner): edit the [Planner] weights from the TUI ([e5336fe](https://github.com/ziriuz84/asteroidpy/commit/e5336fe1ce70c2b9737a9a0dc4b062e2630a625f))
+- feat(scheduling): expose the ephemeris point count, forecast horizon and temperature unit ([23b129c](https://github.com/ziriuz84/asteroidpy/commit/23b129cab3c4cc080f5ba6001751aa7bb311d306))
+
+### Changed
+
+- refactor(interface): remove the orphaned legacy text frontend ([1db1900](https://github.com/ziriuz84/asteroidpy/commit/1db1900c0e48a50a3ff763716ab1d7bbce4eb8de))
+
+### Fixed
+
+- fix(scheduling): pick the NEOcp viewing point from code or coordinates ([4246ec9](https://github.com/ziriuz84/asteroidpy/commit/4246ec96a7853ac7f52626c6b58b0ef333cbd628))
+- fix(mpc): default the observatory code to 500 (Geocentric) ([02f8629](https://github.com/ziriuz84/asteroidpy/commit/02f862921d249f499d0a23a838aa687d27f44c4a))
+- fix(mpc): drop the hardcoded CSRF token fallback and report scraping failures ([dbaf344](https://github.com/ziriuz84/asteroidpy/commit/dbaf34438cedc5a8e93ef9adbd73fa5a8d08e3ce))
+- fix(interface): resolve the observatory labels in one place for both menus ([9aa8304](https://github.com/ziriuz84/asteroidpy/commit/9aa83042e6da6d05df04e9d489e183484560736a))
+- fix(configuration): keep show_sensitive as a positional argument ([4479c1e](https://github.com/ziriuz84/asteroidpy/commit/4479c1e88839efbb44105183f092771bb2457382))
+- fix(configuration): show the observatory coordinates in the app summary ([aac98b6](https://github.com/ziriuz84/asteroidpy/commit/aac98b62ba6a46e66319b3fe4379ec94c7aec682))
+
+### Documentation
+
+- docs(readme): translate the TODO backlog into English ([c174562](https://github.com/ziriuz84/asteroidpy/commit/c174562406043fff9ccfb0be4fd9b0bfcb0469da))
+- docs(interface): document the TUI keyboard navigation ([c757677](https://github.com/ziriuz84/asteroidpy/commit/c757677af0bfcc4d07aa7f4dd5e065248b9408f3))
+- docs(roadmap): mark F2, F6, F7 and F9 as done ([570447b](https://github.com/ziriuz84/asteroidpy/commit/570447bddf0d534cbe62765ae298293069db3384))
+- docs: group the backlog by area and add one prompt per task ([36102cf](https://github.com/ziriuz84/asteroidpy/commit/36102cf568b5138e39d11e2e54c9b694a090972e))
+
+### Tests
+
+- test(configuration): reset the gettext override after the Italian catalog test ([2a99a56](https://github.com/ziriuz84/asteroidpy/commit/2a99a56b922af52aeb9600c222ee1ee0120dc376))
+
+### Chores
+
+- chore(i18n): resync the gettext catalogs ([2dd15e7](https://github.com/ziriuz84/asteroidpy/commit/2dd15e7639291e083b2b11898d9ca71d9a8ab5c1))
+- chore(i18n): add the observatory summary labels to the locale catalogs ([f49c13e](https://github.com/ziriuz84/asteroidpy/commit/f49c13e3ca208910eeef8ac98152778f352bc3b7))
+---
+
+
 ## [1.4.0](https://github.com/ziriuz84/asteroidpy/releases/tag/v1.4.0) (2026-09-27)
 
 ### Added
