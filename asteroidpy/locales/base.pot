@@ -611,3 +611,16 @@ msgstr ""
 #: asteroidpy/interface/_tui_screens.py:87
 msgid "unexpected page"
 msgstr ""
+
+#: asteroidpy/interface/_tui_screens.py:397
+msgid "2 - Clear cache"
+msgstr ""
+
+#: asteroidpy/interface/_tui_screens.py:423
+#, python-brace-format
+msgid "Removed {count} cached response(s)."
+msgstr ""
+
+#: asteroidpy/interface/_tui_screens.py:426
+msgid "The cache was already empty."
+msgstr ""
