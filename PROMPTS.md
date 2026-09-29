@@ -11,7 +11,7 @@ nei prompt.
 Ordine di esecuzione suggerito:
 
 ```
-F1 ✅ → F9 ✅ → F7 ✅ → F2 ✅ → F6 ✅ → A1 → A2 → A3 → B1 → D1 → C1 → C2 → C3 → E1 → F3 → F4 → F5 → F8
+F1 ✅ → F9 ✅ → F7 ✅ → F2 ✅ → F6 ✅ → A1 ✅ → A2 → A3 → B1 → D1 → C1 → C2 → C3 → E1 → F3 → F4 → F5 → F8
 ```
 
 Bug e cleanup prima delle feature, così il resto poggia su una base pulita.
@@ -21,7 +21,7 @@ i client di rete introdotti dai task precedenti.
 ✅ = task già fatto sul branch `refactoring`; la sezione conserva il prompt
 originale e aggiunge in fondo un blocco **Esito** con le scelte prese e i
 riferimenti correnti. **Non ripetere un task ✅**: leggere il suo *Esito*.
-Prossimo task pendente: `A1`.
+Prossimo task pendente: `A2`.
 
 I riferimenti `file.py:riga` delle sezioni **non** completate sono stati
 riallineati al codice corrente; quelli delle sezioni ✅ sono storici (valgono per
@@ -353,7 +353,7 @@ silenziosamente l'utente vede una lista target vuota senza capire perché.
 
 ---
 
-## A1 — Cache persistente delle risposte di rete
+## A1 ✅ — Cache persistente delle risposte di rete
 
 **Contesto** — `asteroidpy/scheduling.py:48` (`SEVENTIMER_API_URL`), `:349`
 (`httpx_get`), `:401` (`httpx_post`), `:488` (`weather_forecast_raw`), `:853`
@@ -404,6 +404,52 @@ quindi non esiste nemmeno la base per una modalità offline.
 **Verifica** — stesso gate di `F1`.
 
 **Dipende da** — `F6` (il token non deve più avere un fallback statico).
+
+**Esito** — fatto.
+
+- Nuovo modulo `asteroidpy/cache.py`: un file JSON per chiave in
+  `platformdirs.user_cache_dir("asteroidpy")/http` (mai nella config dir),
+  nome file = `sha256(kind + parametri canonici)`, scrittura atomica
+  temp+`os.replace`. Corrotto/illeggibile/altro schema → miss (e file rimosso),
+  mai un'eccezione.
+- TTL per classe (`cache.TTL_TOKEN_SEC`, `TTL_WEATHER_SEC`,
+  `TTL_NEOCP_JSON_SEC`, `TTL_NEOCP_EPHEM_SEC`, `TTL_TARGET_LIST_SEC`):
+  15 min per token/NEOcp/target list, 3 h per 7Timer.
+- `fetch_cached` / `fetch_cached_async` restituiscono `FetchResult(value,
+  status, age_seconds)` con `status` in `hit|miss|failover|disabled`. Il
+  parametro `failover_on` (tipi o predicato) decide **quali** fallimenti
+  possono essere risposte dal disco: solo "la sorgente non ha risposto", mai
+  "la pagina non è più quella che conosco".
+- Disattivazione: `ASTEROIDPY_NO_CACHE=1` (letta a ogni call, niente stato a
+  import). Nessuna opzione INI, per non allargare lo schema `[General]`.
+- `scheduling.py`: cablati i 5 call site non-astroquery, firme pubbliche
+  invariate. La chiave del What's Observable **esclude** `authenticity_token`
+  (`_cacheable_form`/`_VOLATILE_FORM_FIELDS`), altrimenti non avrebbe mai
+  colpito. `weather_forecast_raw` (`:540`), `observing_target_list_scraper`
+  (`:1017`), `get_neocp_ephemeris` (`:1406`), `fetch_neocp_json_and_ephemeris`
+  (`:1478`), `_scrape_whatsup_authenticity_token` (`:161`).
+- Distinzione che A1 ha dovuto introdurre: `_NoTargetTable` (`:931`) separa
+  "cielo vuoto" da "pagina non riconoscibile" — solo il primo si cacha;
+  `_TransportUnavailable` (`:918`)/`_UnexpectedResponse` (`:927`) fanno lo
+  stesso per `httpx_get`, che riporta il fallimento di trasporto come status 0.
+  `get_neocp_ephemeris` resta su `httpx.AsyncClient` inline: `httpx_post` non
+  accetta la query string già codificata.
+- `object_ephemeris` e `get_observatory_coordinates` **non** sono in cache qui:
+  astroquery le copre già (1 settimana, `cache=True`). Test che lo verifica.
+- UI: `GeneralConfigScreen` ha `2 - Clear cache` (`:397`) con notifica
+  tradotta. Il `# Dati` della CLI resta a B1.
+- `tests/conftest.py`: fixture autouse che redirige `cache.cache_root()` in
+  `tmp_path` — senza, la suite scriverebbe nella cache reale dell'utente.
+  `tests/test_cache.py` (27 test) + 18 test in `test_scheduling.py`, fra cui
+  "un secondo run identico non genera richieste di rete" per ognuna delle
+  cinque fonti.
+- Docs: `README.md` (sezione Response cache + FAQ), `docs/source/index.rst`,
+  `docs/source/asteroidpy.rst` (nuova sezione modulo), `CONTRIBUTING.md`.
+  Build Sphinx pulita: resta solo il warning pre-esistente su
+  `_neocp_viewing_point_fields`.
+- **Per A3**: `FetchResult.age_seconds` è già pronto, ma i caller pubblici
+  continuano a restituire il payload nudo. A3 deve decidere come portare
+  l'età fino alla UI (banner) senza perdere la compatibilità delle firme.
 
 ---
 

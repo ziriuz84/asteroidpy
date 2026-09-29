@@ -241,7 +241,7 @@ commands.
 
 ### Data and output
 
-- [ ] **A1** Persistent cache of network responses with a TTL, with a dedicated cache for the MPC form token and distinct hit/miss/failover counters
+- [x] **A1** Persistent cache of network responses with a TTL, with a dedicated cache for the MPC form token and distinct hit/miss/failover counters
 - [ ] **A2** CSV/JSON/text export to file from every table screen, with an explicit path and a copy-to-clipboard
 - [ ] **A3** Offline mode: cache fallback, status banner and a distinction between fresh data, cached data and errors
 
