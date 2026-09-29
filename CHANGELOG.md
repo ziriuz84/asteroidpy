@@ -1,3 +1,24 @@
+## [1.5.0](https://github.com/ziriuz84/asteroidpy/releases/tag/v1.5.0) (2026-09-29)
+
+### Added
+
+- feat(interface): add a clear-cache action to the general configuration menu ([96a5e55](https://github.com/ziriuz84/asteroidpy/commit/96a5e556a96803c71eb145fbdaf9aa7e98cebdc4))
+- feat(scheduling): serve weather, MPC and NEOcp responses from the cache ([8e411f2](https://github.com/ziriuz84/asteroidpy/commit/8e411f23829744828f4d4d7eadeec3ab6fa7b794))
+
+### Documentation
+
+- docs(roadmap): correct the stale facts in the pending task contexts ([4a13804](https://github.com/ziriuz84/asteroidpy/commit/4a13804fbb7f8914b4ab4148bae50fd98f461445))
+- docs(roadmap): realign the line references of the pending tasks ([487d899](https://github.com/ziriuz84/asteroidpy/commit/487d8999560729dd96c82f2fbaaee63d93b664ff))
+- docs(roadmap): mark A1 as done ([6fbfad5](https://github.com/ziriuz84/asteroidpy/commit/6fbfad5e4adec57aa0ab78ecd16dc4bf61634556))
+- docs(readme): translate the TODO backlog into English ([3fc700f](https://github.com/ziriuz84/asteroidpy/commit/3fc700f540e8bbbc6105f91b607ec4114641d419))
+- docs(cache): document the cache directory, TTLs and the clear-cache action ([30ca807](https://github.com/ziriuz84/asteroidpy/commit/30ca8074512562fd5d824437579fa30ec9e5104f))
+
+### Chores
+
+- chore(i18n): resync the gettext catalogs ([3660e4a](https://github.com/ziriuz84/asteroidpy/commit/3660e4aecd1711fd09d1f7f69c60f98bfa57ed8a))
+---
+
+
 ## [1.4.1](https://github.com/ziriuz84/asteroidpy/releases/tag/v1.4.1) (2026-09-29)
 
 ### Added
