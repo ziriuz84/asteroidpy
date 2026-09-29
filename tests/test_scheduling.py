@@ -1,5 +1,8 @@
 import asyncio
+import importlib
+import json
 import pathlib
+import time
 from configparser import ConfigParser
 from typing import Any
 
@@ -1804,3 +1807,450 @@ def test_no_embedded_whatsup_token_is_left_in_the_sources(sch):
     source = pathlib.Path(sch.__file__).read_text()
     assert "W5eBzz" not in source
     assert "_MPC_WHATSUP_AUTH_TOKEN_FALLBACK" not in source
+
+
+# --- Response cache (A1) -------------------------------------------------
+#
+# The acceptance criterion for the cache is blunt: a second, identical run must
+# not reach the network. Each test below therefore counts the client calls
+# instead of only checking the returned value.
+
+
+class _Counter:
+    """Count the calls made to a patched network client."""
+
+    def __init__(self) -> None:
+        self.calls = 0
+
+    @property
+    def count(self) -> int:
+        return self.calls
+
+
+def _counting_get(payload: Any, counter: _Counter):
+    def fake_get(url, params=None, **kwargs):
+        counter.calls += 1
+        return FakeWeatherJsonResponse(payload)
+
+    return fake_get
+
+
+def test_second_weather_run_is_served_from_the_cache(monkeypatch, fresh_config, sch):
+    payload = {"init": "2026092500", "dataseries": [{"timepoint": 3, "cloudcover": 1}]}
+    counter = _Counter()
+    monkeypatch.setattr(sch.requests, "get", _counting_get(payload, counter))
+
+    assert sch.weather_forecast_raw(fresh_config) == payload
+    assert sch.weather_forecast_raw(fresh_config) == payload
+    assert counter.count == 1, "the second run must not re-query 7Timer"
+
+
+def test_a_different_observatory_does_not_reuse_the_cached_forecast(
+    monkeypatch, fresh_config, sch
+):
+    payload = {"init": "2026092500", "dataseries": []}
+    counter = _Counter()
+    monkeypatch.setattr(sch.requests, "get", _counting_get(payload, counter))
+
+    sch.weather_forecast_raw(fresh_config)
+    fresh_config["Observatory"]["latitude"] = "46.0"
+    sch.weather_forecast_raw(fresh_config)
+
+    assert counter.count == 2, "the cache key must include the observatory location"
+
+
+def test_weather_falls_back_to_the_cached_forecast_when_the_network_dies(
+    monkeypatch, fresh_config, sch
+):
+    payload = {"init": "2026092500", "dataseries": [{"timepoint": 3, "cloudcover": 1}]}
+    counter = _Counter()
+    monkeypatch.setattr(sch.requests, "get", _counting_get(payload, counter))
+    assert sch.weather_forecast_raw(fresh_config) == payload
+
+    def boom(url, params=None, **kwargs):
+        raise requests.RequestException("net down")
+
+    monkeypatch.setattr(sch.requests, "get", boom)
+    # A dead network must not turn a usable forecast into "no data".
+    assert sch.weather_forecast_raw(fresh_config) == payload
+
+
+def test_second_whatsup_token_scrape_is_served_from_the_cache(monkeypatch, sch):
+    html = (
+        b"<html><body><form>"
+        b'<input name="authenticity_token" value="tok-123" />'
+        b"</form></body></html>"
+    )
+    counter = _Counter()
+
+    class Response:
+        content = html
+        text = html.decode()
+        status_code = 200
+
+    def fake_get(url, headers=None, timeout=None):
+        counter.calls += 1
+        return Response()
+
+    monkeypatch.setattr(sch.requests, "get", fake_get)
+
+    assert sch.resolve_whatsup_authenticity_token() == "tok-123"
+    assert sch.resolve_whatsup_authenticity_token() == "tok-123"
+    assert counter.count == 1, "the form page must not be re-scraped"
+
+
+def test_whatsup_token_falls_back_to_the_cached_one_on_a_network_failure(
+    monkeypatch, sch
+):
+    html = (
+        b"<html><body><form>"
+        b'<input name="authenticity_token" value="tok-123" />'
+        b"</form></body></html>"
+    )
+
+    class Response:
+        content = html
+        text = html.decode()
+        status_code = 200
+
+    monkeypatch.setattr(
+        sch.requests, "get", lambda url, headers=None, timeout=None: Response()
+    )
+    assert sch.resolve_whatsup_authenticity_token() == "tok-123"
+
+    def boom(url, headers=None, timeout=None):
+        raise requests.ConnectionError("no route")
+
+    monkeypatch.setattr(sch.requests, "get", boom)
+    assert sch.resolve_whatsup_authenticity_token() == "tok-123"
+
+
+def _write_stale_cache_entry(key: str, payload: Any) -> None:
+    """Store *payload* as if it had been fetched well past any TTL."""
+
+    sch = importlib.import_module("asteroidpy.scheduling")
+    sch.cache.write(key, payload)
+    path = sch.cache.entry_path(key)
+    entry = json.loads(path.read_text(encoding="utf-8"))
+    entry["stored_at"] = time.time() - 86400
+    path.write_text(json.dumps(entry), encoding="utf-8")
+
+
+def test_whatsup_token_is_not_served_from_cache_when_the_page_has_no_token(
+    monkeypatch, sch
+):
+    # A page that lost its token is a change to report, not an outage to paper
+    # over with a stale token (F6).
+    class Response:
+        content = b"<html><body><form></form></body></html>"
+        text = "<html><body><form></form></body></html>"
+        status_code = 200
+
+    monkeypatch.setattr(
+        sch.requests, "get", lambda url, headers=None, timeout=None: Response()
+    )
+    _write_stale_cache_entry(sch.cache.cache_key("whatsup-token"), "stale-token")
+
+    with pytest.raises(sch.DataSourceError) as raised:
+        sch.resolve_whatsup_authenticity_token()
+    assert raised.value.reason == sch.REASON_TOKEN_NOT_FOUND
+
+
+_TARGETS_HTML = (
+    b"<html><body>"
+    b"<table></table>"  # 0
+    b"<table></table>"  # 1
+    b"<table></table>"  # 2
+    b"<table>"  # 3, the one the scraper prefers
+    b"<tr><th>Designation</th><th>Mag</th><th>t2</th><th>t3</th>"
+    b"<th>Time</th><th>RA</th><th>Dec</th><th>Alt</th></tr>"
+    b"<tr><td>2026 AA</td><td>19.1</td><td>x</td><td>y</td>"
+    b"<td>2026 9 27.5 (02:30 UT)</td><td>01 02 03.4</td>"
+    b"<td>+05 06 07.8</td><td>42.0</td></tr>"
+    b"</table>"
+    b"</body></html>"
+)
+
+
+def test_second_target_list_query_is_served_from_the_cache(monkeypatch, sch):
+    counter = _Counter()
+
+    def fake_post(url, data=None, headers=None, timeout=None):
+        counter.calls += 1
+        return FakeRequestsSuccessResponse(_TARGETS_HTML)
+
+    monkeypatch.setattr(sch.requests, "post", fake_post)
+
+    payload = {"latitude": "45.0", "longitude": "9.0", "object_type": "mp"}
+    first = sch.observing_target_list_scraper("https://mpc", payload)
+    second = sch.observing_target_list_scraper("https://mpc", payload)
+
+    assert first and first == second
+    assert counter.count == 1, "the same query must not be POSTed twice"
+
+
+def test_target_list_cache_key_ignores_the_authenticity_token(monkeypatch, sch):
+    # The CSRF token is re-scraped on every run, so a key that included it would
+    # never match and the cache would never be read.
+    counter = _Counter()
+
+    def fake_post(url, data=None, headers=None, timeout=None):
+        counter.calls += 1
+        return FakeRequestsSuccessResponse(_TARGETS_HTML)
+
+    monkeypatch.setattr(sch.requests, "post", fake_post)
+
+    first = sch.observing_target_list_scraper(
+        "https://mpc", {"latitude": "45.0", "authenticity_token": "one"}
+    )
+    second = sch.observing_target_list_scraper(
+        "https://mpc", {"latitude": "45.0", "authenticity_token": "two"}
+    )
+
+    assert first == second
+    assert counter.count == 1
+
+
+def test_target_list_cache_key_separates_different_queries(monkeypatch, sch):
+    counter = _Counter()
+
+    def fake_post(url, data=None, headers=None, timeout=None):
+        counter.calls += 1
+        return FakeRequestsSuccessResponse(_TARGETS_HTML)
+
+    monkeypatch.setattr(sch.requests, "post", fake_post)
+
+    sch.observing_target_list_scraper("https://mpc", {"latitude": "45.0"})
+    sch.observing_target_list_scraper("https://mpc", {"latitude": "46.0"})
+
+    assert counter.count == 2, "a different query must not reuse another entry"
+
+
+def test_target_list_falls_back_to_cached_rows_on_a_network_failure(monkeypatch, sch):
+    monkeypatch.setattr(
+        sch.requests,
+        "post",
+        lambda url, data=None, headers=None, timeout=None: (
+            FakeRequestsSuccessResponse(_TARGETS_HTML)
+        ),
+    )
+    payload = {"latitude": "45.0"}
+    first = sch.observing_target_list_scraper("https://mpc", payload)
+    assert first
+
+    def boom(url, data=None, headers=None, timeout=None):
+        raise requests.ConnectionError("no route")
+
+    monkeypatch.setattr(sch.requests, "post", boom)
+    assert sch.observing_target_list_scraper("https://mpc", payload) == first
+
+
+def test_target_list_with_an_unrecognized_page_is_not_cached(monkeypatch, sch):
+    # An empty sky is a real answer; a page we cannot read is a change to report.
+    counter = _Counter()
+
+    def fake_post(url, data=None, headers=None, timeout=None):
+        counter.calls += 1
+        return FakeRequestsSuccessResponse(b"<html><body>nope</body></html>")
+
+    monkeypatch.setattr(sch.requests, "post", fake_post)
+    assert sch.observing_target_list_scraper("https://mpc", {"latitude": "45.0"}) == []
+    assert sch.observing_target_list_scraper("https://mpc", {"latitude": "45.0"}) == []
+    assert counter.count == 2, "an unreadable page must not be stored as the answer"
+
+
+def test_an_empty_sky_is_cached(monkeypatch, sch):
+    counter = _Counter()
+    empty_table = (
+        b"<html><body><table><tr><th>Designation</th><th>Mag</th><th>Time</th>"
+        b"<th>RA</th><th>Dec</th><th>Alt</th></tr></table></body></html>"
+    )
+
+    def fake_post(url, data=None, headers=None, timeout=None):
+        counter.calls += 1
+        return FakeRequestsSuccessResponse(empty_table)
+
+    monkeypatch.setattr(sch.requests, "post", fake_post)
+    assert sch.observing_target_list_scraper("https://mpc", {"latitude": "45.0"}) == []
+    assert sch.observing_target_list_scraper("https://mpc", {"latitude": "45.0"}) == []
+    assert counter.count == 1, "an empty result is still a real answer"
+
+
+def test_second_neocp_fetch_is_served_from_the_cache(monkeypatch, fresh_config, sch):
+    sample = [
+        {
+            "Temp_Desig": "P10abcd",
+            "Score": "100",
+            "R.A.": "10.0",
+            "Decl": "20.0",
+            "V": "18.0",
+            "NObs": "5",
+            "Arc": "0.1",
+            "Not_Seen_dys": "1",
+        }
+    ]
+    counter = _Counter()
+
+    async def fake_httpx_get(url, payload, return_type):
+        counter.calls += 1
+        return sample, 200
+
+    async def fake_get_neocp_ephemeris(config, object_names):
+        return {}
+
+    monkeypatch.setattr(sch, "httpx_get", fake_httpx_get)
+    monkeypatch.setattr(sch, "get_neocp_ephemeris", fake_get_neocp_ephemeris)
+
+    first = asyncio.run(sch.fetch_neocp_json_and_ephemeris(fresh_config))
+    second = asyncio.run(sch.fetch_neocp_json_and_ephemeris(fresh_config))
+
+    assert first[0] == second[0] == sample
+    assert first[2] is True
+    assert counter.count == 1, "neocp.json is a live feed but still worth caching"
+
+
+def test_neocp_falls_back_to_the_cached_feed_when_the_network_dies(
+    monkeypatch, fresh_config, sch
+):
+    sample = [{"Temp_Desig": "P10abcd", "Score": "100"}]
+    counter = _Counter()
+
+    async def fake_httpx_get(url, payload, return_type):
+        counter.calls += 1
+        return sample, 200
+
+    async def fake_get_neocp_ephemeris(config, object_names):
+        return {}
+
+    monkeypatch.setattr(sch, "httpx_get", fake_httpx_get)
+    monkeypatch.setattr(sch, "get_neocp_ephemeris", fake_get_neocp_ephemeris)
+    asyncio.run(sch.fetch_neocp_json_and_ephemeris(fresh_config))
+
+    async def unreachable(url, payload, return_type):
+        return {}, 0
+
+    monkeypatch.setattr(sch, "httpx_get", unreachable)
+    cached = asyncio.run(sch.fetch_neocp_json_and_ephemeris(fresh_config))
+
+    assert cached[0] == sample, "a live feed from disk beats an empty table"
+    assert cached[2] is True
+
+
+def test_neocp_without_a_cache_still_reports_the_failure(
+    monkeypatch, fresh_config, sch
+):
+    async def unreachable(url, payload, return_type):
+        return {}, 0
+
+    async def fake_get_neocp_ephemeris(config, object_names):
+        return {}
+
+    monkeypatch.setattr(sch, "httpx_get", unreachable)
+    monkeypatch.setattr(sch, "get_neocp_ephemeris", fake_get_neocp_ephemeris)
+
+    data, response, ok = asyncio.run(sch.fetch_neocp_json_and_ephemeris(fresh_config))
+    assert (data, response, ok) == ([], {}, False)
+
+
+def test_second_neocp_ephemeris_call_is_served_from_the_cache(
+    monkeypatch, fresh_config, sch
+):
+    counter = _Counter()
+    html = (
+        "<html><body><b>P10abcd</b><pre>header\nintermediate\n"
+        "a b c d e f g h i j k l 1.5 45.0</pre></body></html>"
+    )
+
+    class Response:
+        text = html
+        status_code = 200
+
+    class Client:
+        async def __aenter__(self):
+            return self
+
+        async def __aexit__(self, *args):
+            return False
+
+        async def post(self, *args, **kwargs):
+            counter.calls += 1
+            return Response()
+
+    monkeypatch.setattr(sch.httpx, "AsyncClient", lambda *a, **k: Client())
+
+    first = asyncio.run(sch.get_neocp_ephemeris(fresh_config, ["P10abcd"]))
+    second = asyncio.run(sch.get_neocp_ephemeris(fresh_config, ["P10abcd"]))
+
+    assert first == second
+    assert "P10abcd" in first
+    assert counter.count == 1, "the confirmeph2 POST must not be repeated"
+
+
+def test_neocp_ephemeris_cache_key_follows_the_viewing_point(
+    monkeypatch, fresh_config, sch
+):
+    # Moving the observatory must invalidate ephemerides computed for the old
+    # site, or the velocity and direction would belong to another position.
+    counter = _Counter()
+    html = (
+        "<html><body><b>P10abcd</b><pre>header\nintermediate\n"
+        "a b c d e f g h i j k l 1.5 45.0</pre></body></html>"
+    )
+
+    class Response:
+        text = html
+        status_code = 200
+
+    class Client:
+        async def __aenter__(self):
+            return self
+
+        async def __aexit__(self, *args):
+            return False
+
+        async def post(self, *args, **kwargs):
+            counter.calls += 1
+            return Response()
+
+    monkeypatch.setattr(sch.httpx, "AsyncClient", lambda *a, **k: Client())
+
+    asyncio.run(sch.get_neocp_ephemeris(fresh_config, ["P10abcd"]))
+    fresh_config["Observatory"]["latitude"] = "46.0"
+    asyncio.run(sch.get_neocp_ephemeris(fresh_config, ["P10abcd"]))
+
+    assert counter.count == 2
+
+
+def test_object_ephemeris_is_left_to_the_astroquery_cache(
+    monkeypatch, fresh_config, sch
+):
+    # A1: the MPC ephemeris lookup keeps astroquery's own cache, which already
+    # stores it for a week. Double-caching it here would only duplicate that.
+    def forbidden(*args, **kwargs):
+        raise AssertionError("object_ephemeris must not use the project cache")
+
+    monkeypatch.setattr(sch.cache, "fetch_cached", forbidden)
+    monkeypatch.setattr(sch.cache, "fetch_cached_async", forbidden)
+    monkeypatch.setattr(
+        sch.MPC,
+        "get_ephemeris",
+        lambda *a, **k: None,
+    )
+    monkeypatch.setattr(sch.configuration, "load_config", lambda conf: None)
+
+    # It fails later, on the None table, which is not the point: the point is
+    # that reaching the cache at all is the failure.
+    with pytest.raises((AttributeError, TypeError, IndexError, KeyError)):
+        sch.object_ephemeris(fresh_config, "CERES", "h")
+
+
+def test_cache_can_be_disabled_end_to_end(monkeypatch, fresh_config, sch):
+    payload = {"init": "2026092500", "dataseries": []}
+    counter = _Counter()
+    monkeypatch.setattr(sch.requests, "get", _counting_get(payload, counter))
+    monkeypatch.setenv(sch.cache.NO_CACHE_ENV_VAR, "1")
+
+    sch.weather_forecast_raw(fresh_config)
+    sch.weather_forecast_raw(fresh_config)
+
+    assert counter.count == 2, "a disabled cache must always ask the network"
