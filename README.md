@@ -212,47 +212,47 @@ See [CHANGELOG.md](CHANGELOG.md).
 
 ## TODO
 
-Le feature mancanti, raggruppate per area. Ogni voce ha un prompt pronto
-all'esecuzione in [`PROMPTS.md`](PROMPTS.md), con contesto, criteri di accettazione
-e comandi di verifica.
+The missing features, grouped by area. Every entry has a ready-to-run prompt in
+[`PROMPTS.md`](PROMPTS.md), with context, acceptance criteria and verification
+commands.
 
-### Dati e output
+### Data and output
 
-- [ ] **A1** Cache persistente delle risposte di rete con TTL, con cache del token del form MPC e hit/miss/failover distinti
-- [ ] **A2** Export CSV/JSON/testo su file da tutte le schermate tabellari, con percorso esplicito e copia negli appunti
-- [ ] **A3** Modalità offline: fallback su cache, banner di stato e distinzione tra dato fresco, dato in cache ed errore
+- [ ] **A1** Persistent cache of network responses with a TTL, with a dedicated cache for the MPC form token and distinct hit/miss/failover counters
+- [ ] **A2** CSV/JSON/text export to file from every table screen, with an explicit path and a copy-to-clipboard
+- [ ] **A3** Offline mode: cache fallback, status banner and a distinction between fresh data, cached data and errors
 
-### Interfaccia a riga di comando
+### Command-line interface
 
-- [ ] **B1** Subcommand `argparse` (`weather`, `neocp`, `ephemeris`, `targets`, `twilight`, `best-night`), `--version`, `--json`, `python -m asteroidpy`
+- [ ] **B1** `argparse` subcommands (`weather`, `neocp`, `ephemeris`, `targets`, `twilight`, `best-night`), `--version`, `--json`, `python -m asteroidpy`
 
-### Watchlist e registro osservazioni
+### Watchlist and observation log
 
-- [ ] **C1** Watchlist oggetti persistente, con aggiunta da ogni tabella dei risultati
-- [ ] **C2** Piani di sessione salvati e ripresi, con collegamento al punteggio meteo della notte
-- [ ] **C3** Registro delle osservazioni ed export nel formato accettato dal MPC
+- [ ] **C1** Persistent object watchlist, with the ability to add entries from every results table
+- [ ] **C2** Saved and resumable session plans, linked to the night's weather score
+- [ ] **C3** Observation log and export in the format accepted by the MPC
 
-### Grafici
+### Charts
 
-- [ ] **D1** Curva di altitudine nel tempo, sky plot della notte con orizzonte virtuale, barre del punteggio delle notti candidate
+- [ ] **D1** Altitude curve over time, night sky plot with the virtual horizon, score bars for the candidate nights
 
-### Alert
+### Alerts
 
-- [ ] **E1** Alert programmati e persistenti: notifica interna, email SMTP, webhook, con deduplica
+- [ ] **E1** Scheduled, persistent alerts: in-app notification, SMTP email, webhook, with deduplication
 
-### Debito tecnico
+### Technical debt
 
-- [x] **F1** Schermata Osservatorio: coordinate mostrate in chiaro via `observatory_summary_lines`, etichette di `print_obs_config` passate da gettext e presenti in tutti i cataloghi
-- [x] **F2** Rimossi il frontend legacy orfano (`_config_menus.py`, `_schedule_menus.py`, `_input.py`) e `main_menu`, irraggiungibili e già divergenti dalla TUI
-- [ ] **F3** Test della TUI: oggi le 19 schermate non hanno nessun test
-- [ ] **F4** Deduplicazione di `test_configuration.py` e `test_configuration_unittest.py`
-- [ ] **F5** Stage docs e matrix Python 3.11–3.14 nel `Jenkinsfile`
-- [x] **F6** Rimozione del token CSRF fallback hardcodato in `scheduling.py` e segnalazione esplicita del fallimento
-- [x] **F7** Parametri mancanti: `object_ephemeris(number=…)` con validazione, numero di punti e di notti nelle schermate, ore e unità di temperatura sulla schermata meteo, prefill e validazione 0–90° dell'orizzonte virtuale
-- [ ] **F8** Retry con backoff e gestione tipizzata degli errori di rete
-- [x] **F9** Editor in-app dei pesi del planner: schermata **Configurazione → Pianificatore** con `max_nights` e i quattro pesi, validazione condivisa con il loader, pesi normalizzati mostrati e anteprima dello score
+- [x] **F1** Observatory screen: coordinates shown in clear text via `observatory_summary_lines`, `print_obs_config` labels passed through gettext and present in every catalog
+- [x] **F2** Removed the orphaned legacy frontend (`_config_menus.py`, `_schedule_menus.py`, `_input.py`) and `main_menu`, unreachable and already diverged from the TUI
+- [ ] **F3** TUI tests: today none of the 19 screens has a test
+- [ ] **F4** Deduplication of `test_configuration.py` and `test_configuration_unittest.py`
+- [ ] **F5** Docs stage and Python 3.11–3.14 matrix in the `Jenkinsfile`
+- [x] **F6** Removal of the hardcoded CSRF fallback token in `scheduling.py` and explicit reporting of the failure
+- [x] **F7** Missing parameters: `object_ephemeris(number=…)` with validation, number of points and of nights in the screens, hours and temperature unit on the weather screen, prefill and 0–90° validation of the virtual horizon
+- [ ] **F8** Retry with backoff and typed handling of network errors
+- [x] **F9** In-app editor for the planner weights: **Configuration → Planner** screen with `max_nights` and the four weights, validation shared with the loader, normalized weights shown, and a score preview
 
-Ordine di esecuzione suggerito:
+Suggested execution order:
 
 ```
 F1 → F9 → F7 → F2 → F6 → A1 → A2 → A3 → B1 → D1 → C1 → C2 → C3 → E1 → F3 → F4 → F5 → F8
