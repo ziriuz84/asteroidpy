@@ -18,6 +18,7 @@ AsteroidPy is a command-line tool for astronomers to schedule and manage asteroi
 - [Quick Start](#quick-start)
 - [Keyboard Navigation](#keyboard-navigation)
 - [Configuration](#configuration)
+  - [Response cache](#response-cache)
 - [FAQ](#faq)
 - [Data Sources](#data-sources)
 - [For Contributors](#for-contributors)
@@ -37,6 +38,7 @@ AsteroidPy is a command-line tool for astronomers to schedule and manage asteroi
 | **Twilight & Sun/Moon** | Civil, nautical, and astronomical twilight; rise/set times |
 | **Best-upcoming-night planner** | Rank the upcoming astronomical nights by observing quality (cloud cover, seeing, transparency, Moon illumination) with configurable weights |
 | **Virtual horizon** | Simulate horizon obstructions for visibility calculations (0–90° per cardinal direction) |
+| **Response cache** | Keep recent MPC and 7Timer answers on disk with a per-source time-to-live, so a repeated run needs no network |
 
 ---
 
@@ -145,6 +147,7 @@ Use the in-app **Configuration** menu to change:
 | **Virtual horizon** | Minimum altitude (in degrees) per cardinal direction for visibility |
 | **Planner** | Number of nights the best-night planner ranks, and the relative weights of cloud cover, seeing, transparency and Moon illumination |
 | **Language** | Interface language (English, Italiano, Deutsch, Français, Español, Português) |
+| **Clear cache** | Empties the on-disk response cache, so the next query really reaches the MPC and 7Timer |
 
 The same values can be edited by hand in the INI file. It has three sections:
 
@@ -155,6 +158,23 @@ The same values can be edited by hand in the INI file. It has three sections:
 | `[Observatory]` | `place`, `latitude`, `longitude`, `altitude`, `obs_name`, `observer_name`, `mpc_code`, `nord_altitude`, `east_altitude`, `south_altitude`, `west_altitude` |
 
 Missing options are filled from the built-in defaults on every load, so a partial or older file stays usable. The `[Planner]` weights control the **Best upcoming night** score, whose only inputs are cloud cover, seeing, transparency and Moon illumination; nights with any precipitation are discarded outright. The **Configuration → Planner** screen edits `max_nights` and the four weights, shows the values that will really be applied (the weights divided by their sum) and previews the score of the next few nights without saving.
+
+### Response cache
+
+Every request that does not go through astroquery is cached on disk, so a repeated run is answered without touching the network and a temporary outage shows the last known answer instead of an empty table. The cache lives in the **user cache** directory, not next to the configuration file — for example `~/.cache/asteroidpy/http/` on Linux, `~/Library/Caches/asteroidpy/http/` on macOS, and `%LOCALAPPDATA%\asteroidpy\http\` on Windows.
+
+Each source has its own time-to-live, because they do not go stale at the same rate:
+
+| Source | Cache lifetime | Why |
+|--------|----------------|-----|
+| MPC What's Observable form token | 15 minutes | A Rails authenticity token is perishable |
+| MPC NEOcp feed and confirm ephemerides | 15 minutes | A live feed: the point is what is new right now |
+| MPC What's Observable target table | 15 minutes | Describes the sky at a single instant |
+| 7Timer weather forecast | 3 hours | 7Timer `astro` itself refreshes twice a day |
+
+Object ephemerides and MPC observatory codes are not cached here: astroquery already stores those responses for a week.
+
+Delete the cache by hand, or from the app with **Configuration → General → Clear cache**. Setting `ASTEROIDPY_NO_CACHE=1` turns it off entirely, which is useful when comparing runs or filing a bug report.
 
 ---
 
@@ -171,6 +191,9 @@ Check that all dependencies are installed (`pip install asteroidpy` from PyPI, o
 
 **Which languages are supported?**  
 English (default), Italiano, Deutsch, Français, Español, Português. Change the language in **Configuration → General** → **Language**. PyPI wheels ship with compiled `.mo` catalogs for all supported languages. When working from a source checkout, only locales with compiled `.mo` files are listed as selectable; if a folder under `asteroidpy/locales/` has only a `base.po`, the UI may show a notice when opening the language screen—compile with `msgfmt` so the locale appears as a proper option.
+
+**A query returned stale data, or the network is down.**  
+Every non-astroquery request is served from the [response cache](#response-cache) first, so a query repeated within its time-to-live makes no network call at all, and a failed request falls back to the last stored answer rather than to an empty table. If you need the data as of right now, use **Configuration → General → Clear cache**, or set `ASTEROIDPY_NO_CACHE=1` to bypass the cache entirely.
 
 ---
 

@@ -24,6 +24,8 @@ Features
 * **Sun/Moon Ephemeris**: Get sunrise, sunset, moonrise, and moonset times
 * **Best Upcoming Night**: Rank upcoming astronomical nights by observing quality
 * **Virtual Horizon**: Simulate horizon obstructions for visibility calculations (0–90° per cardinal direction)
+* **Response Cache**: Keep recent MPC and 7Timer answers on disk with a per-source
+  time-to-live, so a repeated run needs no network
 
 Requirements
 ------------
@@ -127,6 +129,50 @@ or older file stays usable. Every section is editable from the in-app
 weights with the same rules as the loader, shows the values that will really be
 applied (the weights divided by their sum) and previews the score of the next few
 nights without saving.
+
+Response cache
+--------------
+
+Requests that do not go through astroquery are cached on disk by
+:mod:`asteroidpy.cache`, so a repeated run is answered without touching the
+network and a temporary outage shows the last known answer instead of an empty
+table. The cache lives in the platform **cache** directory returned by
+``platformdirs.user_cache_dir`` — for example ``~/.cache/asteroidpy/http/`` on
+Linux, ``~/Library/Caches/asteroidpy/http/`` on macOS and
+``%LOCALAPPDATA%\\asteroidpy\\http\\`` on Windows — deliberately not beside the
+INI file, so discarding the settings never discards data.
+
+Each source has its own lifetime, because they do not go stale at the same rate:
+
+.. list-table::
+   :header-rows: 1
+   :widths: 46 14 40
+
+   * - Source
+     - Lifetime
+     - Why
+   * - MPC What's Observable form token
+     - 15 minutes
+     - A Rails authenticity token is perishable
+   * - MPC NEOcp feed and confirm ephemerides
+     - 15 minutes
+     - A live feed: the point is what is new right now
+   * - MPC What's Observable target table
+     - 15 minutes
+     - Describes the sky at a single instant
+   * - 7Timer weather forecast
+     - 3 hours
+     - 7Timer ``astro`` itself refreshes twice a day
+
+:func:`asteroidpy.scheduling.object_ephemeris` and
+:func:`asteroidpy.configuration.get_observatory_coordinates` are not cached here:
+astroquery already stores those responses for a week.
+
+Empty the cache with **Configuration → General → Clear cache**, or bypass it by
+setting ``ASTEROIDPY_NO_CACHE=1`` — useful when comparing two runs or filing a
+bug report. A cached entry is always replaced once its lifetime has passed, and a
+file that is unreadable or corrupt counts as a miss rather than breaking the
+application.
 
 Documentation
 -------------
