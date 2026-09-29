@@ -238,6 +238,7 @@ intersphinx_mapping = {
 # cross-reference for ``int, optional`` parameter types.
 nitpick_ignore = [
     ('py:class', 'optional'),
+    ('py:class', 'mapping'),
     ('py:class', 'astropy.time.Time'),
     ('py:class', 'ConfigParser'),
     ('py:class', 'SkyCoord'),

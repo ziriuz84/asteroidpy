@@ -40,9 +40,9 @@ def fresh_config() -> ConfigParser:
 def italian_catalog(tmp_home, fresh_config, monkeypatch):
     """Install the packaged ``it`` catalog for the duration of one test.
 
-    ``setup_gettext`` writes ``builtins._``; the fixture removes it beforehand so
-    monkeypatch can restore (i.e. delete) it on teardown and no locale leaks into
-    the next test.
+    ``setup_gettext`` writes ``builtins._``, so the fixture drops it before and
+    after the test: no locale may leak into the next one, whose assertions expect
+    untranslated msgids.
     """
     import builtins
 
@@ -53,7 +53,11 @@ def italian_catalog(tmp_home, fresh_config, monkeypatch):
     )
     monkeypatch.delattr(builtins, "_", raising=False)
     setup_gettext(fresh_config)
-    return fresh_config
+    try:
+        yield fresh_config
+    finally:
+        if hasattr(builtins, "_"):
+            del builtins._
 
 
 def config_file_canonical(home: os.PathLike) -> str:
@@ -86,7 +90,7 @@ def create_minimal_config_text(**overrides) -> str:
     altitude = overrides.get("altitude", "0.0")
     obs_name = overrides.get("obs_name", "")
     observer_name = overrides.get("observer_name", "")
-    mpc_code = overrides.get("mpc_code", "XXX")
+    mpc_code = overrides.get("mpc_code", "500")
 
     return (
         "[General]\n"
@@ -111,7 +115,7 @@ def test_save_config_writes_file(tmp_home, fresh_config):
         "altitude": "0.0",
         "obs_name": "",
         "observer_name": "",
-        "mpc_code": "XXX",
+        "mpc_code": "500",
     }
 
     cfg.save_config(fresh_config)
@@ -161,7 +165,7 @@ def test_change_obs_altitude_updates_file(tmp_home, fresh_config):
 def test_change_mpc_code_updates_file(tmp_home, fresh_config):
     write_config_file(
         config_file_canonical(tmp_home),
-        create_minimal_config_text(mpc_code="XXX"),
+        create_minimal_config_text(mpc_code="500"),
     )
 
     cfg.change_mpc_code(fresh_config, code="C10")
@@ -432,7 +436,7 @@ def test_legacy_dump_localizes_labels_and_keeps_redaction(italian_catalog, capsy
     stdout = capsys.readouterr().out
     assert "Località: " in stdout
     assert f"Latitudine: {cfg.REDACTED_PLACEHOLDER}" in stdout
-    assert "Codice MPC: XXX" in stdout
+    assert "Codice MPC: 500" in stdout
 
 
 def test_tui_observatory_summary_localizes_labels(italian_catalog):
@@ -442,7 +446,7 @@ def test_tui_observatory_summary_localizes_labels(italian_catalog):
     summary = _observatory_summary(italian_catalog)
 
     assert "Latitudine: 0.0" in summary
-    assert "Codice MPC: XXX" in summary
+    assert "Codice MPC: 500" in summary
 
 
 def test_load_config_reads_existing_file(tmp_home, fresh_config):
@@ -497,3 +501,37 @@ def test_load_config_initializes_when_missing(tmp_home, fresh_config, monkeypatc
 
     assert called["count"] >= 1
     assert os.path.exists(config_file_canonical(tmp_home))
+
+
+def test_change_planner_weights_persists_the_planner_section(tmp_home, fresh_config):
+    write_config_file(config_file_canonical(tmp_home), create_minimal_config_text())
+    cfg.load_config(fresh_config)
+
+    cfg.change_planner_weights(
+        fresh_config,
+        12,
+        {"cloud": 0.5, "seeing": 0.2, "transparency": 0.1, "moon": 0.2},
+    )
+
+    reloaded = ConfigParser()
+    cfg.load_config(reloaded)
+    assert reloaded.get("Planner", "max_nights") == "12"
+    assert reloaded.get("Planner", "w_cloud") == "0.5"
+    assert reloaded.get("Planner", "w_seeing") == "0.2"
+    assert reloaded.get("Planner", "w_transparency") == "0.1"
+    assert reloaded.get("Planner", "w_moon") == "0.2"
+    assert "w_cloud = 0.5" in read_config_file(config_file_canonical(tmp_home))
+
+
+def test_planner_weight_factors_match_the_ini_schema():
+    # The editor builds its inputs from this mapping, so it must stay in sync with
+    # the options the loader knows about.
+    assert cfg.PLANNER_WEIGHT_FACTORS == {
+        "cloud": "w_cloud",
+        "seeing": "w_seeing",
+        "transparency": "w_transparency",
+        "moon": "w_moon",
+    }
+    assert set(cfg.PLANNER_WEIGHT_FACTORS.values()) == set(
+        cfg.SECTION_DEFAULTS["Planner"]
+    ) - {"max_nights"}
