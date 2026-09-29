@@ -20,6 +20,9 @@ Behaviour notes for maintainers:
   :func:`~asteroidpy.scheduling.parse_planner_max_nights`), shows the weights as
   they will really be applied and previews the score of a few nights without
   saving.
+* **Response cache** — every non-astroquery request is cached on disk
+  (:mod:`asteroidpy.cache`); :class:`GeneralConfigScreen` offers ``2 - Clear
+  cache`` so the next query really reaches the MPC and 7Timer.
 """
 
 from __future__ import annotations
@@ -52,6 +55,7 @@ from textual.worker import WorkerFailed
 
 import asteroidpy.configuration as configuration
 import asteroidpy.scheduling as scheduling
+from asteroidpy import cache
 from asteroidpy.errors import DataSourceError
 from asteroidpy.version import __version__
 
@@ -380,7 +384,7 @@ class ConfigRootScreen(MenuScreen):
 
 
 class GeneralConfigScreen(MenuScreen):
-    """General settings submenu (currently language selection)."""
+    """General settings submenu: interface language and the response cache."""
 
     BINDINGS = [Binding("escape", "back", "Back")]
 
@@ -390,6 +394,7 @@ class GeneralConfigScreen(MenuScreen):
         yield Vertical(
             Label(translate("Configuration -> General")),
             Button(translate("1 - Language"), id="lang"),
+            Button(translate("2 - Clear cache"), id="clear_cache"),
             Button(translate("0 - Back to configuration menu"), id="back"),
             id="panel",
         )
@@ -400,8 +405,25 @@ class GeneralConfigScreen(MenuScreen):
     def on_button_pressed(self, event: Button.Pressed) -> None:
         if event.button.id == "lang":
             self.app.push_screen(LanguageScreen())
+        elif event.button.id == "clear_cache":
+            self._clear_cache()
         elif event.button.id == "back":
             self.app.pop_screen()
+
+    def _clear_cache(self) -> None:
+        """Drop every cached response, so the next query really hits the network.
+
+        Useful when the MPC or 7Timer published something and the short TTLs keep
+        serving the previous answer; the cache is otherwise an invisible detail.
+        """
+
+        removed = cache.clear()
+        if removed:
+            self.app.notify(
+                translate("Removed {count} cached response(s).").format(count=removed)
+            )
+        else:
+            self.app.notify(translate("The cache was already empty."))
 
 
 class LanguageScreen(MenuScreen):

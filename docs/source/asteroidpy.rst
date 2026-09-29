@@ -7,6 +7,7 @@ of the application:
 * :mod:`asteroidpy.configuration`: Configuration management and observatory settings
 * :mod:`asteroidpy.interface`: gettext setup and the Textual screens
 * :mod:`asteroidpy.scheduling`: Observation scheduling and ephemeris calculations
+* :mod:`asteroidpy.cache`: Persistent response cache with a per-source time-to-live
 * :mod:`asteroidpy.errors`: Typed errors carrying the reason a data source was unusable
 
 Submodules
@@ -84,8 +85,10 @@ Layout (private submodules; import only if you extend the UI):
   when resuming from child editors, showing
   latitude, longitude and altitude in clear via
   :func:`~asteroidpy.configuration.observatory_summary_lines`, clamps MPC What's
-  Observable numeric fields before POST, notifies when a locale has ``base.po``
-  but no compiled ``base.mo``—compile with ``msgfmt`` as below)
+  Observable numeric fields before POST, offers ``2 - Clear cache`` under
+  **General** to empty the :mod:`asteroidpy.cache` responses, notifies when a
+  locale has ``base.po`` but no compiled ``base.mo``—compile with ``msgfmt`` as
+  below)
 * ``style.tcss`` — layout rules for centered panels, logs, and labelled inputs
 
 .. automodule:: asteroidpy.interface
@@ -151,6 +154,12 @@ Networking:
 * :func:`httpx_get`: Async HTTP GET returning parsed body and status code
 * :func:`httpx_post`: Async HTTP POST returning parsed body and status code
 
+Every request above that does not go through astroquery is wrapped in
+:func:`asteroidpy.cache.fetch_cached`, keyed by endpoint plus request parameters.
+:func:`object_ephemeris` and
+:func:`asteroidpy.configuration.get_observatory_coordinates` keep astroquery's own
+cache instead, which already stores them for a week.
+
 Best-night planner:
 
 * :func:`astronomical_night`: ``(evening, morning)`` astronomical twilight for a night
@@ -196,6 +205,57 @@ Key Classes
 * :data:`REASON_NETWORK_ERROR`: The source could not be reached (timeout, DNS, TLS)
 * :data:`REASON_TOKEN_NOT_FOUND`: The page no longer carries the expected token
 * :data:`REASON_MALFORMED_RESPONSE`: The body could not be parsed
+
+asteroidpy.cache module
+-----------------------
+
+.. currentmodule:: asteroidpy.cache
+
+The cache module stores remote responses on disk, one JSON file per key, and
+decides whether a stored answer may be used. Every request that does not go
+through astroquery is wrapped in :func:`fetch_cached`, so a repeated run is
+answered from disk and a network failure falls back to the last known answer
+rather than to an empty table.
+
+Entries live in the platform *cache* directory
+(:func:`cache_root`), never beside the configuration file. The four outcomes —
+``hit``, ``miss``, ``failover`` and ``disabled`` — are returned as a
+:class:`FetchResult` together with the age of the entry served.
+
+.. automodule:: asteroidpy.cache
+    :members:
+    :undoc-members:
+    :show-inheritance:
+
+Key Functions
+~~~~~~~~~~~~~
+
+* :func:`fetch_cached`: Serve a payload from disk, refetching per TTL
+* :func:`fetch_cached_async`: The same, for a coroutine request
+* :func:`cache_key`: sha256 file name identifying one request
+* :func:`read`: Payload and age of a stored entry, or ``None`` on a miss
+* :func:`write`: Store a payload atomically
+* :func:`clear`: Remove every stored response
+* :func:`cache_root`: Directory holding the response files
+* :func:`is_enabled`: Whether the cache is switched on
+
+Key Classes and Types
+~~~~~~~~~~~~~~~~~~~~~
+
+* :class:`FetchResult`: Payload, ``status`` (``hit``/``miss``/``failover``/``disabled``) and entry age
+* :data:`CacheStatus`: The four outcomes of a cached fetch
+* :data:`FailoverOn`: Exception types or a predicate selecting what may fail over
+
+Module constants:
+
+* :data:`CACHE_SUBDIR`: Sub-directory of the platform cache dir used
+* :data:`CACHE_SCHEMA`: On-disk entry format version
+* :data:`NO_CACHE_ENV_VAR`: Environment variable that switches the cache off
+* :data:`TTL_TOKEN_SEC`: Lifetime of the What's Observable form token
+* :data:`TTL_WEATHER_SEC`: Lifetime of a 7Timer forecast
+* :data:`TTL_NEOCP_JSON_SEC`: Lifetime of the NEOcp live feed
+* :data:`TTL_NEOCP_EPHEM_SEC`: Lifetime of the confirm ephemerides
+* :data:`TTL_TARGET_LIST_SEC`: Lifetime of a What's Observable target table
 
 asteroidpy package contents
 ---------------------------

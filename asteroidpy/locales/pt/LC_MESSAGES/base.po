@@ -657,7 +657,7 @@ msgstr "O valor deve estar entre {low} e {high}; a usar {value}."
 
 #: asteroidpy/interface/_tui_screens.py:784
 msgid "Virtual horizon altitudes must be numbers between 0° and 90°."
-msgstr "As altitudes do horizonte virtual devem ser números entre 0° e 90°."
+msgstr "As alturas do horizonte virtual devem ser números entre 0° e 90°."
 
 #: asteroidpy/interface/_tui_screens.py:1195
 msgid "The {source} page could not be used ({reason}); try again later."
@@ -674,3 +674,16 @@ msgstr "página inacessível"
 #: asteroidpy/interface/_tui_screens.py:87
 msgid "unexpected page"
 msgstr "resposta inesperada"
+
+#: asteroidpy/interface/_tui_screens.py:397
+msgid "2 - Clear cache"
+msgstr "2 - Limpar o cache"
+
+#: asteroidpy/interface/_tui_screens.py:423
+#, python-brace-format
+msgid "Removed {count} cached response(s)."
+msgstr "Foram removidas {count} resposta(s) do cache."
+
+#: asteroidpy/interface/_tui_screens.py:426
+msgid "The cache was already empty."
+msgstr "O cache já estava vazio."

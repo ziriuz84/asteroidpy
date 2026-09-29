@@ -11,7 +11,7 @@ nei prompt.
 Ordine di esecuzione suggerito:
 
 ```
-F1 ✅ → F9 ✅ → F7 ✅ → F2 ✅ → F6 ✅ → A1 → A2 → A3 → B1 → D1 → C1 → C2 → C3 → E1 → F3 → F4 → F5 → F8
+F1 ✅ → F9 ✅ → F7 ✅ → F2 ✅ → F6 ✅ → A1 ✅ → A2 → A3 → B1 → D1 → C1 → C2 → C3 → E1 → F3 → F4 → F5 → F8
 ```
 
 Bug e cleanup prima delle feature, così il resto poggia su una base pulita.
@@ -21,11 +21,13 @@ i client di rete introdotti dai task precedenti.
 ✅ = task già fatto sul branch `refactoring`; la sezione conserva il prompt
 originale e aggiunge in fondo un blocco **Esito** con le scelte prese e i
 riferimenti correnti. **Non ripetere un task ✅**: leggere il suo *Esito*.
-Prossimo task pendente: `A1`.
+Prossimo task pendente: `A2`.
 
 I riferimenti `file.py:riga` delle sezioni **non** completate sono stati
-riallineati al codice corrente; quelli delle sezioni ✅ sono storici (valgono per
-lo stato precedente al task) e vanno letti insieme all'*Esito*.
+riallineati al codice corrente dopo l'ultimo task ✅ (A1, `6fbfad5`); quelli
+delle sezioni ✅ sono storici (valgono per lo stato precedente al task) e vanno
+letti insieme all'*Esito*. Ogni task che sposta le righe dei moduli citati deve
+riallineare i riferimenti delle sezioni ancora aperte.
 
 ---
 
@@ -353,7 +355,7 @@ silenziosamente l'utente vede una lista target vuota senza capire perché.
 
 ---
 
-## A1 — Cache persistente delle risposte di rete
+## A1 ✅ — Cache persistente delle risposte di rete
 
 **Contesto** — `asteroidpy/scheduling.py:48` (`SEVENTIMER_API_URL`), `:349`
 (`httpx_get`), `:401` (`httpx_post`), `:488` (`weather_forecast_raw`), `:853`
@@ -405,16 +407,68 @@ quindi non esiste nemmeno la base per una modalità offline.
 
 **Dipende da** — `F6` (il token non deve più avere un fallback statico).
 
+**Esito** — fatto.
+
+- Nuovo modulo `asteroidpy/cache.py`: un file JSON per chiave in
+  `platformdirs.user_cache_dir("asteroidpy")/http` (mai nella config dir),
+  nome file = `sha256(kind + parametri canonici)`, scrittura atomica
+  temp+`os.replace`. Corrotto/illeggibile/altro schema → miss (e file rimosso),
+  mai un'eccezione.
+- TTL per classe (`cache.TTL_TOKEN_SEC`, `TTL_WEATHER_SEC`,
+  `TTL_NEOCP_JSON_SEC`, `TTL_NEOCP_EPHEM_SEC`, `TTL_TARGET_LIST_SEC`):
+  15 min per token/NEOcp/target list, 3 h per 7Timer.
+- `fetch_cached` / `fetch_cached_async` restituiscono `FetchResult(value,
+  status, age_seconds)` con `status` in `hit|miss|failover|disabled`. Il
+  parametro `failover_on` (tipi o predicato) decide **quali** fallimenti
+  possono essere risposte dal disco: solo "la sorgente non ha risposto", mai
+  "la pagina non è più quella che conosco".
+- Disattivazione: `ASTEROIDPY_NO_CACHE=1` (letta a ogni call, niente stato a
+  import). Nessuna opzione INI, per non allargare lo schema `[General]`.
+- `scheduling.py`: cablati i 5 call site non-astroquery, firme pubbliche
+  invariate. La chiave del What's Observable **esclude** `authenticity_token`
+  (`_cacheable_form`/`_VOLATILE_FORM_FIELDS`), altrimenti non avrebbe mai
+  colpito. `weather_forecast_raw` (`:540`), `observing_target_list_scraper`
+  (`:1017`), `get_neocp_ephemeris` (`:1406`), `fetch_neocp_json_and_ephemeris`
+  (`:1478`), `_scrape_whatsup_authenticity_token` (`:161`).
+- Distinzione che A1 ha dovuto introdurre: `_NoTargetTable` (`:931`) separa
+  "cielo vuoto" da "pagina non riconoscibile" — solo il primo si cacha;
+  `_TransportUnavailable` (`:918`)/`_UnexpectedResponse` (`:927`) fanno lo
+  stesso per `httpx_get`, che riporta il fallimento di trasporto come status 0.
+  `get_neocp_ephemeris` resta su `httpx.AsyncClient` inline: `httpx_post` non
+  accetta la query string già codificata.
+- `object_ephemeris` e `get_observatory_coordinates` **non** sono in cache qui:
+  astroquery le copre già (1 settimana, `cache=True`). Test che lo verifica.
+- UI: `GeneralConfigScreen` ha `2 - Clear cache` (`:397`) con notifica
+  tradotta. Il `# Dati` della CLI resta a B1.
+- `tests/conftest.py`: fixture autouse che redirige `cache.cache_root()` in
+  `tmp_path` — senza, la suite scriverebbe nella cache reale dell'utente.
+  `tests/test_cache.py` (27 test) + 18 test in `test_scheduling.py`, fra cui
+  "un secondo run identico non genera richieste di rete" per ognuna delle
+  cinque fonti.
+- Docs: `README.md` (sezione Response cache + FAQ), `docs/source/index.rst`,
+  `docs/source/asteroidpy.rst` (nuova sezione modulo), `CONTRIBUTING.md`.
+  Build Sphinx pulita: resta solo il warning pre-esistente su
+  `_neocp_viewing_point_fields`.
+- **Per A3**: `FetchResult.age_seconds` è già pronto, ma i caller pubblici
+  continuano a restituire il payload nudo. A3 deve decidere come portare
+  l'età fino alla UI (banner) senza perdere la compatibilità delle firme.
+
 ---
 
 ## A2 — Export dei risultati su file e clipboard
 
-**Contesto** — `asteroidpy/interface/_tui_screens.py:1375` e `:1521` usano
-`show_in_browser(jsviewer=True)`; `EphemerisScreen` (`:1530`) non ha l'opzione;
-`:1404` (`ResultLogScreen`) è il dump testuale; `asteroidpy/scheduling.py:582`
-(`weather_forecast_report`), `:949` (`observing_target_list`), `:1020`/`:1083`
-(`neocp_confirmation`/`async_neocp_confirmation`), `:1368` (`object_ephemeris`),
-`:1842` (`best_nights_report`).
+**Contesto** — `asteroidpy/interface/_tui_screens.py:1441`
+(`ObservingTargetListScreen`) e `:1587` (`NeocpScreen`) usano
+`show_in_browser(jsviewer=True)`; `EphemerisScreen` (`:1596`) non ha l'opzione;
+`:1470` (`ResultLogScreen`) è il dump testuale; `asteroidpy/scheduling.py:647`
+(`weather_forecast_report`), `:1094` (`observing_target_list`), `:1165`/`:1228`
+(`neocp_confirmation`/`async_neocp_confirmation`), `:1607` (`object_ephemeris`),
+`:2081` (`best_nights_report`).
+
+**Nota da A1** — `cache.FetchResult` (`asteroidpy/cache.py:81`) espone già
+`status` (`hit|miss|failover|disabled`) e `age_seconds`, ma i caller pubblici di
+`scheduling.py` continuano a restituire il payload nudo: l'export deve decidere
+come portare origine ed età del dato fino al file senza rompere le firme.
 
 **Problema** — l'unico export è un HTML temporaneo su 2 schermate su 3. Non
 esistono CSV, JSON, né un percorso scelto dall'utente, né copia negli appunti.
@@ -456,13 +510,13 @@ esistono CSV, JSON, né un percorso scelto dall'utente, né copia negli appunti.
 ## A3 — Modalità offline e surfacing dello stato dei dati
 
 **Contesto** — oggi i fallimenti degradano a testo o a valori vuoti:
-`weather_forecast_raw` (`asteroidpy/scheduling.py:518-523` → `{}`),
-`observing_target_list_scraper` (`:898`/`:935` → `[]`),
-`fetch_neocp_json_and_ephemeris` (`:1269` → `([], {}, False)`),
-`best_nights` (`:1811-1814`), con i report `weather_forecast_report` (`:582`) e
-`best_nights_report` (`:1842`) che trasformano il vuoto in testo. `DataSourceError`
-(`asteroidpy/errors.py`, introdotto da F6) è il tipo su cui poggiare:
-manca solo `cached_age`.
+`weather_forecast_raw` (`asteroidpy/scheduling.py:587-588` → `{}`),
+`observing_target_list_scraper` (`:1017`, `return []` a `:1090`),
+`fetch_neocp_json_and_ephemeris` (`:1478`, `return [], {}, False` a `:1508`),
+`best_nights` (`:2007`, `return []` a `:2050`/`:2053`), con i report
+`weather_forecast_report` (`:647`) e `best_nights_report` (`:2081`) che trasformano
+il vuoto in testo. `DataSourceError` (`asteroidpy/errors.py:25`, costruttore a
+`:39`, introdotto da F6) è il tipo su cui poggiare: manca solo `cached_age`.
 
 **Problema** — l'utente non distingue "nessun dato", "rete irraggiungibile",
 "MPC ha cambiato la pagina" e "sto guardando una cache vecchia di 3 giorni".
@@ -477,7 +531,7 @@ manca solo `cached_age`.
    (`DataSourceError` con `source`, `reason`, `detail`: estenderlo con
    `cached_age`), mantenendo un wrapper che produce il report testuale per chi lo
    chiama dalla UI. Le schermate che già trattano `DataSourceError`
-   (`_tui_screens.py:1188`) sono il modello del messaggio tradotto.
+   (`_tui_screens.py:1257`) sono il modello del messaggio tradotto.
 3. Banner di stato persistente nella TUI (non una notifica effimera) che dice
    "dati in cache, età 6 h" o "rete non raggiungibile".
 4. Una modalità offline esplicita: le schermate di scheduling funzionano
@@ -532,6 +586,10 @@ strumento è inutilizzabile in uno script, in un cron, o in CI.
    errore, con il messaggio su stderr.
 6. Non rompere il workflow TUI esistente e non cambiare il default di
    `asteroidpy` senza nota.
+7. Debito da A1, rimasto indietro: la cache si svuota dalla TUI
+   (`GeneralConfigScreen`, `2 - Clear cache`, `_tui_screens.py:397`) ma non
+   ancora dalla CLI. Aggiungi il subcommand `cache` (`--clear`, `--path`) con
+   `asteroidpy.cache.clear()`/`cache.cache_root()`.
 
 **Criteri di accettazione**
 
@@ -551,8 +609,8 @@ strumento è inutilizzabile in uno script, in un cron, o in CI.
 
 ## D1 — Grafici e curve di visibilità
 
-**Contesto** — `asteroidpy/scheduling.py:582` (report meteo), `:1368`
-(`object_ephemeris`, con `number=`), `:1768`/`:1842` (miglior notte);
+**Contesto** — `asteroidpy/scheduling.py:647` (report meteo), `:1607`
+(`object_ephemeris`, con `number=`), `:2007`/`:2081` (miglior notte);
 `astropy` è già dipendenza, `matplotlib` no.
 
 **Problema** — tutti i risultati sono tabelle testuali a larghezza fissa. Non si
@@ -599,9 +657,9 @@ posizione in cielo, non si vede l'andamento del punteggio di una notte.
 ## C1 — Watchlist oggetti persistente
 
 **Contesto** — nessun catalogo locale esiste; gli oggetti arrivano da
-`observing_target_list` (`asteroidpy/scheduling.py:949`), da
-`neocp_confirmation` (`:1020`) o da una ricerca puntuale con
-`object_ephemeris` (`:1368`).
+`observing_target_list` (`asteroidpy/scheduling.py:1094`), da
+`neocp_confirmation` (`:1165`) o da una ricerca puntuale con
+`object_ephemeris` (`:1607`).
 
 **Problema** — l'utente non può salvare un oggetto che gli interessa, né
 ritrovare «quello che volevo vedere giovedì». Ogni risultato è effimero.
@@ -637,10 +695,10 @@ ritrovare «quello che volevo vedere giovedì». Ogni risultato è effimero.
 
 ## C2 — Piani di sessione salvati e ripresi
 
-**Contesto** — `asteroidpy/interface/_tui_screens.py:957`
+**Contesto** — `asteroidpy/interface/_tui_screens.py:1023`
 (`SchedulingRootScreen`) è un hub di query **stateless**: ogni schermata
 riscrive i propri parametri e nessun risultato sopravvive. `ObservingTargetListScreen`
-(`:1082`) raccoglie data/ora, durata, elongazioni, tipo oggetto.
+(`:1148`) raccoglie data/ora, durata, elongazioni, tipo oggetto.
 
 **Problema** — non esiste il concetto di piano: non si salva «martedì 21:30, 4
 ore, NEAs, elongazione solare > 60°», non si riprende, non si confronta un piano
@@ -697,9 +755,9 @@ TODO del progetto.
    implementare: non inventare un formato. Se l'export richiede dati che
    AsteroidPy non raccoglie, produrre il subset disponibile e **dichiarare
    esplicitamente** quali campi non sono popolati, senza valori fittizi.
-4. Collegamento con la `mpc_code` configurata e avviso chiaro se è ancora
-   `XXX` (il default in `asteroidpy/configuration.py:81`), perché un export con
-   codice osservatorio fittizio è inutile al MPC.
+4. Collegamento con la `mpc_code` configurata e avviso chiaro se è ancora il
+   default geocentrico `500` (`asteroidpy/configuration.py:81`), perché un export
+   con codice osservatorio non assegnato è inutile al MPC.
 5. L'export riusa l'infrastruttura di A2 (percorso, conferma, scrittura atomica).
 
 **Criteri di accettazione**
@@ -708,7 +766,7 @@ TODO del progetto.
 - L'export produce un file che supera una validazione del formato scelto
   (test con validatore o con asserzioni sulla struttura).
 - I campi non disponibili sono dichiarati, mai inventati.
-- Avviso quando `mpc_code` è `XXX`.
+- Avviso quando `mpc_code` è il default `500`.
 
 **Verifica** — stesso gate di `F1`.
 
@@ -719,8 +777,8 @@ TODO del progetto.
 ## E1 — Alert programmati e notifiche persistenti
 
 **Contesto** — le uniche notifiche sono toast effimeri di `app.notify()` per
-validazione, clamping ed errori (es. `asteroidpy/interface/_tui_screens.py:407`,
-`:927`, `:1055`, `:1194`). Nessun meccanismo persistente o programmato.
+validazione, clamping ed errori (es. `asteroidpy/interface/_tui_screens.py:422`,
+`:993`, `:1121`, `:1260`). Nessun meccanismo persistente o programmato.
 
 **Problema** — l'utente deve aprire l'app e interrogare i dati per scoprire che
 un oggetto è sorto o che un NEOcp ad alto score è visibile stasera. Erano già un
@@ -762,12 +820,13 @@ TODO del progetto.
 
 ## F3 — Test della TUI con `App.run_test()` e pilot
 
-**Contesto** — `asteroidpy/interface/_tui_screens.py` è 1777 righe con 20 classi
-`Screen` e **nessun test che le istanzi**. `tests/test_tui_screens.py` esiste già
-(7 test) ma copre solo gli helper puri introdotti da F7/F9/F6
-(`_clamped_int`, `_validate_horizon_degrees`, `PLANNER_ERROR_MESSAGES`,
-`_planner_preview_lines`, `WHATSUP_ERROR_LABELS`): nessun test usa
-`App.run_test()`. I 154 test della suite coprono la logica pura, non i widget.
+**Contesto** — `asteroidpy/interface/_tui_screens.py` è 1843 righe con 21 classi
+`Screen` (20 schermate più la base `MenuScreen`) e **nessun test che le
+istanzi**. `tests/test_tui_screens.py` esiste già (7 test) ma copre solo gli
+helper puri introdotti da F7/F9/F6 (`_clamped_int`, `_validate_horizon_degrees`,
+`PLANNER_ERROR_MESSAGES`, `_planner_preview_lines`, `WHATSUP_ERROR_LABELS`):
+nessun test usa `App.run_test()`. I 215 test della suite coprono la logica pura,
+non i widget.
 
 **Cosa fare**
 
@@ -777,24 +836,25 @@ TODO del progetto.
 2. Coprire almeno: composizione di ogni schermata senza eccezioni, `escape`
    torna al menu precedente da ogni schermata, validazione degli input
    (numero non numerico, fuori range), prefill dei campi di C1/F7 — incluso il
-   nuovo `PlannerSettingsScreen` (`_tui_screens.py:795`) — e il cambio lingua
-   che ricostruisce lo stack (`_refresh_main_menu_after_locale`, `:148`).
+   nuovo `PlannerSettingsScreen` (`_tui_screens.py:861`) — e il cambio lingua
+   che ricostruisce lo stack (`_refresh_main_menu_after_locale`, `:153`).
 3. Simulare la rete: patchare le funzioni di `scheduling.py` a livello di
    modulo, non i client HTTP. Non colpire mai la rete in un test.
 4. Test della navigazione principali: Configurazione → Osservatorio → coordinate
    → salva → riapri e verifica il valore persistito (con directory temporanea
    come in `tests/test_configuration.py`).
 5. Attenzione a `asyncio.to_thread` e `run_worker` usati in
-   `_tui_screens.py:1188` (token What's Observable) e in
-   `_push_result_log_modal:1434`: i test devono attendere il completamento senza
+   `_tui_screens.py:1254` (token What's Observable) e in
+   `_push_result_log_modal:1500`: i test devono attendere il completamento senza
    `time.sleep` fragili. Preferire un meccanismo di attesa esplicito.
-6. Aggiungere `pytest-asyncio` in `pyproject.toml` se assente, con
-   `asyncio_mode = "auto"` o marker espliciti coerenti con lo stile esistente.
+6. Aggiungere `pytest-asyncio` in `pyproject.toml` (l'extra `dev`, a
+   `pyproject.toml:54`, oggi non lo include), con `asyncio_mode = "auto"` o
+   marker espliciti coerenti con lo stile esistente.
 
 **Criteri di accettazione**
 
 - `pytest -q` verde e nessun test che tocchi la rete.
-- Almeno una copertura per ciascuna delle 20 classi `Screen`.
+- Almeno una copertura per ciascuna delle 20 schermate.
 - `mypy.ini:41-45` continua a ignorare gli errori in `tests.*`: non allargare il
   gate per far passare i test.
 
@@ -847,8 +907,15 @@ coprono un caso ciascuno. I test degli helper delle schermate sono già in
 **nessuno stage docs**, quindi il drift della documentazione non viene
 intercettato. La matrix dei test non esercita le versioni dichiarate: il
 `Jenkinsfile` usa un singolo `python3` non pinnato, mentre `README.md` dichiara
-supporto 3.11, 3.12, 3.13, 3.14 e `pyproject.toml` li elenca nei classifier.
-`docs/source/conf.py:91` imposta `nitpicky = True`.
+supporto 3.11, 3.12, 3.13, 3.14 e `pyproject.toml` li elenca nei classifier
+(`pyproject.toml:31-34`). `docs/source/conf.py:91` imposta `nitpicky = True`.
+
+**Nota** — `make html` oggi non è del tutto pulito: resta un warning pre-esistente
+`:func:` non risolvibile verso il privato `_neocp_viewing_point_fields`, citato
+nella docstring di `get_neocp_ephemeris` (`asteroidpy/scheduling.py:1438`).
+Con `-W` quello stage fallirebbe subito: correggi il riferimento (per esempio
+riferendosi al comportamento senza cross-reference privata) **prima** di
+aggiungere lo stage.
 
 **Cosa fare**
 
@@ -874,7 +941,8 @@ supporto 3.11, 3.12, 3.13, 3.14 e `pyproject.toml` li elenca nei classifier.
 - `AGENTS.md` e `CONTRIBUTING.md` descrivono i comandi e gli stage aggiornati.
 
 **Verifica** — esecuzione locale di `pytest -q`, del gate di lint, e
-`(cd docs && make html)` pulito.
+`(cd docs && make html)` pulito: oggi l'ultimo è **già rosso** per il warning
+`_neocp_viewing_point_fields` descritto sopra, quindi partire da lì.
 
 **Dipende da** — nessuno, ma farlo dopo le feature che toccano la documentazione
 (si rischierebbe di segnalare come fallimento il drift prodotto da quel task).
@@ -883,13 +951,15 @@ supporto 3.11, 3.12, 3.13, 3.14 e `pyproject.toml` li elenca nei classifier.
 
 ## F8 — Retry con backoff e gestione degli errori di rete
 
-**Contesto** — `asteroidpy/scheduling.py:51` (`DEFAULT_REQUEST_TIMEOUT_SEC = 30.0`)
-è l'unico controllo di rete dell'intero progetto. Non c'è retry, non c'è backoff,
-non c'è rispetto di `Retry-After`. I client sono tre: `requests`
-(`:158` token What's Observable, `:511` 7Timer, `:891` POST What's Observable),
-`httpx` (`:349` `httpx_get`, `:401` `httpx_post`, `:1226`). Gli errori si
-degradano in silenzio a `{}`, `[]` o stringhe (`weather_forecast_raw:518`,
-`observing_target_list_scraper:898`, `best_nights:1811`).
+**Contesto** — `asteroidpy/scheduling.py:60`
+(`DEFAULT_REQUEST_TIMEOUT_SEC = 30.0`) è l'unico controllo di rete dell'intero
+progetto. Non c'è retry, non c'è backoff, non c'è rispetto di `Retry-After`. I
+client sono tre: `requests` (`:178` token What's Observable, `:567` 7Timer,
+`:1065` POST What's Observable), `httpx` (`:401` `httpx_get`, `:453`
+`httpx_post`, e un `AsyncClient` inline a `:1458` in `get_neocp_ephemeris`).
+Gli errori si degradano in silenzio a `{}`, `[]` o stringhe
+(`weather_forecast_raw:587-588`, `observing_target_list_scraper:1089-1090`,
+`best_nights:2050`).
 
 **Problema** — un timeout transitorio o un 503 del MPC producono una tabella
 vuota senza diagnosi; l'utente non distingue «nessun oggetto» da «richiesta
@@ -898,8 +968,12 @@ fallita».
 **Cosa fare**
 
 1. Un unico wrapper HTTP con retry esponenziale + jitter, rispetto di
-   `Retry-After`, e tetto sui tentativi. I tre call site passano da quel wrapper.
-   Non ritentare su 4xx (eccetto 429): ritentare un 400 spreca tempo.
+   `Retry-After`, e tetto sui tentativi. I call site passano da quel wrapper:
+   i tre su `requests`, `httpx_get`, l'`AsyncClient` inline di
+   `get_neocp_ephemeris`, e anche `httpx_post`, che oggi non ha più caller
+   production (solo test) e va valutato: tenerlo o rimuoverlo, non lasciarlo
+   fuori dal wrapper. Non ritentare su 4xx (eccetto 429): ritentare un 400
+   spreca tempo.
 2. Distinguere gli errori tipizzati (`DataSourceError`, già introdotto da F6 in
    `asteroidpy/errors.py`, con `source`, `reason`, `detail`: qui va esteso con
    `status`) invece di `except requests.RequestException: return {}`. Vedi A3: i
