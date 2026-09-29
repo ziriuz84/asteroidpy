@@ -126,12 +126,15 @@ asteroidpy/
 ├── interface/        # Textual TUI and gettext setup
 ├── scheduling.py     # Ephemerides, weather, NEOcp, twilight, best-night planner
 ├── configuration.py  # Observatory config, horizon, language, planner weights
+├── cache.py          # On-disk response cache with a per-source TTL
 └── locales/          # gettext translations (en, it, de, fr, es, pt), shipped in PyPI wheels
 ```
 
-- **`interface`** — Main entry for the interactive UI (Textual screens). Loads config, sets up gettext, and delegates to `scheduling` for ephemeris/weather/NEOcp and to `configuration` for settings. The screens live in `interface/_tui_screens.py`.
+- **`interface`** — Main entry for the interactive UI (Textual screens). Loads config, sets up gettext, and delegates to `scheduling` for ephemerides/weather/NEOcp and to `configuration` for settings. The screens live in `interface/_tui_screens.py`.
 - **`scheduling`** — Astronomy logic: MPC queries, 7Timer weather, twilight, Sun/Moon ephemeris, and the best-night planner. Uses `configuration.load_config()` to read observatory data.
 - **`configuration`** — Persists and loads settings via platformdirs; handles observatory coordinates, virtual horizon, planner weights, and language. Used by both `interface` and `scheduling`.
+- **`cache`** — Stores remote responses under the platformdirs *cache* dir, one JSON file per key. Every `scheduling` request that does not go through astroquery is wrapped in `cache.fetch_cached`, so its public signatures stay the same. Two rules are deliberate: the key must exclude volatile fields (the CSRF token, or no entry would ever be reused), and only a *network* failure may be answered from disk — a page we no longer recognize is reported, not silently replaced by a stale body. The two astroquery calls keep astroquery's own week-long cache instead.
+
 
 ## Documentation
 

@@ -919,10 +919,36 @@ GAP_STRINGS: dict[str, dict[str, str]] = {
             "Les altitudes de l'horizon virtuel doivent être des nombres entre 0° et 90°."
         ),
         "pt": (
-            "As altitudes do horizonte virtual devem ser números entre 0° e 90°."
+            "As alturas do horizonte virtual devem ser números entre 0° e 90°."
         ),
     },
+    # Response cache (asteroidpy.cache, GeneralConfigScreen)
+    "2 - Clear cache": {
+        "en": "",
+        "it": "2 - Svuota la cache",
+        "de": "2 - Cache leeren",
+        "es": "2 - Vaciar la caché",
+        "fr": "2 - Vider le cache",
+        "pt": "2 - Limpar o cache",
+    },
+    "Removed {count} cached response(s).": {
+        "en": "",
+        "it": "Rimosse {count} risposte dalla cache.",
+        "de": "{count} zwischengespeicherte Antwort(en) entfernt.",
+        "es": "Se eliminaron {count} respuesta(s) de la caché.",
+        "fr": "{count} réponse(s) en cache supprimée(s).",
+        "pt": "Foram removidas {count} resposta(s) do cache.",
+    },
+    "The cache was already empty.": {
+        "en": "",
+        "it": "La cache era già vuota.",
+        "de": "Der Cache war bereits leer.",
+        "es": "La caché ya estaba vacía.",
+        "fr": "Le cache était déjà vide.",
+        "pt": "O cache já estava vazio.",
+    },
 }
+
 
 
 def _resolve_target(per_lang: dict[str, str], code: str, msgid: str) -> str | None:

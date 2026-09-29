@@ -677,3 +677,16 @@ msgstr "page inaccessible"
 #: asteroidpy/interface/_tui_screens.py:87
 msgid "unexpected page"
 msgstr "réponse inattendue"
+
+#: asteroidpy/interface/_tui_screens.py:397
+msgid "2 - Clear cache"
+msgstr "2 - Vider le cache"
+
+#: asteroidpy/interface/_tui_screens.py:423
+#, python-brace-format
+msgid "Removed {count} cached response(s)."
+msgstr "{count} réponse(s) en cache supprimée(s)."
+
+#: asteroidpy/interface/_tui_screens.py:426
+msgid "The cache was already empty."
+msgstr "Le cache était déjà vide."

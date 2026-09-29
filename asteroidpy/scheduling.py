@@ -15,6 +15,15 @@ Public entry points fall into four groups:
 
 Observatory settings and planner weights are read from the configuration
 object via :func:`asteroidpy.configuration.load_config`.
+
+**Caching** — every request that does not go through astroquery is wrapped in
+:func:`asteroidpy.cache.fetch_cached`, keyed by endpoint plus request parameters
+and given a per-source TTL (see the ``cache.TTL_*`` constants). A repeated run
+is therefore answered from disk, and a network failure falls back to the stored
+answer instead of degrading to an empty table. The two astroquery calls
+(:func:`object_ephemeris`, :func:`asteroidpy.configuration.get_observatory_coordinates`)
+keep astroquery's own cache: it already stores those responses for a week, and
+re-serializing an astropy table here would only duplicate it.
 """
 
 import asyncio
@@ -36,7 +45,7 @@ from astropy.units import Quantity
 from astroquery.mpc import MPC
 from bs4 import BeautifulSoup
 
-from asteroidpy import configuration
+from asteroidpy import cache, configuration
 from asteroidpy.errors import (
     REASON_HTTP_STATUS,
     REASON_NETWORK_ERROR,
@@ -143,22 +152,71 @@ _MPC_BROWSER_HEADERS = {
 }
 
 
+#: Cache key namespace and TTL of the What's Observable form token. The token
+#: is scraped from a page that never changes otherwise, so one key covers every
+#: request; the TTL is short because a Rails authenticity token is perishable.
+_WHATSUP_TOKEN_CACHE_KIND = "whatsup-token"
+
+
 def _scrape_whatsup_authenticity_token() -> str:
     """Return the Rails authenticity token of the What's Observable form.
+
+    The token is cached for :data:`asteroidpy.cache.TTL_TOKEN_SEC`, so opening the
+    target-list form twice in a row does not scrape the page twice.
 
     Raises
     ------
     DataSourceError
         The page was unreachable, answered with a non-200 status, or no longer
         carries a form token. The caller must report it: posting without a
-        token only produces a confusing empty result.
+        token only produces a confusing empty result. A *network* failure is the
+        one case a stored token can cover, so it fails over to the cached one
+        instead of raising.
     """
 
-    try:
+    def load() -> str:
         r = requests.get(
             MPC_WHATSUP_INDEX_URL,
             headers=_MPC_BROWSER_HEADERS,
             timeout=DEFAULT_REQUEST_TIMEOUT_SEC,
+        )
+        if r.status_code != 200:
+            raise DataSourceError(
+                MPC_WHATSUP_SOURCE,
+                REASON_HTTP_STATUS,
+                f"HTTP {r.status_code}",
+            )
+        soup = BeautifulSoup(r.content, "lxml")
+        inp = soup.find("input", attrs={"name": "authenticity_token"})
+        if inp and inp.get("value"):
+            return str(inp["value"])
+        html = r.text
+        m = re.search(
+            r'name=["\']authenticity_token["\'][^>]*value=["\']([^"\']+)["\']',
+            html,
+            re.IGNORECASE,
+        )
+        if m:
+            return m.group(1)
+        meta = re.search(
+            r'<meta\s+name=["\']csrf-token["\']\s+content=["\']([^"\']+)["\']',
+            html,
+            re.IGNORECASE,
+        )
+        if meta:
+            return meta.group(1)
+        raise DataSourceError(MPC_WHATSUP_SOURCE, REASON_TOKEN_NOT_FOUND)
+
+    def is_network_failure(exc: Exception) -> bool:
+        return isinstance(exc, DataSourceError) and exc.reason == REASON_NETWORK_ERROR
+
+    key = cache.cache_key(_WHATSUP_TOKEN_CACHE_KIND)
+    try:
+        result = cache.fetch_cached(
+            key,
+            cache.TTL_TOKEN_SEC,
+            load,
+            failover_on=is_network_failure,
         )
     except requests.RequestException as exc:
         raise DataSourceError(
@@ -166,32 +224,7 @@ def _scrape_whatsup_authenticity_token() -> str:
             REASON_NETWORK_ERROR,
             str(exc) or type(exc).__name__,
         ) from exc
-    if r.status_code != 200:
-        raise DataSourceError(
-            MPC_WHATSUP_SOURCE,
-            REASON_HTTP_STATUS,
-            f"HTTP {r.status_code}",
-        )
-    soup = BeautifulSoup(r.content, "lxml")
-    inp = soup.find("input", attrs={"name": "authenticity_token"})
-    if inp and inp.get("value"):
-        return str(inp["value"])
-    html = r.text
-    m = re.search(
-        r'name=["\']authenticity_token["\'][^>]*value=["\']([^"\']+)["\']',
-        html,
-        re.IGNORECASE,
-    )
-    if m:
-        return m.group(1)
-    meta = re.search(
-        r'<meta\s+name=["\']csrf-token["\']\s+content=["\']([^"\']+)["\']',
-        html,
-        re.IGNORECASE,
-    )
-    if meta:
-        return meta.group(1)
-    raise DataSourceError(MPC_WHATSUP_SOURCE, REASON_TOKEN_NOT_FOUND)
+    return cast(str, result.value)
 
 
 def resolve_whatsup_authenticity_token() -> str:
@@ -272,6 +305,12 @@ NEOCP_PARALLAX_COORDINATES = 2
 #: MPC refuses as observing sites, kept here so configurations written before the
 #: ``500`` default still produce a usable ephemeris.
 NEOCP_GENERIC_MPC_CODES = frozenset({"", "0", "500", "XXX"})
+
+#: Name of the confirmeph2 source, used in :class:`~asteroidpy.errors.DataSourceError`.
+NEOCP_EPHEM_SOURCE = "MPC confirm ephemerides"
+
+#: NEOcp live feed (JSON) endpoint, refreshed by the MPC every few minutes.
+NEOCP_JSON_URL = "https://www.minorplanetcenter.net/Extended_Files/neocp.json"
 
 cloudcover_dict = {
     1: "0%-6%",
@@ -513,28 +552,41 @@ def weather_forecast_raw(
     Returns
     -------
     dict
-        Parsed JSON body, or ``{}`` when the request fails, times out, the
-        server returns an error status, or the body is not valid JSON.
+        Parsed JSON body. An empty dict is returned when the request fails, times
+        out, the server returns an error status, or the body is not valid JSON —
+        unless a previous forecast is still on disk, in which case that one is
+        returned instead: see :func:`asteroidpy.cache.fetch_cached`.
     """
 
     configuration.load_config(config)
     lat, long = config["Observatory"]["latitude"], config["Observatory"]["longitude"]
     payload = {"lon": long, "lat": lat, "product": product, "output": "json"}
-    try:
+    key = cache.cache_key("weather", url=SEVENTIMER_API_URL, **payload)
+
+    def load() -> dict[str, Any]:
         r = requests.get(
             SEVENTIMER_API_URL,
             params=payload,
             timeout=DEFAULT_REQUEST_TIMEOUT_SEC,
         )
         r.raise_for_status()
-        weather_forecast = r.json()
-    except requests.RequestException:
+        forecast = r.json()
+        if not isinstance(forecast, dict):
+            raise ValueError("7Timer returned a non-object payload")
+        return forecast
+
+    try:
+        result = cache.fetch_cached(
+            key,
+            cache.TTL_WEATHER_SEC,
+            load,
+            # Only a transport failure is worth answering from disk: a body we
+            # cannot read means the service changed, and that is worth saying.
+            failover_on=requests.RequestException,
+        )
+    except (requests.RequestException, ValueError):
         return {}
-    except ValueError:
-        return {}
-    if not isinstance(weather_forecast, dict):
-        return {}
-    return weather_forecast
+    return cast(dict[str, Any], result.value)
 
 
 def validated_ephemeris_points(number: int | str) -> int:
@@ -863,6 +915,105 @@ def is_visible(config: ConfigParser, coord: SkyCoord | list[str], time: Time) ->
     return in_west and altitude_deg >= west_alt_threshold
 
 
+class _TransportUnavailable(RuntimeError):
+    """The request never reached the source (DNS, TLS, timeout, refused).
+
+    Distinct from :class:`_UnexpectedResponse`: the first justifies answering
+    from the cache, the second does not, because a body we do not recognize
+    means the service changed and the user should be told.
+    """
+
+
+class _UnexpectedResponse(RuntimeError):
+    """The source answered, but not with something usable."""
+
+
+class _NoTargetTable(RuntimeError):
+    """The What's Observable response carried no recognizable results table.
+
+    Raised instead of returning an empty list so the caller can tell "the sky
+    offers nothing" (a real, cacheable answer) from "the page is not what we
+    expect" (a change worth reporting, and never worth caching).
+    """
+
+
+#: Volatile MPC form fields excluded from the target-list cache key. A CSRF token
+#: is re-scraped on every run, so including it would make every key unique and
+#: the cache would never be read.
+_VOLATILE_FORM_FIELDS = frozenset({"authenticity_token"})
+
+
+def _cacheable_form(body: Mapping[str, Any]) -> dict[str, Any]:
+    """Return the POST fields that identify a query, minus the volatile ones."""
+
+    return {
+        name: value for name, value in body.items() if name not in _VOLATILE_FORM_FIELDS
+    }
+
+
+def _target_table_rows(content: bytes) -> list[list[str]] | None:
+    """Extract the target rows from a What's Observable page, or ``None``.
+
+    The 4th table is preferred (legacy behavior), then any table whose headers
+    match the classic or extended MPC layout. ``None`` means the page carried no
+    recognizable results table at all, which is not the same as a table with no
+    rows in it.
+
+    MPC currently uses either the classic columns (… Time / RA / Dec / Alt) or
+    the extended layout with solar/lunar elongation and Begin/Max epochs (indices
+    4–7 still map to Begin time / Beg RA / Dec / Alt for visibility filtering).
+    Only non-empty data rows are returned.
+    """
+
+    soup = BeautifulSoup(content, "lxml")
+    tables = soup.find_all("table")
+
+    classic_headers = {"Designation", "Mag", "Time", "RA", "Dec", "Alt"}
+    beg_headers = {
+        "Designation",
+        "Mag",
+        "Begin Time",
+        "Beg RA",
+        "Beg Dec",
+        "Beg Alt",
+    }
+
+    def matches_results(headers: set[str]) -> bool:
+        return classic_headers.issubset(headers) or beg_headers.issubset(headers)
+
+    target_table = None
+    if len(tables) >= 4:
+        fourth = tables[3]
+        header_set = {
+            h for h in (th.get_text(strip=True) for th in fourth.find_all("th")) if h
+        }
+        if matches_results(header_set):
+            target_table = fourth
+    if target_table is None:
+        for candidate in tables:
+            header_set = {
+                h
+                for h in (th.get_text(strip=True) for th in candidate.find_all("th"))
+                if h
+            }
+            if matches_results(header_set):
+                target_table = candidate
+                break
+
+    if target_table is None:
+        return None
+
+    data: list[list[str]] = []
+    for row in target_table.find_all("tr"):
+        cells = row.find_all("td")
+        if not cells:
+            continue
+        values = [cell.get_text(strip=True) for cell in cells]
+        if any(values):
+            data.append(values)
+    return data
+
+
 def observing_target_list_scraper(url: str, payload: dict[str, Any]) -> list[list[str]]:
     """Scrape observing target list data from a web page.
 
@@ -893,70 +1044,51 @@ def observing_target_list_scraper(url: str, payload: dict[str, Any]) -> list[lis
     map to Begin time / Beg RA / Dec / Alt for visibility filtering). Only
     non-empty data rows are returned.
 
-    Raises nothing: failures return an empty list.
+    The rows are cached for :data:`asteroidpy.cache.TTL_TARGET_LIST_SEC` under a
+    key built from the query itself. The ``authenticity_token`` field is
+    deliberately left out of that key: it changes on every run, and including it
+    would mean the cache is never hit.
+
+    Raises nothing: a request that fails, or a page with no recognizable table,
+    yields an empty list — unless rows from the same query are still on disk, in
+    which case those are returned instead.
     """
     # MPC Rails form expects a POST body, not query-string parameters.
     body: dict[str, Any] = dict(payload)
     if body.get("utf8") == "%E2%9C%93":
         body["utf8"] = "\u2713"
 
+    key = cache.cache_key("whatsup-targets", url=url, body=_cacheable_form(body))
+
+    def load() -> list[list[str]]:
+        try:
+            r = requests.post(
+                url,
+                data=body,
+                headers=_MPC_BROWSER_HEADERS,
+                timeout=DEFAULT_REQUEST_TIMEOUT_SEC,
+            )
+            r.raise_for_status()
+        except requests.RequestException as exc:
+            # Only a transport failure may be answered from the cache: a page
+            # that no longer carries the table is a change worth reporting, and
+            # silently returning yesterday's rows would hide it.
+            raise _NoTargetTable(str(exc)) from exc
+        rows = _target_table_rows(r.content)
+        if rows is None:
+            raise _NoTargetTable("no results table in the response")
+        return rows
+
     try:
-        r = requests.post(
-            url,
-            data=body,
-            headers=_MPC_BROWSER_HEADERS,
-            timeout=DEFAULT_REQUEST_TIMEOUT_SEC,
+        result = cache.fetch_cached(
+            key,
+            cache.TTL_TARGET_LIST_SEC,
+            load,
+            failover_on=requests.RequestException,
         )
-        r.raise_for_status()
-    except requests.RequestException:
+    except (requests.RequestException, _NoTargetTable):
         return []
-
-    soup = BeautifulSoup(r.content, "lxml")
-    tables = soup.find_all("table")
-
-    _classic_headers = {"Designation", "Mag", "Time", "RA", "Dec", "Alt"}
-    _beg_headers = {
-        "Designation",
-        "Mag",
-        "Begin Time",
-        "Beg RA",
-        "Beg Dec",
-        "Beg Alt",
-    }
-
-    def _table_matches_results(headers: set[str]) -> bool:
-        return _classic_headers.issubset(headers) or _beg_headers.issubset(headers)
-
-    # Prefer the 4th table if present (legacy behavior), otherwise try to detect by headers
-    target_table = None
-    if len(tables) >= 4:
-        fourth = tables[3]
-        header_cells = [th.get_text(strip=True) for th in fourth.find_all("th")]
-        header_set = {h for h in header_cells if h}
-        if _table_matches_results(header_set):
-            target_table = fourth
-    if target_table is None:
-        for candidate in tables:
-            header_cells = [th.get_text(strip=True) for th in candidate.find_all("th")]
-            header_set = {h for h in header_cells if h}
-            if _table_matches_results(header_set):
-                target_table = candidate
-                break
-
-    # If no suitable table was found, return an empty result gracefully
-    if target_table is None:
-        return []
-
-    # Extract non-empty data rows, skipping header rows
-    data: list[list[str]] = []
-    for row in target_table.find_all("tr"):
-        cells = row.find_all("td")
-        if not cells:
-            continue
-        values = [cell.get_text(strip=True) for cell in cells]
-        if any(values):
-            data.append(values)
-    return data
+    return cast(list[list[str]], result.value)
 
 
 def observing_target_list(config: ConfigParser, payload: dict[str, Any]) -> QTable:
@@ -1244,6 +1376,33 @@ def _neocp_viewing_point_fields(config: ConfigParser) -> str:
     )
 
 
+def _parse_neocp_ephemerides(response_text: str) -> dict[str, list[str]]:
+    """Parse confirmeph2 HTML into ``designation -> ephemeris values``.
+
+    The third line of each ``<pre>`` block carries the ephemeris row; blocks with
+    fewer than four values are skipped, as they were before the response was
+    made cacheable.
+    """
+
+    pattern = r"<b>([A-Za-z0-9]+)</b>[\s\S]*?<pre>([\s\S]*?)</pre>"
+    matches = re.findall(pattern, response_text)
+
+    result: dict[str, list[str]] = {}
+    for designation, block in matches:
+        lines = block.strip().split("\n")
+        if len(lines) > 2:
+            second_line = lines[2]
+        else:
+            second_line = lines[0] if lines else ""
+
+        values_array = re.split(r"\s+", second_line.strip())
+        if len(values_array) < 4:
+            continue
+        result[designation] = [val for val in values_array if val]
+
+    return result
+
+
 async def get_neocp_ephemeris(
     config: ConfigParser, object_names: list[str]
 ) -> dict[str, list[str]]:
@@ -1279,60 +1438,76 @@ async def get_neocp_ephemeris(
     The viewing point is resolved by :func:`_neocp_viewing_point_fields` from
     ``[Observatory] mpc_code``, ``latitude``, ``longitude`` and ``altitude``,
     so the returned velocity and direction are computed for the same site the
-    caller filters on locally.
+    caller filters on locally. Those fields, together with the sorted object
+    designations, form the cache key, so moving the observatory invalidates the
+    entries computed for the old site.
     """
     configuration.load_config(config)
     object_names_str = ",".join(object_names)
     payload = f"mb=-30&mf=30&dl=-90&du=%2B90&nl=0&nu=100&sort=d&W=j&obj={object_names_str}&{_neocp_viewing_point_fields(config)}&int=0&start=0&raty=a&mot=m&dmot=p&out=f&sun=x&oalt=20"
     url = "https://cgi.minorplanetcenter.net/cgi-bin/confirmeph2.cgi"
-    timeout = httpx.Timeout(DEFAULT_REQUEST_TIMEOUT_SEC)
-    try:
+    key = cache.cache_key(
+        "neocp-ephemerides",
+        url=url,
+        payload=payload,
+        objects=sorted(set(object_names)),
+    )
+
+    async def load() -> dict[str, list[str]]:
+        timeout = httpx.Timeout(DEFAULT_REQUEST_TIMEOUT_SEC)
         async with httpx.AsyncClient(timeout=timeout) as client:
             r = await client.post(
                 url,
                 headers={"Content-Type": "application/x-www-form-urlencoded"},
                 content=payload,
             )
-        response_text = r.text
+        return _parse_neocp_ephemerides(r.text)
+
+    try:
+        result = await cache.fetch_cached_async(
+            key,
+            cache.TTL_NEOCP_EPHEM_SEC,
+            load,
+            failover_on=httpx.RequestError,
+        )
     except httpx.RequestError:
-        response_text = ""
-
-    pattern = r"<b>([A-Za-z0-9]+)</b>[\s\S]*?<pre>([\s\S]*?)</pre>"
-    matches = re.findall(pattern, response_text)
-
-    result_dict = {}
-    for key, value in matches:
-        lines = value.strip().split("\n")
-        if len(lines) > 2:
-            second_line = lines[2]
-        else:
-            second_line = lines[0] if lines else ""
-
-        values_array = re.split(r"\s+", second_line.strip())
-
-        if len(values_array) < 4:
-            continue
-
-        values_array = [val for val in values_array if val]
-
-        result_dict[key] = values_array
-
-    return result_dict
+        return {}
+    return cast(dict[str, list[str]], result.value)
 
 
 async def fetch_neocp_json_and_ephemeris(
     config: ConfigParser,
 ) -> tuple[list[dict[str, Any]], dict[str, list[str]], bool]:
-    """Download NEOcp JSON and MPC confirm ephemerides in one event-loop run."""
+    """Download NEOcp JSON and MPC confirm ephemerides in one event-loop run.
 
-    data_raw, status = await httpx_get(
-        "https://www.minorplanetcenter.net/Extended_Files/neocp.json",
-        {},
-        "json",
-    )
-    if status != 200 or not isinstance(data_raw, list):
+    The feed is cached for :data:`asteroidpy.cache.TTL_NEOCP_JSON_SEC` and the
+    ephemerides for :data:`asteroidpy.cache.TTL_NEOCP_EPHEM_SEC`, so re-opening
+    the NEOcp screen minutes apart does not re-query the MPC.
+    """
+
+    key = cache.cache_key("neocp-json", url=NEOCP_JSON_URL)
+
+    async def load() -> list[dict[str, Any]]:
+        data_raw, status = await httpx_get(NEOCP_JSON_URL, {}, "json")
+        if status == 0:
+            # httpx_get reports a transport failure as status 0; the cache needs
+            # to see it as a failure rather than as an empty answer.
+            raise _TransportUnavailable("neocp.json is unreachable")
+        if status != 200 or not isinstance(data_raw, list):
+            raise _UnexpectedResponse(f"neocp.json answered with HTTP {status}")
+        return data_raw
+
+    try:
+        result = await cache.fetch_cached_async(
+            key,
+            cache.TTL_NEOCP_JSON_SEC,
+            load,
+            failover_on=_TransportUnavailable,
+        )
+    except (httpx.RequestError, ValueError, _TransportUnavailable, _UnexpectedResponse):
         return [], {}, False
 
+    data_raw = cast(list[dict[str, Any]], result.value)
     designation_names = [item["Temp_Desig"] for item in data_raw]
     if not designation_names:
         return data_raw, {}, True
