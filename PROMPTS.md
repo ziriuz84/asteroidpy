@@ -23,6 +23,11 @@ originale e aggiunge in fondo un blocco **Esito** con le scelte prese e i
 riferimenti correnti. **Non ripetere un task ✅**: leggere il suo *Esito*.
 Prossimo task pendente: `A2`.
 
+Ogni sezione pendente ha una **Issue** GitHub che ne ripete il contenuto in
+inglese (milestone `refactoring roadmap`), così si può lavorare da GitHub senza
+leggere questo file. Le issue si aggiornano insieme alle sezioni: se una di esse
+cambia, aggiorna entrambe.
+
 I riferimenti `file.py:riga` delle sezioni **non** completate sono stati
 riallineati al codice corrente dopo l'ultimo task ✅ (A1, `6fbfad5`); quelli
 delle sezioni ✅ sono storici (valgono per lo stato precedente al task) e vanno
@@ -457,6 +462,8 @@ quindi non esiste nemmeno la base per una modalità offline.
 
 ## A2 — Export dei risultati su file e clipboard
 
+**Issue** — [#137](https://github.com/ziriuz84/asteroidpy/issues/137)
+
 **Contesto** — `asteroidpy/interface/_tui_screens.py:1441`
 (`ObservingTargetListScreen`) e `:1587` (`NeocpScreen`) usano
 `show_in_browser(jsviewer=True)`; `EphemerisScreen` (`:1596`) non ha l'opzione;
@@ -509,6 +516,8 @@ esistono CSV, JSON, né un percorso scelto dall'utente, né copia negli appunti.
 
 ## A3 — Modalità offline e surfacing dello stato dei dati
 
+**Issue** — [#138](https://github.com/ziriuz84/asteroidpy/issues/138)
+
 **Contesto** — oggi i fallimenti degradano a testo o a valori vuoti:
 `weather_forecast_raw` (`asteroidpy/scheduling.py:587-588` → `{}`),
 `observing_target_list_scraper` (`:1017`, `return []` a `:1090`),
@@ -553,6 +562,8 @@ il vuoto in testo. `DataSourceError` (`asteroidpy/errors.py:25`, costruttore a
 ---
 
 ## B1 — Interfaccia a riga di comando non interattiva
+
+**Issue** — [#143](https://github.com/ziriuz84/asteroidpy/issues/143)
 
 **Contesto** — `pyproject.toml:41` (`asteroidpy = "asteroidpy:main"`);
 `asteroidpy/__init__.py:31` (`main`, che oggi chiama solo `interface()` alle
@@ -609,6 +620,8 @@ strumento è inutilizzabile in uno script, in un cron, o in CI.
 
 ## D1 — Grafici e curve di visibilità
 
+**Issue** — [#146](https://github.com/ziriuz84/asteroidpy/issues/146)
+
 **Contesto** — `asteroidpy/scheduling.py:647` (report meteo), `:1607`
 (`object_ephemeris`, con `number=`), `:2007`/`:2081` (miglior notte);
 `astropy` è già dipendenza, `matplotlib` no.
@@ -656,6 +669,8 @@ posizione in cielo, non si vede l'andamento del punteggio di una notte.
 
 ## C1 — Watchlist oggetti persistente
 
+**Issue** — [#139](https://github.com/ziriuz84/asteroidpy/issues/139)
+
 **Contesto** — nessun catalogo locale esiste; gli oggetti arrivano da
 `observing_target_list` (`asteroidpy/scheduling.py:1094`), da
 `neocp_confirmation` (`:1165`) o da una ricerca puntuale con
@@ -695,6 +710,8 @@ ritrovare «quello che volevo vedere giovedì». Ogni risultato è effimero.
 
 ## C2 — Piani di sessione salvati e ripresi
 
+**Issue** — [#144](https://github.com/ziriuz84/asteroidpy/issues/144)
+
 **Contesto** — `asteroidpy/interface/_tui_screens.py:1023`
 (`SchedulingRootScreen`) è un hub di query **stateless**: ogni schermata
 riscrive i propri parametri e nessun risultato sopravvive. `ObservingTargetListScreen`
@@ -732,6 +749,8 @@ con il meteo previsto per quella notte.
 ---
 
 ## C3 — Registro osservazioni ed export ADES-MPC
+
+**Issue** — [#145](https://github.com/ziriuz84/asteroidpy/issues/145)
 
 **Contesto** — oggi lo strumento dice **cosa osservare**, non **cosa è stato
 osservato**. Nessun modulo tiene traccia delle osservazioni; `mpc_code` e
@@ -776,6 +795,8 @@ TODO del progetto.
 
 ## E1 — Alert programmati e notifiche persistenti
 
+**Issue** — [#147](https://github.com/ziriuz84/asteroidpy/issues/147)
+
 **Contesto** — le uniche notifiche sono toast effimeri di `app.notify()` per
 validazione, clamping ed errori (es. `asteroidpy/interface/_tui_screens.py:422`,
 `:993`, `:1121`, `:1260`). Nessun meccanismo persistente o programmato.
@@ -819,6 +840,8 @@ TODO del progetto.
 ---
 
 ## F3 — Test della TUI con `App.run_test()` e pilot
+
+**Issue** — [#140](https://github.com/ziriuz84/asteroidpy/issues/140)
 
 **Contesto** — `asteroidpy/interface/_tui_screens.py` è 1843 righe con 21 classi
 `Screen` (20 schermate più la base `MenuScreen`) e **nessun test che le
@@ -868,6 +891,8 @@ non i widget.
 
 ## F4 — Deduplicare i test di configurazione
 
+**Issue** — [#141](https://github.com/ziriuz84/asteroidpy/issues/141)
+
 **Contesto** — `tests/test_configuration.py` (28 test, stile pytest) e
 `tests/test_configuration_unittest.py` (13 test, `unittest.TestCase`, caricato
 con `importlib.util.spec_from_file_location`) coprono in buona parte lo stesso
@@ -902,6 +927,8 @@ coprono un caso ciascuno. I test degli helper delle schermate sono già in
 ---
 
 ## F5 — Stage docs e matrix Python nel `Jenkinsfile`
+
+**Issue** — [#142](https://github.com/ziriuz84/asteroidpy/issues/142)
 
 **Contesto** — `Jenkinsfile`: c'è lo stage `Lint`, i test e SonarQube, ma
 **nessuno stage docs**, quindi il drift della documentazione non viene
@@ -950,6 +977,8 @@ aggiungere lo stage.
 ---
 
 ## F8 — Retry con backoff e gestione degli errori di rete
+
+**Issue** — [#148](https://github.com/ziriuz84/asteroidpy/issues/148)
 
 **Contesto** — `asteroidpy/scheduling.py:60`
 (`DEFAULT_REQUEST_TIMEOUT_SEC = 30.0`) è l'unico controllo di rete dell'intero

@@ -237,42 +237,43 @@ See [CHANGELOG.md](CHANGELOG.md).
 
 The missing features, grouped by area. Every entry has a ready-to-run prompt in
 [`PROMPTS.md`](PROMPTS.md), with context, acceptance criteria and verification
-commands.
+commands; the pending ones also have a GitHub issue carrying the same content in
+English.
 
 ### Data and output
 
 - [x] **A1** Persistent cache of network responses with a TTL, with a dedicated cache for the MPC form token and distinct hit/miss/failover counters
-- [ ] **A2** CSV/JSON/text export to file from every table screen, with an explicit path and a copy-to-clipboard
-- [ ] **A3** Offline mode: cache fallback, status banner and a distinction between fresh data, cached data and errors
+- [ ] **A2** CSV/JSON/text export to file from every table screen, with an explicit path and a copy-to-clipboard ([#137](https://github.com/ziriuz84/asteroidpy/issues/137))
+- [ ] **A3** Offline mode: cache fallback, status banner and a distinction between fresh data, cached data and errors ([#138](https://github.com/ziriuz84/asteroidpy/issues/138))
 
 ### Command-line interface
 
-- [ ] **B1** `argparse` subcommands (`weather`, `neocp`, `ephemeris`, `targets`, `twilight`, `best-night`), `--version`, `--json`, `python -m asteroidpy`
+- [ ] **B1** `argparse` subcommands (`weather`, `neocp`, `ephemeris`, `targets`, `twilight`, `best-night`), `--version`, `--json`, `python -m asteroidpy` ([#143](https://github.com/ziriuz84/asteroidpy/issues/143))
 
 ### Watchlist and observation log
 
-- [ ] **C1** Persistent object watchlist, with the ability to add entries from every results table
-- [ ] **C2** Saved and resumable session plans, linked to the night's weather score
-- [ ] **C3** Observation log and export in the format accepted by the MPC
+- [ ] **C1** Persistent object watchlist, with the ability to add entries from every results table ([#139](https://github.com/ziriuz84/asteroidpy/issues/139))
+- [ ] **C2** Saved and resumable session plans, linked to the night's weather score ([#144](https://github.com/ziriuz84/asteroidpy/issues/144))
+- [ ] **C3** Observation log and export in the format accepted by the MPC ([#145](https://github.com/ziriuz84/asteroidpy/issues/145))
 
 ### Charts
 
-- [ ] **D1** Altitude curve over time, night sky plot with the virtual horizon, score bars for the candidate nights
+- [ ] **D1** Altitude curve over time, night sky plot with the virtual horizon, score bars for the candidate nights ([#146](https://github.com/ziriuz84/asteroidpy/issues/146))
 
 ### Alerts
 
-- [ ] **E1** Scheduled, persistent alerts: in-app notification, SMTP email, webhook, with deduplication
+- [ ] **E1** Scheduled, persistent alerts: in-app notification, SMTP email, webhook, with deduplication ([#147](https://github.com/ziriuz84/asteroidpy/issues/147))
 
 ### Technical debt
 
 - [x] **F1** Observatory screen: coordinates shown in clear text via `observatory_summary_lines`, `print_obs_config` labels passed through gettext and present in every catalog
 - [x] **F2** Removed the orphaned legacy frontend (`_config_menus.py`, `_schedule_menus.py`, `_input.py`) and `main_menu`, unreachable and already diverged from the TUI
-- [ ] **F3** TUI tests: today none of the 19 screens has a test
-- [ ] **F4** Deduplication of `test_configuration.py` and `test_configuration_unittest.py`
-- [ ] **F5** Docs stage and Python 3.11–3.14 matrix in the `Jenkinsfile`
+- [ ] **F3** TUI tests: today none of the 20 screens has a test ([#140](https://github.com/ziriuz84/asteroidpy/issues/140))
+- [ ] **F4** Deduplication of `test_configuration.py` and `test_configuration_unittest.py` ([#141](https://github.com/ziriuz84/asteroidpy/issues/141))
+- [ ] **F5** Docs stage and Python 3.11–3.14 matrix in the `Jenkinsfile` ([#142](https://github.com/ziriuz84/asteroidpy/issues/142))
 - [x] **F6** Removal of the hardcoded CSRF fallback token in `scheduling.py` and explicit reporting of the failure
 - [x] **F7** Missing parameters: `object_ephemeris(number=…)` with validation, number of points and of nights in the screens, hours and temperature unit on the weather screen, prefill and 0–90° validation of the virtual horizon
-- [ ] **F8** Retry with backoff and typed handling of network errors
+- [ ] **F8** Retry with backoff and typed handling of network errors ([#148](https://github.com/ziriuz84/asteroidpy/issues/148))
 - [x] **F9** In-app editor for the planner weights: **Configuration → Planner** screen with `max_nights` and the four weights, validation shared with the loader, normalized weights shown, and a score preview
 
 Suggested execution order:
